@@ -121,16 +121,17 @@ class Genemsa:
               2 for exon2
             Leave empty if you want all the exons
         """
-        assert self.seq_type == "gen"
-        assert len(self.blocks) % 2 == 1
-        assert not len(exon_index) or (
-                max(exon_index) <= len(self.blocks) // 2 and
-                min(exon_index) > 0)
+        if self.seq_type != "gen":
+            raise TypeError("Check this object is gen or not")
+        if len(self.blocks) % 2 != 1:
+            raise ValueError("introns + exon should be odd")
 
         # If not specific the index, extract all exons
         if not exon_index:
             exon_index = range(1, len(self.blocks), 2)
         else:
+            if not (max(exon_index) <= len(self.blocks) // 2 and min(exon_index) > 0):
+                raise ValueError("Check chunk index is correct")
             exon_index = [i * 2 - 1 for i in exon_index]
 
         new_msa = self.select_chunk(exon_index)
@@ -155,9 +156,11 @@ class Genemsa:
               4 for 3-UTR(for two exons gene)
               -1 for 3-UTR(for all case)
         """
-        assert not len(index) or (
-            max(index) <= len(self.blocks) and
-            min(index) >= -1)
+        if not index:
+            return self
+
+        if not (max(index) <= len(self.blocks) and min(index) >= -1):
+            raise ValueError("Check chunk index is correct")
 
         # replace -1 (3-UTR)
         for i in range(len(index)):
@@ -165,16 +168,14 @@ class Genemsa:
                 index[i] = len(self.blocks) - 1
 
         # new a msa object
-        new_msa = Genemsa(self.gene_name, "")
+        new_msa = Genemsa(self.gene_name)
         for i in index:
             new_msa.blocks.append(self.blocks[i])
 
         # extract
         gen_pos = self.calculate_position()
         for allele, gen_seq in self.alleles.items():
-            new_seq = ""
-            for i in index:
-                new_seq += gen_seq[gen_pos[i]:gen_pos[i + 1]]
+            new_seq = "".join([gen_seq[gen_pos[i]:gen_pos[i + 1]] for i in index])
             new_msa.alleles[allele] = new_seq
 
         return new_msa
@@ -188,9 +189,11 @@ class Genemsa:
     def merge_exon(self, msa_nuc):
         """ Merge nuc into gen """
         # merge when allele in both nuc and gen
-        assert self.seq_type == "gen" and msa_nuc.seq_type == "nuc"
-        assert self.gene_name == msa_nuc.gene_name
-        assert len(self.blocks) == len(msa_nuc.blocks) * 2 + 1
+        if not (self.seq_type == "gen" and msa_nuc.seq_type == "nuc"):
+            raise TypeError("Should merge nuc into gen")
+        if (self.gene_name != msa_nuc.gene_name or
+            len(self.blocks) != len(msa_nuc.blocks) * 2 + 1):
+            raise ValueError("Check object's name and chunks are correct")
 
         nuc_pos = msa_nuc.calculate_position()
         gen_pos = self.calculate_position()
@@ -311,14 +314,16 @@ class Genemsa:
 
     def format_alignment_diff(self, ref_allele=""):
         """ Print all alleles diff from ref_allele """
-        assert self.alleles
+        if not len(self.alleles):
+            raise ValueError("MSA is empty")
         if not ref_allele:
-            ref_allele = next(iter(self.alleles.keys()))
-        assert ref_allele in self.alleles
+            ref_allele = self.get_first()[0]
+        if ref_allele not in self.alleles:
+            raise ValueError("{ref_allele} not found")
         ref_seq = self.alleles[ref_allele]
 
         # use new msa object to save sequences
-        new_msa = Genemsa(self.gene_name, "")
+        new_msa = Genemsa(self.gene_name)
         new_msa.blocks = self.blocks
         new_msa.alleles = {ref_allele: ref_seq}
         for allele, seq in self.alleles.items():
@@ -340,7 +345,9 @@ class Genemsa:
         return new_msa.format_alignment()
 
     def format_alignment(self, wrap=100):
-        assert self.blocks and self.alleles
+        """ Format to xx_gen.txt """
+        if not self.blocks or not self.alleles:
+            raise ValueError("MSA is empty")
         output_str = ""
         bid = 0
         block_pos = self.calculate_position()
@@ -387,7 +394,8 @@ class Genemsa:
         new_msa.blocks = [bio_msa.get_alignment_length()]
         for seq in bio_msa:
             new_msa.alleles[seq.id] = str(seq.seq)
-            assert len(seq.seq) == new_msa.blocks[0]
+            if len(seq.seq) != new_msa.blocks[0]:
+                raise ValueError("Length is different inside MultipleSeqAlignment")
         return new_msa
 
     def calculate_frequency(self):
@@ -427,22 +435,26 @@ class Genemsa:
         # remove bp in allele
         for allele, seq in self.alleles.items():
             new_msa.alleles[allele] = "".join([seq[i] for i in range(len(seq)) if masks[i]])
-            assert len(new_msa.alleles[allele]) == sum(new_msa.blocks)
+            assert len(new_msa.alleles[allele]) == new_msa.get_length()
 
         return new_msa
 
     def add(self, name, seq):
         """ Add sequence into msa """
-        assert len(self.blocks)
-        assert len(seq) == sum(self.blocks)
+        if len(seq) != self.get_length():
+            raise ValueError("Length not match to alignments")
+        if not len(self.blocks):
+            raise ValueError("MSA is empty")
         self.alleles[name] = seq
 
     def align(self, seq, target_allele="", aligner=None):
         """ Align the seq on msa (Experimental)"""
-        assert len(self.alleles)
+        if not len(self.alleles):
+            raise ValueError("MSA is empty")
         if not target_allele:
-            target_allele = next(iter(self.alleles.keys()))
-        assert target_allele in self.alleles
+            target_allele = self.get_first()[0]
+        if target_allele not in self.alleles:
+            raise ValueError("{target_allele} not found")
 
         # setup aligner
         if not aligner:
@@ -453,42 +465,60 @@ class Genemsa:
 
         # align
         target_seq = self.alleles[target_allele]
-        result_seq = aligner.align(target_seq, seq)[0].format().split("\n")[-2]
+        result_seq = format(aligner.align(target_seq, seq)[0]).split("\n")[-2]
         assert len(result_seq) == len(target_seq)
         return result_seq
 
     def get_length(self):
         return sum(self.blocks)
 
+    def get_first(self):
+        return next(iter(self.alleles.items()))
+
     def __getitem__(self, index=[]):
-        """ select region of bp from msa """
+        """ select region in the sequences """
         if not index:
             return self
 
-        new_msa = Genemsa(self.gene_name)
+        # Extract specific region in alignment
         if isinstance(index, slice) or isinstance(index, int):
+            new_msa = Genemsa(self.gene_name)
             new_msa.alleles = {allele: seq[index]
                                for allele, seq in self.alleles.items()}
-            new_msa.blocks = [len(next(iter(new_msa.alleles.values())))]
+            new_msa.blocks = [len(new_msa.get_first()[1])]
             return new_msa
 
         elif isinstance(index, tuple) or isinstance(index, list):
+            new_msa = Genemsa(self.gene_name)
             new_msa.blocks = [len(index)]
             new_msa.alleles = {allele: ''.join([seq[i] for i in index])
                                for allele, seq in self.alleles.items()}
             return new_msa
+
+        # Extract specific allele in alignment
+        elif isinstance(index, str):
+            if index not in self.alleles:
+                raise IndexError("Index {index} cannot find")
+            return self.alleles[index]
+
+        # Fail
         else:
-            assert False
+            raise TypeError("Bad usage")
 
 
 if __name__ == "__main__":
-    hla = HLAmsa(["DPA1"], imgt_folder="alignments")
-    a_select = hla.genes["DPA1"]
-    a_select = a_select.select_allele(r"DPA1\*.*:01:01$")
-    query_seq = hla.genes["DPA1"].alleles["DPA1*01:03:01:02"].replace("-", "").replace("E", "")
-    query_seq = list(query_seq)[100:-100]
-    query_seq[5] = query_seq[15] = query_seq[25] = query_seq[35] = query_seq[45] = query_seq[47] = "T"
-    query_seq[46] = "A"
-    query_seq = a_select.align(''.join(query_seq))
-    a_select.add("query", query_seq)
-    print(a_select[50:200].format_alignment_diff())
+    # Basic operation: read, select, add and consensus
+    hla = HLAmsa(["A", "B"], filetype=["gen", "nuc"], imgt_folder="alignments", version="3430")
+    a = hla.genes["A"]
+    print(a)
+    a_sub = a.select_allele(r"A\*.*:01:01:01$")
+    print(a_sub)
+    a_sub.add("A*consensus", a.get_consensus(include_gap=False))
+    print(a_sub.select_exon().format_alignment_diff("A*consensus"))
+
+    # align seq on the consensus and print
+    seq = list(a["A*01:01:87"])
+    seq[55] = seq[65] = seq[78] = seq[79] = seq[80] = "T"
+    seq = a_sub.align(''.join(seq), target_allele="A*consensus")
+    a_sub.add("A*query", seq)
+    print(a_sub[30:180].shrink().format_alignment_diff("A*consensus"))
