@@ -4,6 +4,11 @@ from glob import glob
 import re
 from pprint import pprint
 
+from Bio.Align import MultipleSeqAlignment, PairwiseAligner
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+
+
 logging.basicConfig(level=logging.INFO)
 
 
@@ -128,13 +133,13 @@ class Genemsa:
         else:
             exon_index = [i * 2 - 1 for i in exon_index]
 
-        new_msa = self.select_region(exon_index)
+        new_msa = self.select_chunk(exon_index)
         new_msa.seq_type = "nuc"
         for allele, seq in new_msa.alleles.items():
             assert "E" not in seq
         return new_msa
 
-    def select_region(self, index=[]):
+    def select_chunk(self, index=[]):
         """
         Extract intron and exon from gene
 
@@ -151,8 +156,8 @@ class Genemsa:
               -1 for 3-UTR(for all case)
         """
         assert not len(index) or (
-                max(index) <= len(self.blocks) and
-                min(index) >= -1)
+            max(index) <= len(self.blocks) and
+            min(index) >= -1)
 
         # replace -1 (3-UTR)
         for i in range(len(index)):
@@ -322,14 +327,16 @@ class Genemsa:
             new_seq = ""
             for i in range(len(seq)):
                 if seq[i] == ref_seq[i]:
-                    new_seq += "-"
+                    if ref_seq[i] == '-':
+                        new_seq += "."
+                    else:
+                        new_seq += "-"
                 elif seq[i] == "-":
-                    new_seq += "*"
-                elif seq[i] == ".":
                     new_seq += "*"
                 else:
                     new_seq += seq[i]
             new_msa.alleles[allele] = new_seq
+        new_msa.alleles[ref_allele] = new_msa.alleles[ref_allele].replace("-", ".")
         return new_msa.format_alignment()
 
     def format_alignment(self, wrap=100):
@@ -367,19 +374,121 @@ class Genemsa:
         return output_str
 
     def to_biopython(self):
-        from Bio.Align import MultipleSeqAlignment
-        from Bio.SeqRecord import SeqRecord
-        from Bio.Seq import Seq
-
+        """ Transfer this object to MultipleSeqAlignment in biopython """
         bio_msa = MultipleSeqAlignment([
-            SeqRecord(Seq(seq), id=allele, description="")
+            SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
             for allele, seq in self.alleles.items()])
         return bio_msa
 
+    @classmethod
+    def from_biopython(cls, bio_msa):
+        """ Transfer MultipleSeqAlignment in biopython to this object """
+        new_msa = Genemsa("", "")
+        new_msa.blocks = [bio_msa.get_alignment_length()]
+        for seq in bio_msa:
+            new_msa.alleles[seq.id] = str(seq.seq)
+            assert len(seq.seq) == new_msa.blocks[0]
+        return new_msa
+
+    def calculate_frequency(self):
+        """ Calculate ATCG and gap frequency in msa """
+        freqs = []
+        for i in zip(*self.alleles.values()):
+            freqs.append([
+                i.count("A"),
+                i.count("T"),
+                i.count("C"),
+                i.count("G"),
+                i.count("E") + i.count("-")])
+        return freqs
+
+    def get_consensus(self, include_gap=False):
+        """ Use max frequency one as consensus """
+        freqs = self.calculate_frequency()
+        if not include_gap:
+            max_ind = [max(range(4), key=lambda i: f[i]) for f in freqs]
+        else:
+            max_ind = [max(range(5), key=lambda i: f[i]) for f in freqs]
+        seq = ["ATCG-"[i] for i in max_ind]
+        return ''.join(seq)
+
+    def shrink(self):
+        """ Remove empty base-pair across all allele """
+        # index to delete
+        freqs = self.calculate_frequency()
+        masks = [f[4] != sum(f) for f in freqs]
+
+        # recalcuate blocks
+        new_msa = Genemsa(self.gene_name, self.seq_type)
+        gen_pos = self.calculate_position()
+        for i in range(len(self.blocks)):
+            new_msa.blocks.append(sum(masks[gen_pos[i]:gen_pos[i+1]]))
+
+        # remove bp in allele
+        for allele, seq in self.alleles.items():
+            new_msa.alleles[allele] = "".join([seq[i] for i in range(len(seq)) if masks[i]])
+            assert len(new_msa.alleles[allele]) == sum(new_msa.blocks)
+
+        return new_msa
+
+    def add(self, name, seq):
+        """ Add sequence into msa """
+        assert len(self.blocks)
+        assert len(seq) == sum(self.blocks)
+        self.alleles[name] = seq
+
+    def align(self, seq, target_allele="", aligner=None):
+        """ Align the seq on msa (Experimental)"""
+        assert len(self.alleles)
+        if not target_allele:
+            target_allele = next(iter(self.alleles.keys()))
+        assert target_allele in self.alleles
+
+        # setup aligner
+        if not aligner:
+            aligner = PairwiseAligner()
+            aligner.alphabet = "ATCG-E"
+            aligner.target_open_gap_score = -99999
+            aligner.query_open_gap_score = -2
+
+        # align
+        target_seq = self.alleles[target_allele]
+        result_seq = aligner.align(target_seq, seq)[0].format().split("\n")[-2]
+        assert len(result_seq) == len(target_seq)
+        return result_seq
+
+    def get_length(self):
+        return sum(self.blocks)
+
+    def __getitem__(self, index=[]):
+        """ select region of bp from msa """
+        if not index:
+            return self
+
+        new_msa = Genemsa(self.gene_name)
+        if isinstance(index, slice) or isinstance(index, int):
+            new_msa.alleles = {allele: seq[index]
+                               for allele, seq in self.alleles.items()}
+            new_msa.blocks = [len(next(iter(new_msa.alleles.values())))]
+            return new_msa
+
+        elif isinstance(index, tuple) or isinstance(index, list):
+            new_msa.blocks = [len(index)]
+            new_msa.alleles = {allele: ''.join([seq[i] for i in index])
+                               for allele, seq in self.alleles.items()}
+            return new_msa
+        else:
+            assert False
+
 
 if __name__ == "__main__":
-    hla = HLAmsa(["A"], imgt_folder="alignments")
-    a_select = hla.genes["A"].select_allele(r"A\*.*:01:01:01$")
-    print(a_select.to_biopython().format("fasta"))
-    # print(a_select.select_exon().format_alignment())
-    # print(a_select.format_alignment_diff())
+    hla = HLAmsa(["DPA1"], imgt_folder="alignments")
+    a_select = hla.genes["DPA1"]
+    a_select = a_select.select_allele(r"DPA1\*.*:01:01$")
+    query_seq = hla.genes["DPA1"].alleles["DPA1*01:03:01:02"].replace("-", "").replace("E", "")
+    query_seq = list(query_seq)[100:-100]
+    query_seq[5] = query_seq[15] = query_seq[25] = query_seq[35] = query_seq[45] = query_seq[47] = "T"
+    query_seq[46] = "A"
+    query_seq = a_select.align(''.join(query_seq))
+    a_select.add("query", query_seq)
+    print(a_select[50:200].format_alignment_diff())
