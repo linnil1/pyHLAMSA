@@ -96,8 +96,14 @@ print(a_sub.select_exon([]).format_alignment_diff("query"))
 # Thus, you can save in any format
 print(a_sub.to_MultipleSeqAlignment())
 
+# save to fasta(no gap)
+SeqIO.write(a_sub.to_fasta(gap=False), "tmp.fa", "fasta")
+
 # save to bam file
-a_sub.save_bam(ref_allele="A*consensus", "tmp.bam")
+a_sub.save_bam("tmp.bam", ref_allele="A*consensus")
+
+# save to gff3 (This file can show where exons are in IGV)
+a_sub.save_gff("tmp.gff")
 ```
 
 ### Example

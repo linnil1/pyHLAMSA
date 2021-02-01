@@ -88,7 +88,7 @@ class HLAmsa:
 
 
 class Genemsa:
-    def __init__(self, gene_name, seq_type="gen"):
+    def __init__(self, gene_name, seq_type=""):
         self.gene_name = gene_name
         self.alleles = {}
         self.blocks = []  # intron exon length
@@ -602,7 +602,7 @@ class Genemsa:
 
         return cigar
 
-    def save_bam(self, ref_allele, fname):
+    def save_bam(self, fname, ref_allele):
         """ Save the MSA to bam aligned on ref_allele """
         if not len(self.alleles):
             raise ValueError("MSA is empty")
@@ -621,12 +621,14 @@ class Genemsa:
                           'SN': ref_allele}]}
 
         # write bam file
+        cigars = []
         with pysam.AlignmentFile(fname, "wb", header=header) as outf:
             for allele, seq in self.alleles.items():
                 a = pysam.AlignedSegment()
                 a.query_name = allele
                 a.query_sequence = seq.replace("E", "").replace("-", "")
-                a.cigar = self._calculate_cigar(ref_seq, seq)
+                cigars.append(self._calculate_cigar(ref_seq, seq))
+                a.cigar = cigars[-1]
 
                 # set to default
                 a.mapping_quality = 60
@@ -640,6 +642,61 @@ class Genemsa:
                 outf.write(a)
         pysam.sort("-o", fname, fname)
         pysam.index(fname)
+        return cigars
+
+    def _get_label(self):
+        """ return assume label name for each chunk """
+        if self.seq_type == "gen":
+            assert len(self.blocks) % 2 == 1
+            labels = []
+            for i in range(len(self.blocks)):
+                if i % 2:
+                    labels.append(("exon", f"exon{i // 2 + 1}"))
+                else:
+                    labels.append(("intron", f"intron{i // 2}"))
+            labels[0] = ("five_prime_UTR", "5UTR")
+            labels[-1] = ("three_prime_UTR", "3UTR")
+            return labels
+
+        elif self.seq_type == "nuc":
+            return [("exon", f"exon{i+1}") for i in range(len(self.blocks))]
+        else:
+            return [("gene_fragment", f"chunk{i+1}") for i in range(len(self.blocks))]
+
+    def save_gff(self, fname, labels=[]):
+        """ Output GFF3 format """
+        # http://gmod.org/wiki/GFF3
+        if not len(self.blocks):
+            raise ValueError("MSA is empty")
+        if not labels:
+            labels = self._get_label()
+        elif len(self.blocks) != len(labels):
+            raise ValueError("Labels length is different from MSA chunks")
+
+        block_pos = self.calculate_position()
+        records = []
+
+        # save allele info in each record
+        for allele, seq in self.alleles.items():
+            record = []
+            pos = [len(seq[:i].replace("E", "").replace("-", "")) for i in block_pos]
+
+            for i in range(len(self.blocks)):
+                # ref source type start end . strand . tags
+                record.append(
+                    [allele, "pyHLAMSA", labels[i][0],
+                     str(pos[i] + 1), str(pos[i + 1]), ".", "+", ".",
+                     f"ID={labels[i][1]}_{allele}"]
+                )
+            records.extend(record)
+
+        # save
+        with open(fname, "w") as f:
+            f.write("##gff-version 3\n")
+            for record in records:
+                f.write("\t".join(record) + "\n")
+
+        return records
 
 
 if __name__ == "__main__":
@@ -657,8 +714,9 @@ if __name__ == "__main__":
     # output
     print(a_sub.select_exon().format_alignment_diff("A*consensus"))
     print(a_sub.to_MultipleSeqAlignment())
-    a_sub.save_bam("A*consensus", "tmp.bam")
-    SeqIO.write(a.to_fasta(gap=False), "tmp.fa", "fasta")
+    a_sub.save_bam("tmp.bam", "A*consensus")
+    SeqIO.write(a_sub.to_fasta(gap=False), "tmp.fa", "fasta")
+    a_sub.save_gff("tmp.gff")
 
     # align seq on the consensus and print
     seq = list(a.get("A*01:01:87"))
