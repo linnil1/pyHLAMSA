@@ -9,7 +9,7 @@ Still in development.
 ## Feature
 
 ### Download IMGT and read
-It can be automatically download and parse IMGAHLA gen and nuc
+It can be automatically download and parse IMGAHLA gen and nuc.
 
 ``` python
 # A simple interface read A B DPA1 allele
@@ -95,6 +95,9 @@ print(a_sub.select_exon([]).format_alignment_diff("query"))
 # Convert object to MultipleSeqAlignment(Bio.Align)
 # Thus, you can save in any format
 print(a_sub.to_MultipleSeqAlignment())
+
+# save to bam file
+a_sub.save_bam(ref_allele="A*consensus", "tmp.bam")
 ```
 
 ### Example
@@ -123,14 +126,26 @@ see main in `HLAmsa.py`
  A*80:01:01:01      ---------- --C------- -------C-- ---------- ---------- ------**** **-------- -------A-*| ------*--- ----------
 ```
 
+You can show the alignments on IGV
+![](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
+
 
 ## TODO
 * [ ] Sanity check
 * [ ] Cannot handle splice variant
-* [ ] Output to bam
 
 
 ## Requirement
 * python3.8
 * biopython
+* pysam
 * wget
+
+## Citation
+* IGV
+    James T. Robinson, Helga Thorvaldsdóttir, Wendy Winckler, Mitchell Guttman, Eric S. Lander, Gad Getz, Jill P. Mesirov. Integrative Genomics Viewer. Nature Biotechnology 29, 24–26 (2011)
+* IMGT
+    Robinson J, Barker DJ, Georgiou X, Cooper MA, Flicek P, Marsh SGE
+    IPD-IMGT/HLA Database
+    Nucleic Acids Research (2020) 48:D948-55
+* This github

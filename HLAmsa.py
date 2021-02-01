@@ -7,6 +7,8 @@ from pprint import pprint
 from Bio.Align import MultipleSeqAlignment, PairwiseAligner
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
+from Bio import SeqIO
+import pysam
 
 # setup logging
 logger = logging.getLogger("pyIMGTHLA")
@@ -336,7 +338,7 @@ class Genemsa:
         if not (self.seq_type == "gen" and msa_nuc.seq_type == "nuc"):
             raise TypeError("Should merge nuc into gen")
         if (self.gene_name != msa_nuc.gene_name or
-            len(self.blocks) != len(msa_nuc.blocks) * 2 + 1):
+                len(self.blocks) != len(msa_nuc.blocks) * 2 + 1):
             raise ValueError("Check object's name and chunks are correct")
 
         nuc_pos = msa_nuc.calculate_position()
@@ -558,18 +560,105 @@ class Genemsa:
         assert len(result_seq) == len(target_seq)
         return result_seq
 
+    # Functions for writing to bam file
+    def _calculate_cigar(self, a, b):
+        """ Compare two sequences and output cigar """
+        # Compare two sequence
+        c = []
+        a = a.replace("E", "-")
+        b = b.replace("E", "-")
+        for i in range(len(a)):
+            if a[i] == "-" and b[i] == "-":
+                continue
+            if a[i] == b[i]:
+                c.append("M")
+            elif a[i] == "-":
+                c.append("I")
+            elif b[i] == "-":
+                c.append("D")
+            else:
+                c.append("X")
+
+        # Aggregate the comparsion
+        cigar = []
+        for i in c:
+            if not len(cigar):
+                cigar.append([i, 1])
+            elif cigar[-1][0] == i:
+                cigar[-1][1] += 1
+            else:
+                cigar.append([i, 1])
+
+        # Rename to cigar_tuple
+        for i in cigar:
+            if i[0] == "M":
+                i[0] = 0
+            elif i[0] == "I":
+                i[0] = 1
+            elif i[0] == "D":
+                i[0] = 2
+            elif i[0] == "X":
+                i[0] = 8
+
+        return cigar
+
+    def save_bam(self, ref_allele, fname):
+        """ Save the MSA to bam aligned on ref_allele """
+        if not len(self.alleles):
+            raise ValueError("MSA is empty")
+        if ref_allele not in self.alleles:
+            raise ValueError(f"{ref_allele} not found")
+        if not fname:
+            raise ValueError("filename is required")
+
+        # setup reference and header
+        if not ref_allele:
+            ref_allele, ref_seq = self.get_first()
+        else:
+            ref_seq = self.alleles[ref_allele]
+        header = {'HD': {'VN': '1.0'},
+                  'SQ': [{'LN': len(ref_seq.replace("-", "").replace("E", "")),
+                          'SN': ref_allele}]}
+
+        # write bam file
+        with pysam.AlignmentFile(fname, "wb", header=header) as outf:
+            for allele, seq in self.alleles.items():
+                a = pysam.AlignedSegment()
+                a.query_name = allele
+                a.query_sequence = seq.replace("E", "").replace("-", "")
+                a.cigar = self._calculate_cigar(ref_seq, seq)
+
+                # set to default
+                a.mapping_quality = 60
+                a.reference_id = 0
+                a.reference_start = 0
+                # a.template_length = 0
+                # a.query_qualities = [30] * len(a.query_sequence)
+                # a.flag = 0
+                # a.next_reference_id = 0
+                # a.next_reference_start = 0
+                outf.write(a)
+        pysam.sort("-o", fname, fname)
+        pysam.index(fname)
+
 
 if __name__ == "__main__":
-    # Basic operation: read, select, add and consensus
-    hla = HLAmsa(["A"], filetype=["gen", "nuc"], imgt_folder="alignments", version="3430")
+    # Basic operation: read, add
+    hla = HLAmsa(["A", "B"], filetype=["gen", "nuc"], imgt_folder="alignments", version="3430")
     a = hla.genes["A"]
     a.add("A*consensus", a.get_consensus(include_gap=False))
     a.fill_imcomplete("A*consensus")
+
+    # select and get consensus
     a_sub = a.select_allele(r"A\*.*:01:01:01$")
     a_sub.extend(a.select_allele(r"A\*consensus$"))
     print(a_sub)
+
+    # output
     print(a_sub.select_exon().format_alignment_diff("A*consensus"))
     print(a_sub.to_MultipleSeqAlignment())
+    a_sub.save_bam("A*consensus", "tmp.bam")
+    SeqIO.write(a.to_fasta(gap=False), "tmp.fa", "fasta")
 
     # align seq on the consensus and print
     seq = list(a.get("A*01:01:87"))
