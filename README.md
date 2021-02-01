@@ -50,6 +50,10 @@ Calculate variant frequency and consensus
 ``` python
 print(a.calculate_frequency())
 consensus_seq = a.get_consensus(include_gap=False)
+
+# fill the exon-only allele by consensus
+a.add("A*consensus", consensus_seq)
+a.fill_imcomplete("A*consensus")
 ```
 
 ### Selection
@@ -90,7 +94,7 @@ print(a_sub.select_exon([]).format_alignment_diff("query"))
 
 # Convert object to MultipleSeqAlignment(Bio.Align)
 # Thus, you can save in any format
-print(a_sub.to_biopython())
+print(a_sub.to_MultipleSeqAlignment())
 ```
 
 ### Example
@@ -123,6 +127,7 @@ see main in `HLAmsa.py`
 ## TODO
 * [ ] Sanity check
 * [ ] Cannot handle splice variant
+* [ ] Output to bam
 
 
 ## Requirement

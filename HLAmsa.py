@@ -8,8 +8,12 @@ from Bio.Align import MultipleSeqAlignment, PairwiseAligner
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 
-
-logging.basicConfig(level=logging.INFO)
+# setup logging
+logger = logging.getLogger("pyIMGTHLA")
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+logger.addHandler(ch)
 
 
 class HLAmsa:
@@ -19,7 +23,7 @@ class HLAmsa:
         if not os.path.exists(self.imgt_folder):
             self.download(True, version=version)
         else:
-            logging.info(f"IMGT ver={version} exists")
+            logger.info(f"IMGT ver={version} exists")
         assert os.path.exists(self.imgt_folder)
 
         if not genes:
@@ -32,30 +36,30 @@ class HLAmsa:
             genes = genes - set(["ClassI", "DRB", "E", "P", "N"])
             genes = sorted(list(genes))
 
-        logging.info(f"Read Gene {genes}")
+        logger.info(f"Read Gene {genes}")
         self.genes = {}
         for gene in genes:
-            logging.info(f"Reading {gene}")
+            logger.info(f"Reading {gene}")
             self.genes[gene] = self.read_alignments(gene, filetype)
-            logging.debug(f"Merged {self.genes[gene]}")
+            logger.debug(f"Merged {self.genes[gene]}")
 
     def read_alignments(self, gene, filetype):
         """ read gene_filetype """
         if "gen" in filetype:
             msa_gen = Genemsa(gene, seq_type="gen")
             msa_gen.read_file(f"{self.imgt_folder}/{gene}_gen.txt")
-            logging.debug(f"{msa_gen}")
+            logger.debug(f"{msa_gen}")
         if "nuc" in filetype:
             msa_nuc = Genemsa(gene, seq_type="nuc")
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
                 msa_nuc.read_file(f"{self.imgt_folder}/DRB_nuc.txt")
-                logging.debug(f"DRB: {msa_nuc}")
+                logger.debug(f"DRB: {msa_nuc}")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
-                logging.debug(f"{msa_nuc}")
+                logger.debug(f"{msa_nuc}")
             else:
                 msa_nuc.read_file(f"{self.imgt_folder}/{gene}_nuc.txt")
-                logging.debug(f"{msa_nuc}")
+                logger.debug(f"{msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
             return msa_gen.merge_exon(msa_nuc)
@@ -75,7 +79,7 @@ class HLAmsa:
         # TODO: Auto find the latest version
         fname = f"Alignments_Rel_{version}"
         url = "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/" + fname + ".zip"
-        logging.info(f"Download IMGT data from {url}")
+        logger.info(f"Download IMGT data from {url}")
         os.system(f"wget {url}")
         os.system(f"unzip {fname}.zip")
         os.system(f"mv alignments {self.imgt_folder}")
@@ -92,6 +96,20 @@ class Genemsa:
         return f"<{self.gene_name} {self.seq_type} "\
                f"alleles={len(self.alleles)} length={self.blocks}>"
 
+    # some helper functions
+    def calculate_position(self):
+        pos = [0]
+        for length in self.blocks:
+            pos.append(pos[-1] + length)
+        return pos
+
+    def get_length(self):
+        return sum(self.blocks)
+
+    def get_first(self):
+        return next(iter(self.alleles.items()))
+
+    # reading functions
     def read_file(self, fname):
         """ read MSA format in IMGT alignments folder """
         alleles = self.parse_alignment(fname)
@@ -101,14 +119,60 @@ class Genemsa:
             if not self.blocks:
                 self.blocks = [len(seq) for seq in seq.split("|")]
 
-    def select_allele(self, regex):
-        """ Select allele by regex """
-        new_msa = Genemsa(self.gene_name, self.seq_type)
-        new_msa.blocks = self.blocks
-        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
-                           if re.match(regex, allele)}
-        return new_msa
+    def parse_alignment(self, fname):
+        """ Read alignments file with IMGT-alignment format """
+        # parse aligments
+        alleles = {}
+        ref_allele = ""
+        for line in open(fname):
+            line = line.strip()
+            if not re.match(r"^\w+\*", line):
+                continue
 
+            match = re.findall(r"^(.*?) +(.*)", line)
+            # assert match
+            # emtpy seq (B_nuc.txt)
+            if not match:
+                continue
+            allele, seq = match[0]
+
+            if allele not in alleles:
+                if not ref_allele:
+                    ref_allele = allele
+                alleles[allele] = ""
+
+            alleles[allele] += seq
+
+        # check sequences and replace
+        rm_allele = []
+        for allele in alleles:
+            alleles[allele] = alleles[allele].replace(" ", "").replace("*", ".")
+            if allele == ref_allele:
+                alleles[allele] = alleles[allele].replace(".", "-")
+                continue
+            ref_seq = alleles[ref_allele]
+            if len(alleles[allele]) != len(ref_seq):
+                rm_allele.append(allele)
+                continue
+            # assert len(alleles[allele]) == len(ref_seq)
+
+            seq = list(alleles[allele])
+            for i in range(len(seq)):
+                if seq[i] == "-":
+                    seq[i] = ref_seq[i]
+
+                if seq[i] == "|":
+                    assert seq[i] == ref_seq[i]
+                else:
+                    assert seq[i] in "ATCG."
+            alleles[allele] = ''.join(seq).replace(".", "-")
+
+        for allele in rm_allele:
+            logger.warning(f"Remove {allele} due to length in {fname}")
+            del alleles[allele]
+        return alleles
+
+    # Position selection functions
     def select_exon(self, exon_index=[]):
         """
         Extract exon from gene
@@ -180,11 +244,91 @@ class Genemsa:
 
         return new_msa
 
-    def calculate_position(self):
-        pos = [0]
-        for length in self.blocks:
-            pos.append(pos[-1] + length)
-        return pos
+    def __getitem__(self, index=[]):
+        """ select region in the sequences """
+        if not index:
+            return self
+
+        # Extract specific region in alignment
+        if isinstance(index, slice) or isinstance(index, int):
+            new_msa = Genemsa(self.gene_name)
+            new_msa.alleles = {allele: seq[index]
+                               for allele, seq in self.alleles.items()}
+            new_msa.blocks = [len(new_msa.get_first()[1])]
+            return new_msa
+
+        elif isinstance(index, tuple) or isinstance(index, list):
+            new_msa = Genemsa(self.gene_name)
+            new_msa.blocks = [len(index)]
+            new_msa.alleles = {allele: ''.join([seq[i] for i in index])
+                               for allele, seq in self.alleles.items()}
+            return new_msa
+        # Fail
+        else:
+            raise TypeError("Bad usage")
+
+    # Allele selection functions
+    def get(self, ref_allele):
+        """ Extract specific allele in alignment """
+        if ref_allele not in self.alleles:
+            raise ValueError(f"{ref_allele} not found")
+        return self.alleles[ref_allele]
+
+    def select_allele(self, regex):
+        """ Select allele by regex """
+        new_msa = Genemsa(self.gene_name, self.seq_type)
+        new_msa.blocks = self.blocks
+        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
+                           if re.match(regex, allele)}
+        return new_msa
+
+    def select_complete(self):
+        """ Select non gDNA sequences """
+        new_msa = Genemsa(self.gene_name, self.seq_type)
+        new_msa.blocks = self.blocks
+        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
+                           if "E" not in seq}
+        return new_msa
+
+    def select_imcomplete(self):
+        """ Select cDNA-only sequences """
+        new_msa = Genemsa(self.gene_name, self.seq_type)
+        new_msa.blocks = self.blocks
+        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
+                           if "E" in seq}
+        return new_msa
+
+    # Sequence adding functions
+    def add(self, name, seq):
+        """ Add sequence into msa """
+        if len(seq) != self.get_length():
+            raise ValueError("Length not match to alignments")
+        if not len(self.blocks):
+            raise ValueError("MSA is empty")
+        if name in self.alleles:
+            raise ValueError(f"{name} already exist")
+
+        self.alleles[name] = seq
+        return self
+
+    def extend(self, msa):
+        """ Add msa into this msa """
+        if self.blocks != msa.blocks:
+            raise ValueError("Length is different")
+        self.alleles.update(msa.alleles)
+        return self
+
+    # Functions deal with exon-only alleles
+    def fill_imcomplete(self, ref_allele):
+        """ Fill cDNA-only sequences with ref_allele sequences"""
+        if ref_allele not in self.alleles:
+            raise ValueError(f"{ref_allele} not found")
+
+        ref_seq = self.alleles[ref_allele]
+        for allele, seq in self.alleles.items():
+            if "E" in seq:
+                self.alleles[allele] = ''.join([seq[i] if seq[i] != "E" else ref_seq[i] for i in range(len(seq))])
+        return self
 
     def merge_exon(self, msa_nuc):
         """ Merge nuc into gen """
@@ -222,7 +366,7 @@ class Genemsa:
                         if not (i == 9 and allele.startswith("DQB1")):
                             # print(nuc_seq_part)
                             # print(gen_seq_part)
-                            logging.warning(f"Remove {allele} due to gen is different from other gen after insert nuc")
+                            logger.warning(f"Remove {allele} due to gen is different from other gen after insert nuc")
                             break
                     new_seq += nuc_seq_part
                     blocks.append(len(nuc_seq_part))
@@ -251,67 +395,12 @@ class Genemsa:
                 for allele in non_insert_allele:
                     new_msa.alleles[allele] = self.alleles[allele]
             else:
-                logging.warning(f"Remove {non_insert_allele} due to gen is different from other gen after insert nuc")
+                logger.warning(f"Remove {non_insert_allele} due to gen is different from other gen after insert nuc")
 
         new_msa.blocks = ref_blocks
         return new_msa
 
-    def parse_alignment(self, fname):
-        """
-        Read `fname` alignments files with IMGT-alignment format
-        """
-
-        # parse aligments
-        alleles = {}
-        ref_allele = ""
-        for line in open(fname):
-            line = line.strip()
-            if not re.match(r"^\w+\*", line):
-                continue
-
-            match = re.findall(r"^(.*?) +(.*)", line)
-            # assert match
-            # emtpy seq (B_nuc.txt)
-            if not match:
-                continue
-            allele, seq = match[0]
-
-            if allele not in alleles:
-                if not ref_allele:
-                    ref_allele = allele
-                alleles[allele] = ""
-
-            alleles[allele] += seq
-
-        # check sequences and replace
-        rm_allele = []
-        for allele in alleles:
-            alleles[allele] = alleles[allele].replace(" ", "").replace("*", ".")
-            if allele == ref_allele:
-                alleles[allele] = alleles[allele].replace(".", "-")
-                continue
-            ref_seq = alleles[ref_allele]
-            if len(alleles[allele]) != len(ref_seq):
-                rm_allele.append(allele)
-                continue
-            # assert len(alleles[allele]) == len(ref_seq)
-
-            seq = list(alleles[allele])
-            for i in range(len(seq)):
-                if seq[i] == "-":
-                    seq[i] = ref_seq[i]
-
-                if seq[i] == "|":
-                    assert seq[i] == ref_seq[i]
-                else:
-                    assert seq[i] in "ATCG."
-            alleles[allele] = ''.join(seq).replace(".", "-")
-
-        for allele in rm_allele:
-            logging.warning(f"Remove {allele} due to length in {fname}")
-            del alleles[allele]
-        return alleles
-
+    # Format function
     def format_alignment_diff(self, ref_allele=""):
         """ Print all alleles diff from ref_allele """
         if not len(self.alleles):
@@ -319,7 +408,7 @@ class Genemsa:
         if not ref_allele:
             ref_allele = self.get_first()[0]
         if ref_allele not in self.alleles:
-            raise ValueError("{ref_allele} not found")
+            raise ValueError(f"{ref_allele} not found")
         ref_seq = self.alleles[ref_allele]
 
         # use new msa object to save sequences
@@ -380,15 +469,8 @@ class Genemsa:
             output_str += "\n\n"
         return output_str
 
-    def to_biopython(self):
-        """ Transfer this object to MultipleSeqAlignment in biopython """
-        bio_msa = MultipleSeqAlignment([
-            SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
-            for allele, seq in self.alleles.items()])
-        return bio_msa
-
     @classmethod
-    def from_biopython(cls, bio_msa):
+    def from_MultipleSeqAlignment(cls, bio_msa):
         """ Transfer MultipleSeqAlignment in biopython to this object """
         new_msa = Genemsa("", "")
         new_msa.blocks = [bio_msa.get_alignment_length()]
@@ -398,6 +480,20 @@ class Genemsa:
                 raise ValueError("Length is different inside MultipleSeqAlignment")
         return new_msa
 
+    def to_MultipleSeqAlignment(self):
+        """ Transfer this object to MultipleSeqAlignment in biopython """
+        return MultipleSeqAlignment(self.to_fasta(gap=True))
+
+    def to_fasta(self, gap=True):
+        """ Transfer to list of SeqRecord """
+        if gap:
+            return [SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
+                    for allele, seq in self.alleles.items()]
+        else:
+            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")), id=allele, description="")
+                    for allele, seq in self.alleles.items()]
+
+    # Consensus function
     def calculate_frequency(self):
         """ Calculate ATCG and gap frequency in msa """
         freqs = []
@@ -407,7 +503,7 @@ class Genemsa:
                 i.count("T"),
                 i.count("C"),
                 i.count("G"),
-                i.count("E") + i.count("-")])
+                i.count("-")])
         return freqs
 
     def get_consensus(self, include_gap=False):
@@ -439,14 +535,7 @@ class Genemsa:
 
         return new_msa
 
-    def add(self, name, seq):
-        """ Add sequence into msa """
-        if len(seq) != self.get_length():
-            raise ValueError("Length not match to alignments")
-        if not len(self.blocks):
-            raise ValueError("MSA is empty")
-        self.alleles[name] = seq
-
+    # Align sequences on allele
     def align(self, seq, target_allele="", aligner=None):
         """ Align the seq on msa (Experimental)"""
         if not len(self.alleles):
@@ -454,7 +543,7 @@ class Genemsa:
         if not target_allele:
             target_allele = self.get_first()[0]
         if target_allele not in self.alleles:
-            raise ValueError("{target_allele} not found")
+            raise ValueError(f"{target_allele} not found")
 
         # setup aligner
         if not aligner:
@@ -469,55 +558,21 @@ class Genemsa:
         assert len(result_seq) == len(target_seq)
         return result_seq
 
-    def get_length(self):
-        return sum(self.blocks)
-
-    def get_first(self):
-        return next(iter(self.alleles.items()))
-
-    def __getitem__(self, index=[]):
-        """ select region in the sequences """
-        if not index:
-            return self
-
-        # Extract specific region in alignment
-        if isinstance(index, slice) or isinstance(index, int):
-            new_msa = Genemsa(self.gene_name)
-            new_msa.alleles = {allele: seq[index]
-                               for allele, seq in self.alleles.items()}
-            new_msa.blocks = [len(new_msa.get_first()[1])]
-            return new_msa
-
-        elif isinstance(index, tuple) or isinstance(index, list):
-            new_msa = Genemsa(self.gene_name)
-            new_msa.blocks = [len(index)]
-            new_msa.alleles = {allele: ''.join([seq[i] for i in index])
-                               for allele, seq in self.alleles.items()}
-            return new_msa
-
-        # Extract specific allele in alignment
-        elif isinstance(index, str):
-            if index not in self.alleles:
-                raise IndexError("Index {index} cannot find")
-            return self.alleles[index]
-
-        # Fail
-        else:
-            raise TypeError("Bad usage")
-
 
 if __name__ == "__main__":
     # Basic operation: read, select, add and consensus
-    hla = HLAmsa(["A", "B"], filetype=["gen", "nuc"], imgt_folder="alignments", version="3430")
+    hla = HLAmsa(["A"], filetype=["gen", "nuc"], imgt_folder="alignments", version="3430")
     a = hla.genes["A"]
-    print(a)
+    a.add("A*consensus", a.get_consensus(include_gap=False))
+    a.fill_imcomplete("A*consensus")
     a_sub = a.select_allele(r"A\*.*:01:01:01$")
+    a_sub.extend(a.select_allele(r"A\*consensus$"))
     print(a_sub)
-    a_sub.add("A*consensus", a.get_consensus(include_gap=False))
     print(a_sub.select_exon().format_alignment_diff("A*consensus"))
+    print(a_sub.to_MultipleSeqAlignment())
 
     # align seq on the consensus and print
-    seq = list(a["A*01:01:87"])
+    seq = list(a.get("A*01:01:87"))
     seq[55] = seq[65] = seq[78] = seq[79] = seq[80] = "T"
     seq = a_sub.align(''.join(seq), target_allele="A*consensus")
     a_sub.add("A*query", seq)
