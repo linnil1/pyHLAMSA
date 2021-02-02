@@ -11,6 +11,8 @@ Still in development.
 ### Download IMGT and read
 It can be automatically download and parse IMGAHLA gen and nuc.
 
+You can download by yourself. ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/
+
 ``` python
 # A simple interface read A B DPA1 allele
 # If the txt file not exist in imgt_folder, it will download itself
@@ -31,7 +33,7 @@ Merge gen and nuc alignments is easy
 ``` python
 # If gen and nuc are both in filetype, it will merge
 hla = HLAmsa(["A"], filetype=["gen", "nuc"])
-# It's ok to read one of them without mergin
+# It's ok to read one of them without merging
 hla1 = HLAmsa(["A"], filetype=["gen"])
 hla2 = HLAmsa(["A"], filetype=["nuc"])
 
@@ -54,6 +56,9 @@ consensus_seq = a.get_consensus(include_gap=False)
 # fill the exon-only allele by consensus
 a.add("A*consensus", consensus_seq)
 a.fill_imcomplete("A*consensus")
+
+# shrink if all base in the column are gap
+a = a.shrink()
 ```
 
 ### Selection
@@ -74,6 +79,9 @@ a_sub.select_exon([2,3])
 
 # extract exon2, intron2, exon3
 a_sub.select_chunk([3,4,5])
+
+# Reverse the sequence
+a_rv =  a_sub.reverse_complement()
 ```
 
 ### Output
@@ -103,12 +111,12 @@ SeqIO.write(a_sub.to_fasta(gap=False), "tmp.fa", "fasta")
 a_sub.save_bam("tmp.bam", ref_allele="A*consensus")
 
 # save to gff3 (This file can show where exons are in IGV)
-a_sub.save_gff("tmp.gff")
+a_sub.save_gff("tmp.gff", strand="-")
 ```
 
 ### Example
 
-see main in `HLAmsa.py`
+see `example.py`
 
 ```
  A*consensus        ATGGCCGTCA TGGCGCCCCG AACCCTCGTC CTGCTACTCT CGGGGGCCCT GGCCCTGGCC CTGACCCAGA CCTGGGCGGG| GCTCCCCACT CCATGAGGTA
@@ -146,6 +154,12 @@ You can show the alignments on IGV
 * biopython
 * pysam
 * wget
+
+## Install
+```
+git clone https://github.com/linnil1/pyHLAMSA
+pip3 install -e pyHLAMSA
+```
 
 ## Citation
 * IGV
