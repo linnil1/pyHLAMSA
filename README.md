@@ -2,21 +2,21 @@
 
 This is a small python utility to parse alignments in IMGT.
 
-It implemented with some useful functions shown below.
+Implemented with some useful functions shown below.
 
 Still in development.
 
-## Feature
+## Features
 
-### Download IMGT and read
-It can be automatically download and parse IMGAHLA gen and nuc.
+### Download IMGT and read it
+It can be automatically downloaded and parse IMGAHLA gen and nuc.
 
-You can download by yourself. ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/
+You can download by yourself. [IMGT ftp](ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/)
 
 ``` python
 # A simple interface read A B DPA1 allele
 # If the txt file not exist in imgt_folder, it will download itself
-hla = HLAmsa(["A", "B", "DPA1"], filetype=["gen", "nuc"], imgt_folder="alignments", version="3430")
+hla = HLAmsa(["A", "B", "DPA1"], filetype=["gen", "nuc"], version="3430")
 a = hla.genes["A"]
 print(a)
 
@@ -27,8 +27,8 @@ a.read_file("alignments/A_gen.txt")
 print(a)
 ```
 
-### Merging
-Merge gen and nuc alignments is easy
+### Merge
+Merging gen and nuc alignments is easy
 
 ``` python
 # If gen and nuc are both in filetype, it will merge
@@ -61,7 +61,7 @@ a.fill_imcomplete("A*consensus")
 a = a.shrink()
 ```
 
-### Selection
+### Select
 Select and insert sequences
 
 ``` python
@@ -85,7 +85,13 @@ a_rv =  a_sub.reverse_complement()
 ```
 
 ### Output
-Write to msf or alignment or other format
+Change to other format. e.g.
+
+* IMGT alignment format
+* MultipleSeqAlignment
+* list of SeqRecord
+* bam
+* gff
 
 ``` python
 # print object
@@ -141,7 +147,7 @@ see `example.py`
 ```
 
 You can show the alignments on IGV
-![](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
+![msa_igv_example](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
 
 
 ## TODO
@@ -161,6 +167,12 @@ git clone https://github.com/linnil1/pyHLAMSA
 pip3 install -e pyHLAMSA
 ```
 
+## Setup Document
+```
+pip3 install mkdocs mkdocs-material mkdocstrings
+mkdocs serve
+```
+
 ## Citation
 * IGV
     James T. Robinson, Helga Thorvaldsdóttir, Wendy Winckler, Mitchell Guttman, Eric S. Lander, Gad Getz, Jill P. Mesirov. Integrative Genomics Viewer. Nature Biotechnology 29, 24–26 (2011)
@@ -169,3 +181,6 @@ pip3 install -e pyHLAMSA
     IPD-IMGT/HLA Database
     Nucleic Acids Research (2020) 48:D948-55
 * This github
+
+## Document
+::: pyHLAMSA

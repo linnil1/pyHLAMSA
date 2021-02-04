@@ -1,0 +1,17 @@
+site_name: pyHLAMSA
+repo_url: https://github.com/linnil1/pyHLAMSA
+theme: material
+plugins:
+- search
+- mkdocstrings:
+    handlers:
+      python:
+        selection:
+          filters: [".*"]
+          docstring_style: google  
+        rendering:
+          show_signature_annotations: True
+          show_if_no_docstring: True
+    watch:
+      - pyHLAMSA
+
