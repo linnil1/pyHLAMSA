@@ -23,7 +23,7 @@ print(a)
 
 # Genemsa is a main class to store alignments and implemented some important function
 a = Genemsa("A", "gen")
-a.read_file("alignments/A_gen.txt")
+a.read_alignment_file("alignments/A_gen.txt")
 print(a)
 ```
 
@@ -40,9 +40,9 @@ hla2 = HLAmsa(["A"], filetype=["nuc"])
 
 # Or merge by yourself
 a_gen = Genemsa("A", "gen")
-a_gen.read_file("alignments/A_gen.txt")
+a_gen.read_alignment_file("alignments/A_gen.txt")
 a_nuc = Genemsa("A", "nuc")
-a_nuc.read_file("alignments/A_nuc.txt")
+a_nuc.read_alignment_file("alignments/A_nuc.txt")
 a_gen = a_gen.merge_exon(a_nuc)
 ```
 
@@ -183,4 +183,6 @@ mkdocs serve
 * This github
 
 ## Document
+See https://linnil1.github.io/pyHLAMSA/
+
 ::: pyHLAMSA

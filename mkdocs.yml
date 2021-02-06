@@ -7,11 +7,10 @@ plugins:
     handlers:
       python:
         selection:
-          filters: [".*"]
-          docstring_style: google  
+          # filters: [".*"]
+          docstring_style: google
         rendering:
           show_signature_annotations: True
           show_if_no_docstring: True
     watch:
       - pyHLAMSA
-

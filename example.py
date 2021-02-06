@@ -11,6 +11,7 @@ a.fill_imcomplete("A*consensus")
 # select and get consensus
 a_sub = a.select_allele(r"A\*.*:01:01:01$")
 a_sub.extend(a.select_allele(r"A\*consensus$"))
+a_sub.sort()
 print(a_sub)
 
 # output

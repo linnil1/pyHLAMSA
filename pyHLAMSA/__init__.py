@@ -10,6 +10,8 @@ from Bio.Align import MultipleSeqAlignment, PairwiseAligner
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 import pysam
+import copy
+
 
 # setup logging
 def setup_logger():
@@ -19,11 +21,15 @@ def setup_logger():
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
-setup_logger()
 
 
 class HLAmsa:
-    """ A HLA interface """
+    """
+    A HLA interface
+
+    Attributes:
+        genes (dict of str, Genemsa): The msa object for each gene
+    """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
                  imgt_folder="alignments", version="3430"):
@@ -33,6 +39,11 @@ class HLAmsa:
 
         Args:
             genes (list of str): A list of genes you want to read.
+
+                Leave Empty if you want read all gene in HLA
+
+                set None to read none of gene.
+
             filetype (list of str): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
@@ -44,22 +55,30 @@ class HLAmsa:
             logger.info(f"IMGT ver={version} exists")
         assert os.path.exists(self.imgt_folder)
 
+        # gene
+        self.genes = {}
+        if genes is None:
+            return
         if not genes:
-            fs = glob(f"{self.imgt_folder}/*.txt")
-            genes = set([f.split("/")[-1].split("_")[0] for f in fs])
-            # TODO:
-            # * E last exon not shown in nuc
-            # * P has gen but no nuc exist?
-            # * N the nuc has one more bp than in gen
-            genes = genes - set(["ClassI", "DRB", "E", "P", "N"])
-            genes = sorted(list(genes))
+            genes = self.list_gene()
 
         logger.info(f"Read Gene {genes}")
-        self.genes = {}
         for gene in genes:
             logger.info(f"Reading {gene}")
             self.genes[gene] = self._read_alignments(gene, filetype)
             logger.debug(f"Merged {self.genes[gene]}")
+
+    def list_gene(self) -> List[str]:
+        """ List the gene in folder """
+        fs = glob(f"{self.imgt_folder}/*.txt")
+        genes = set([f.split("/")[-1].split("_")[0] for f in fs])
+        # TODO:
+        # * E last exon not shown in nuc
+        # * P has gen but no nuc exist?
+        # * N the nuc has one more bp than in gen
+        genes = genes - set(["ClassI", "DRB", "E", "P", "N"])
+        genes = sorted(list(genes))
+        return genes
 
     def _read_alignments(self, gene: str, filetype: List[str]):
         """
@@ -71,18 +90,18 @@ class HLAmsa:
         """
         if "gen" in filetype:
             msa_gen = Genemsa(gene, seq_type="gen")
-            msa_gen.read_file(f"{self.imgt_folder}/{gene}_gen.txt")
+            msa_gen.read_alignment_file(f"{self.imgt_folder}/{gene}_gen.txt")
             logger.debug(f"{msa_gen}")
         if "nuc" in filetype:
             msa_nuc = Genemsa(gene, seq_type="nuc")
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
-                msa_nuc.read_file(f"{self.imgt_folder}/DRB_nuc.txt")
+                msa_nuc.read_alignment_file(f"{self.imgt_folder}/DRB_nuc.txt")
                 logger.debug(f"DRB: {msa_nuc}")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
                 logger.debug(f"{msa_nuc}")
             else:
-                msa_nuc.read_file(f"{self.imgt_folder}/{gene}_nuc.txt")
+                msa_nuc.read_alignment_file(f"{self.imgt_folder}/{gene}_nuc.txt")
                 logger.debug(f"{msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
@@ -137,8 +156,8 @@ class Genemsa:
         self.gene_name = gene_name
         self.seq_type = seq_type
         self.alleles = {}
-        self.blocks = blocks  # intron exon length
-        self.labels = labels  # the label of the blocks
+        self.blocks = copy.deepcopy(blocks)  # intron exon length
+        self.labels = copy.deepcopy(labels)  # the label of the blocks
 
     def __str__(self):
         return f"<{self.gene_name} {self.seq_type} "\
@@ -162,7 +181,7 @@ class Genemsa:
         return next(iter(self.alleles.items()))
 
     # reading functions
-    def read_file(self, fname: str):
+    def read_alignment_file(self, fname: str):
         """ Read MSA format file `fname` and save it in the instance """
         alleles = self.parse_alignment(fname)
         for allele, seq in alleles.items():
@@ -280,7 +299,7 @@ class Genemsa:
             * -1 for 3-UTR(for all case)
         """
         if not index:
-            return self
+            return copy.deepcopy(self)
 
         if not (max(index) <= len(self.blocks) and min(index) >= -1):
             raise ValueError("Check chunk index is correct")
@@ -304,13 +323,13 @@ class Genemsa:
 
         return new_msa
 
-    def __getitem__(self, index=[]):
+    def __getitem__(self, index=[]) -> Genemsa:
         """
         Extract the region of the sequences by index
 
         Example:
           >>> msa = Genemsa("A", "gen")
-          >>> msa.read_file("A_gen.txt")
+          >>> msa.read_alignment_file("A_gen.txt")
           >>> # Inspect 50-100bp in the MSA
           >>> extract_msa = msa[50:100]
           >>> print(extract_msa)
@@ -348,6 +367,17 @@ class Genemsa:
         new_msa.alleles = {allele: str(Seq(seq).reverse_complement())
                            for allele, seq in self.alleles.items()}
         return new_msa
+
+    # sort
+    def sort(self):
+        """ Sort the sequences """
+        self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[1]))
+        return self
+
+    def sort_name(self):
+        """ Sort the sequences by name """
+        self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[0]))
+        return self
 
     # Allele selection functions
     def get(self, ref_allele: str) -> str:
@@ -846,7 +876,7 @@ class Genemsa:
         else:
             return [("gene_fragment", f"chunk{i+1}") for i in range(len(self.blocks))]
 
-    def save_gff(self, fname :str, labels=[], strand="+"):
+    def save_gff(self, fname: str, labels=[], strand="+"):
         """
         Save to GFF3 format
 
@@ -895,3 +925,6 @@ class Genemsa:
             for record in records:
                 f.write("\t".join(record) + "\n")
         return records
+
+
+setup_logger()
