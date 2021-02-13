@@ -1,9 +1,19 @@
-from pyHLAMSA import HLAmsa, Genemsa
+from pyHLAMSA import HLAmsa, HLAmsaEX, Genemsa
 from Bio import SeqIO
+import logging
+
+# setup logger to stdout
+logger = logging.getLogger("pyHLAMSA")
+logger.setLevel(logging.DEBUG)
+ch = logging.StreamHandler()
+ch.setLevel(logging.DEBUG)
+logger.addHandler(ch)
 
 # Basic operation: read, add
-hla = HLAmsa(["A"], filetype=["gen", "nuc"],
-             imgt_folder="alignments", version="3430")
+# hla = HLAmsa(["A"], filetype=["gen", "nuc"],
+#              imgt_folder="IMGT/alignments", version="3430")
+hla = HLAmsaEX(["A"], filetype=["gen", "nuc"],
+               imgt_folder="IMGT", version="3430")
 a = hla.genes["A"]
 a.add("A*consensus", a.get_consensus(include_gap=False))
 a.fill_imcomplete("A*consensus")

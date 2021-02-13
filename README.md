@@ -23,7 +23,23 @@ print(a)
 
 # Genemsa is a main class to store alignments and implemented some important function
 a = Genemsa("A", "gen")
-a.read_alignment_file("alignments/A_gen.txt")
+a = a.read_alignment_file("alignments/A_gen.txt")
+print(a)
+```
+
+### Read MSF and hla.dat
+``` python
+# A simple interface read A B DPA1 allele
+# If the txt file not exist in imgt_folder, it will download itself
+hla = HLAmsaEX(["A", "B", "DPA1"], filetype=["gen", "nuc"], version="3430")
+a = hla.genes["A"]
+print(a)
+
+
+# Genemsa is a main class to store alignments and implemented some important function
+a = Genemsa("A", "gen")
+a = a.read_MSF_file("IMGT/msf/A_gen.msf")
+a = a.merge_dat(Genemsa.read_dat("IMGT/hla.dat"))
 print(a)
 ```
 
