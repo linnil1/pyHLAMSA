@@ -381,7 +381,7 @@ class Genemsa:
                         if not (i == 9 and allele.startswith("DQB1")):
                             # print(nuc_seq_part)
                             # print(gen_seq_part)
-                            self.logger.warning(f"Remove {allele} due to gen " \
+                            self.logger.warning(f"Remove {allele} nuc due to gen " \
                                            "is different from other gen after insert nuc")
                             break
                     new_seq += nuc_seq_part

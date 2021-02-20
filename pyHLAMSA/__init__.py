@@ -221,3 +221,117 @@ class HLAmsaEX(HLAmsa):
         os.system(f"git clone https://github.com/ANHIG/IMGTHLA.git {self.imgt_folder}")
         os.system(f"cd {self.imgt_folder} && git checkout {version} && cd ..")
         os.system(f"cd {self.imgt_folder} && git lfs pull && cd ..")
+
+
+class KIRmsa(HLAmsa):
+    """
+    A KIR interface but read gene from MSF and KIR.dat
+
+    Attributes:
+        genes (dict of str, Genemsa): The msa object for each gene
+    """
+
+    def __init__(self, genes=[], filetype=["gen", "nuc"],
+                 imgt_folder="IPDKIR", version="2100"):
+        """
+        The instance will download the KIR IMGT alignment folder into `imgt_folder`
+        with version `verion` and read the `{gene}_{filetype}.msf` files.
+
+        Args:
+            genes (list of str): A list of genes you want to read.
+
+                Leave Empty if you want read all gene in KIR
+
+                set None to read none of gene.
+
+            filetype (list of str): A list of filetype.
+
+                If both `gen` and `nuc` are given, it will merge them automatically.
+        """
+        self.logger = logging.getLogger(__name__)
+        self.imgt_folder = imgt_folder
+        if not os.path.exists(self.imgt_folder):
+            self._download(True, version=version)
+        else:
+            self.logger.info(f"IMGT ver={version} exists")
+        assert os.path.exists(self.imgt_folder)
+
+        # gene
+        self.genes = {}
+        if genes is None:
+            return
+        if not genes:
+            genes = self.list_gene()
+
+        self.logger.info(f"Read Gene {genes}")
+        for gene in genes:
+            self.logger.info(f"Reading {gene}")
+            self.genes[gene] = self._read_msf(gene, filetype)
+            self.logger.debug(f"Merged {self.genes[gene]}")
+
+    def list_gene(self) -> List[str]:
+        """ List the gene in folder """
+        fs = glob(f"{self.imgt_folder}/msf/*.msf")
+        genes = set([f.split("/")[-1].split("_")[0] for f in fs])
+        genes = sorted(list(genes))
+        return genes
+
+    def _read_msf(self, gene: str, filetype: List[str]):
+        """
+        Read `{gene}_{filetype}.txt`.
+
+        If both `gen` and `nuc` are given, it will merge them.
+
+        The alignment data is stored in `self.genes[gene]` in `Genemsa` instance
+        """
+        self.dat = Genemsa.read_dat(f"{self.imgt_folder}/KIR.dat")
+
+        if "gen" in filetype:
+            msa_gen = Genemsa(gene, seq_type="gen")
+            msa_gen.read_MSF_file(f"{self.imgt_folder}/msf/{gene}_gen.msf")
+            msa_gen = msa_gen.merge_dat(self.dat)
+            self.logger.debug(f"{msa_gen}")
+
+        if "nuc" in filetype:
+            msa_nuc = Genemsa(gene, seq_type="nuc")
+            msa_nuc.read_MSF_file(f"{self.imgt_folder}/msf/{gene}_nuc.msf")
+            msa_nuc = msa_nuc.merge_dat(self.dat)
+
+            # deal with pseudo -> add 0 length blocks
+            # 2DL4 -> intron3/4 as intron3
+            if gene != "KIR2DL4":
+                new_blocks = []
+                new_labels = []
+                num = 1
+                for i in range(len(msa_nuc.blocks)):
+                    while msa_nuc.labels[i][1] != f"exon{num}":
+                        new_labels.append(("exon", f"exon{num}"))
+                        new_blocks.append(0)
+                        num += 1
+                    new_blocks.append(msa_nuc.blocks[i])
+                    new_labels.append(msa_nuc.labels[i])
+                    num += 1
+                msa_nuc.blocks = new_blocks
+                msa_nuc.labels = new_labels
+            self.logger.debug(f"{msa_nuc}")
+
+        # KIR2DL5 -> only exon
+        if "gen" in filetype and "nuc" in filetype \
+                and gene not in ["KIR2DL5", "KIR3DL3"]:
+            return msa_gen.merge_exon(msa_nuc)
+        elif "gen" in filetype:
+            return msa_gen
+        elif "nuc" in filetype:
+            return msa_nuc
+        else:
+            return None
+
+    def _download(self, download=True, version="2100"):
+        """
+        Download the KIR to `IPDKIR`
+        """
+        if os.path.exists(self.imgt_folder):
+            return
+        # TODO: Auto find the latest version
+        os.system(f"git clone https://github.com/ANHIG/IPDKIR {self.imgt_folder}")
+        os.system(f"cd {self.imgt_folder} && git checkout {version} && cd ..")
