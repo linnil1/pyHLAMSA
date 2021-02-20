@@ -618,7 +618,17 @@ class Genemsa:
 
     # Align sequences on allele
     def align(self, seq: str, target_allele="", aligner=None) -> str:
-        """ Align the seq on msa (Experimental)"""
+        """
+        Align the seq on msa (Experimental)
+
+        Args:
+            seq (str): The sequence you want to align on
+            target_allele (str): I temporary align the sequences against target_allele
+            aligner (PairwiseAligner): If set as None,
+                the object will initizalize the parameters like EMBOSS
+        Returns:
+            result_sequence (str): The gap in sequence will set to '-'
+        """
         if not len(self.alleles):
             raise ValueError("MSA is empty")
         if not target_allele:
@@ -631,7 +641,10 @@ class Genemsa:
             aligner = PairwiseAligner()
             aligner.alphabet = "ATCG-E"
             aligner.target_open_gap_score = -99999
-            aligner.query_open_gap_score = -2
+            aligner.query_open_gap_score = -10
+            aligner.query_extend_gap_score = -.5
+            aligner.match = 5
+            aligner.mismatch = -4
 
         # align
         target_seq = self.alleles[target_allele]
@@ -685,7 +698,7 @@ class Genemsa:
 
         return cigar
 
-    def save_bam(self, fname: str, ref_allele=""):
+    def save_bam(self, fname: str, ref_allele="", save_ref=False):
         """
         Save the MSA into bam
 
@@ -695,6 +708,7 @@ class Genemsa:
           fname (str): The name of bamfile
           ref_allele (str): The reference allele.
               If the ref_allele is empty, the first allele will be reference.
+          save_ref (bool): The reference allele will also save in the bam file
         """
         if not len(self.alleles):
             raise ValueError("MSA is empty")
@@ -715,6 +729,11 @@ class Genemsa:
         cigars = []
         with pysam.AlignmentFile(fname, "wb", header=header) as outf:
             for allele, seq in self.alleles.items():
+                # skip
+                if not save_ref and allele == ref_allele:
+                    continue
+
+                # init bam record
                 a = pysam.AlignedSegment()
                 a.query_name = allele
                 a.query_sequence = seq.replace("E", "").replace("-", "")
@@ -731,6 +750,7 @@ class Genemsa:
                 # a.next_reference_id = 0
                 # a.next_reference_start = 0
                 outf.write(a)
+
         pysam.sort("-o", fname, fname)
         pysam.index(fname)
         return cigars
@@ -840,6 +860,7 @@ class Genemsa:
             # read allele name
             if "allele=" in line:
                 now_allele = line.split('"')[1]
+                now_allele = now_allele.replace("HLA-", "")
                 # no duplicated allele_name
                 assert now_allele not in data
                 data[now_allele] = []
@@ -886,7 +907,7 @@ class Genemsa:
         for allele, seq in alleles.items():
             # Check allele name in the dat
             # and sequence is consistent to dat
-            hla_name = "HLA-" + allele
+            hla_name = allele
             assert hla_name in dat
 
             # extract exon region
@@ -900,7 +921,7 @@ class Genemsa:
                 dat[hla_name] = dat_hla
 
             if len(seq.replace("-", "")) != dat[hla_name][-1][2]:
-                self.logger.warning(f"Ignore {allele}, length is different from dat")
+                self.logger.warning(f"Ignore {allele}, msf length is different from dat")
                 continue
 
             # rename UTR
@@ -958,7 +979,7 @@ class Genemsa:
         new_alleles = {}
         block_cord = dict(block_cord_list)
         for allele, seq in alleles.items():
-            allele_block = {i[0]: i[2] - i[1] + 1 for i in dat["HLA-" + allele]}
+            allele_block = {i[0]: i[2] - i[1] + 1 for i in dat[allele]}
 
             for block_name in block_cord:
                 len_block = len(seq[block_cord[block_name][0]:block_cord[block_name][1]].replace("-", ""))

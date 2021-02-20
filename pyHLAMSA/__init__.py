@@ -59,10 +59,10 @@ class HLAmsa:
         fs = glob(f"{self.imgt_folder}/*.txt")
         genes = set([f.split("/")[-1].split("_")[0] for f in fs])
         # TODO:
+        # * P -> only exon
         # * E last exon not shown in nuc
-        # * P has gen but no nuc exist?
         # * N the nuc has one more bp than in gen
-        genes = genes - set(["ClassI", "DRB", "E", "P", "N"])
+        genes = genes - set(["ClassI", "DRB", "N", "P", "E"])
         genes = sorted(list(genes))
         return genes
 
@@ -74,11 +74,12 @@ class HLAmsa:
 
         The alignment data is stored in `self.genes[gene]` in `Genemsa` instance
         """
+        gene_merge_exclude = []
         if "gen" in filetype:
             msa_gen = Genemsa(gene, seq_type="gen")
             msa_gen.read_alignment_file(f"{self.imgt_folder}/{gene}_gen.txt")
             self.logger.debug(f"{msa_gen}")
-        if "nuc" in filetype:
+        if "nuc" in filetype and gene not in gene_merge_exclude:
             msa_nuc = Genemsa(gene, seq_type="nuc")
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
@@ -90,7 +91,8 @@ class HLAmsa:
                 msa_nuc.read_alignment_file(f"{self.imgt_folder}/{gene}_nuc.txt")
                 self.logger.debug(f"{msa_nuc}")
 
-        if "gen" in filetype and "nuc" in filetype:
+        if "gen" in filetype and "nuc" in filetype \
+                and gene not in gene_merge_exclude:
             return msa_gen.merge_exon(msa_nuc)
         elif "gen" in filetype:
             return msa_gen
@@ -165,10 +167,9 @@ class HLAmsaEX(HLAmsa):
         fs = glob(f"{self.imgt_folder}/msf/*.msf")
         genes = set([f.split("/")[-1].split("_")[0] for f in fs])
         # E_nuc, S_nuc, N_nuc: exon is different from nuc
-        # P has only gen
         # MICA MICB TAP1 TAP2 has no record in hla.dat
         genes = genes - set(["DRB", "DRB345", "MICA", "MICB", "TAP1", "TAP2",
-                             "E", "P", "S", "N"])
+                             "E", "S", "N"])
         genes = sorted(list(genes))
         return genes
 
@@ -182,26 +183,26 @@ class HLAmsaEX(HLAmsa):
         """
         self.dat = Genemsa.read_dat(f"{self.imgt_folder}/hla.dat")
 
+        gene_merge_exclude = ["P"]
         if "gen" in filetype:
             msa_gen = Genemsa(gene, seq_type="gen")
             msa_gen.read_MSF_file(f"{self.imgt_folder}/msf/{gene}_gen.msf")
             msa_gen = msa_gen.merge_dat(self.dat)
             self.logger.debug(f"{msa_gen}")
 
-        if "nuc" in filetype:
+        if "nuc" in filetype and gene not in gene_merge_exclude:
             msa_nuc = Genemsa(gene, seq_type="nuc")
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
                 msa_nuc.read_MSF_file(f"{self.imgt_folder}/msf/DRB_nuc.msf")
-                self.logger.debug(f"DRB: {msa_nuc}")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
-                self.logger.debug(f"{msa_nuc}")
             else:
                 msa_nuc.read_MSF_file(f"{self.imgt_folder}/msf/{gene}_nuc.msf")
-                self.logger.debug(f"{msa_nuc}")
             msa_nuc = msa_nuc.merge_dat(self.dat)
+            self.logger.debug(f"{msa_nuc}")
 
-        if "gen" in filetype and "nuc" in filetype:
+        if "gen" in filetype and "nuc" in filetype \
+                and gene not in gene_merge_exclude:
             return msa_gen.merge_exon(msa_nuc)
         elif "gen" in filetype:
             return msa_gen
