@@ -41,3 +41,7 @@ print(a_sub[30:180].shrink().format_alignment_diff("A*consensus"))
 # reverse the sequences if you needed
 a_rv =  a_sub.reverse_complement()
 a_rv.select_exon().save_gff("tmp_rv.gff", strand="-")
+
+# save and load the seq
+a_rv.save_msa("tmp1.save.fa", "tmp1.save.gff")
+a_rv = Genemsa.load_msa("tmp1.save.fa", "tmp1.save.gff")

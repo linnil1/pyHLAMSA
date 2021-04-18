@@ -5,7 +5,7 @@ from pprint import pprint
 from typing import List, Tuple, Dict
 
 from Bio.Align import MultipleSeqAlignment, PairwiseAligner
-from Bio import AlignIO
+from Bio import AlignIO, SeqIO
 from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 import pysam
@@ -698,6 +698,15 @@ class Genemsa:
 
         return cigar
 
+    def save_fasta(self, fname: str, gap=True):
+        """
+        Save the MSA into fasta
+
+        Args:
+            gap (bool): The sequence included gap or not
+        """
+        SeqIO.write(self.to_fasta(gap=gap), fname, "fasta")
+
     def save_bam(self, fname: str, ref_allele="", save_ref=False):
         """
         Save the MSA into bam
@@ -1003,3 +1012,31 @@ class Genemsa:
             elif "intron" in name:
                 new_msa.labels.append(("intron", name))
         return new_msa
+
+    @classmethod
+    def load_msa(cls, file_fasta, file_gff) -> Genemsa:
+        """ load this object to fasta and gff """
+        # read
+        msa = cls.from_MultipleSeqAlignment(AlignIO.read(file_fasta, "fasta"))
+        msa.blocks = []
+        msa.labels = []
+
+        # the blocks and labels from reference
+        for row in open(file_gff):
+            if not row.startswith("pyHLAMSA*consensus\t"):
+                continue
+            row = row.split("\t")
+            msa.labels.append([row[2], row[-1][3:].split("_")[0]])
+            msa.blocks.append(int(row[4]) - int(row[3]) + 1)
+
+        # check
+        assert len(msa.alleles["pyHLAMSA*consensus"]) == sum(msa.blocks)
+        del msa.alleles["pyHLAMSA*consensus"]
+        return msa
+
+    def save_msa(self, file_fasta, file_gff):
+        """ Save this object to fasta and gff """
+        # use pyHLAMSA*consensus as reference
+        self.add("pyHLAMSA*consensus", self.get_consensus(include_gap=False))
+        self.save_fasta(file_fasta, gap=True)
+        self.save_gff(file_gff)
