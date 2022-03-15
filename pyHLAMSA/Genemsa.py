@@ -420,7 +420,7 @@ class Genemsa:
         return self
 
     # Format function
-    def format_alignment_diff(self, ref_allele="") -> str:
+    def format_alignment_diff(self, ref_allele="", position_header=True) -> str:
         """
         Print the sequences of all alleles diff from `ref_allele` sequence.
 
@@ -470,9 +470,9 @@ class Genemsa:
                     new_seq += seq[i]
             new_msa.alleles[allele] = new_seq
         new_msa.alleles[ref_allele] = new_msa.alleles[ref_allele].replace("-", ".")
-        return new_msa.format_alignment()
+        return new_msa.format_alignment(position_header=position_header)
 
-    def format_alignment(self, wrap=100) -> str:
+    def format_alignment(self, wrap=100, position_header=True) -> str:
         """
         Print the MSA
 
@@ -513,8 +513,9 @@ class Genemsa:
             split_data = sorted(split_data)
 
             # Header per wrapping
-            output_str += f" {'gDNA':<18} {pos}\n"
-            output_str += " " * 20 + "|\n"
+            if position_header:
+                output_str += f" {'gDNA':<18} {pos}\n"
+                output_str += " " * 20 + "|\n"
 
             # alleles
             for allele, seq in self.alleles.items():
@@ -1040,3 +1041,72 @@ class Genemsa:
         self.add("pyHLAMSA*consensus", self.get_consensus(include_gap=False))
         self.save_fasta(file_fasta, gap=True)
         self.save_gff(file_gff)
+
+    def get_variantion_base(self) -> List[str]:
+        """
+        Get the base positions where variation occurs
+
+        Returns:
+          positions:
+            Each integer represent the position of variation
+        """
+        freqs = self.calculate_frequency()
+        num = len(self.alleles)
+        base = []
+        for i, freq in enumerate(freqs):
+            if num not in freq:
+                base.append(i)
+        return base
+
+    def format_alignment_from_center(self, pos: int, left=5, right=5) -> str:
+        """
+        Print all alleles sequences from the center of specific position
+
+        Args:
+          pos (int): The position wanted at the center
+          left (int): How many base shall print at the left of the center
+          right (int): How many base shall print at the right of the center
+
+        Returns:
+          str: A formatted string
+
+        Examples:
+          ```
+             gDNA                    3022
+                                     |
+             HLA-A*03:02        AGAGAAAAAT
+             HLA-A*01:40        -----G----
+             HLA-A*03:20        -----G----
+          ```
+        """
+        output_str = ""
+        prev_pos = max(pos - left, 0)
+        output_str += f" {'gDNA':<18} {' ' * (pos - prev_pos)}{pos}\n"
+        output_str += f" {' '   * 18} {' ' * (pos - prev_pos)}|\n"
+        new_msa = self[prev_pos:pos+right]
+        output_str += new_msa.format_alignment_diff(position_header=False)
+        return output_str
+
+    def format_variantion_base(self) -> str:
+        """
+        A handy function to show all the variation between the alleles
+
+        Returns:
+          str: A formatted string
+        """
+        bases = self.get_variantion_base()
+        output_str = f"Total variantion: {len(bases)}\n"
+
+        # merge if two variant are too close
+        merged_bases = []
+        right = 5
+        for b in bases:
+            if len(merged_bases) and merged_bases[-1][1] + right * 2 >= b:
+                merged_bases[-1][1] = b
+            else:
+                merged_bases.append([b, b])
+
+        # format the string
+        for b_left, b_right in merged_bases:
+            output_str += self.format_alignment_from_center(b_left, right=b_right - b_left + right)
+        return output_str
