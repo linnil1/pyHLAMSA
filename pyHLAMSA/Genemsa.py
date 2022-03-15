@@ -271,21 +271,26 @@ class Genemsa:
             raise ValueError(f"{ref_allele} not found")
         return self.alleles[ref_allele]
 
-    def select_allele(self, regex: str) -> Genemsa:
+    def select_allele(self, query: Optional[str, List[str]]) -> Genemsa:
         """
-        Select allele name by regex
+        Select allele name by regex or list of name
 
         Args:
           regex (str): The regex pattern
 
         Examples:
           >>> # select allele name start with A*01:01
-          >>> msa.select_allele("A\*01\:01.*")
+          >>> msa.select_allele("A\\*01\\:01.*")
+          >>> # select allele by list of string
+          >>> msa.select_allele(["A*01:01", "A*02:03"])
         """
         new_msa = Genemsa(self.gene_name, self.seq_type,
                           self.blocks, self.labels)
-        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
-                           if re.match(regex, allele)}
+        if type(query) is str:
+            new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
+                               if re.match(query, allele)}
+        elif type(query) is list:
+            new_msa.alleles = {name: self.alleles[name] for name in query}
         return new_msa
 
     def select_complete(self) -> Genemsa:
