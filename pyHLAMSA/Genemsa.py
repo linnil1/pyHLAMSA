@@ -2,7 +2,7 @@ from __future__ import annotations
 import logging
 import re
 from pprint import pprint
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Tuple
 
 from Bio.Align import MultipleSeqAlignment, PairwiseAligner
 from Bio import AlignIO, SeqIO
@@ -24,7 +24,11 @@ class Genemsa:
 
         alleles (dict of str,str): MSA data.
 
-            Allele name as the key and the sequence string as the value
+            Allele name as the key and the sequence string as the value.
+
+            The sequence has basic bases, "A", "T", "C", "G", "-" for gap,
+            "E" stands for error (Mostly because some sequence has exon part only,
+            so I fill the intron with E.
 
         blocks (list of int): The length of each chunk
         labels (list of str,str): The label of each chunk.
@@ -59,7 +63,30 @@ class Genemsa:
 
     def get_length(self) -> int:
         """ Get the length of MSA """
+        # 0 sequences is allow
         return sum(self.blocks)
+
+    def get_sequence_num(self) -> int:
+        """ Get the number of sequences in MSA """
+        return len(self.alleles)
+
+    def __len__(self) -> int:
+        """ Get the number of sequences in MSA """
+        return len(self.alleles)
+
+    def size(self) -> Tuple[int, int]:
+        """ Get the size (num_of_sequences, length_of_sequence) """
+        return (len(self), self.get_length())
+
+    def get_sequence_names(self) -> List[str]:
+        """ Get the all the allele's sequence name in MSA """
+        return list(self.alleles.keys())
+
+    def copy(self) -> Genemsa:
+        new_msa = Genemsa(self.gene_name, self.seq_type,
+                          self.blocks, self.labels)
+        new_msa.alleles = dict(self.alleles.items())
+        return new_msa
 
     def _get_first(self) -> Tuple[str, str]:
         """ Get the first record in MSA """
@@ -150,14 +177,14 @@ class Genemsa:
         if self.seq_type != "gen":
             raise TypeError("Check this object is gen or not")
         if len(self.blocks) % 2 != 1:
-            raise ValueError("introns + exon should be odd")
+            raise IndexError("introns + exon should be odd")
 
         # If not specific the index, extract all exons
         if not exon_index:
             exon_index = range(1, len(self.blocks), 2)
         else:
             if not (max(exon_index) <= len(self.blocks) // 2 and min(exon_index) > 0):
-                raise ValueError("Check chunk index is correct")
+                raise IndexError("Check chunk index is correct")
             exon_index = [i * 2 - 1 for i in exon_index]
 
         new_msa = self.select_chunk(exon_index)
@@ -183,11 +210,10 @@ class Genemsa:
             * 4 for 3-UTR(for two exons gene)
             * -1 for 3-UTR(for all case)
         """
-        if not index:
-            return copy.deepcopy(self)
-
+        if not index:  # all region
+            return self.copy()
         if not (max(index) <= len(self.blocks) and min(index) >= -1):
-            raise ValueError("Check chunk index is correct")
+            raise IndexError("Check chunk index is correct")
 
         # replace -1 (3-UTR)
         for i in range(len(index)):
@@ -210,7 +236,8 @@ class Genemsa:
 
     def __getitem__(self, index=[]) -> Genemsa:
         """
-        Extract the region of the sequences by index
+        Extract the region of the sequences by index (start from 0),
+        but exon/intron will not preserved
 
         Example:
           >>> msa = Genemsa("A", "gen")
@@ -267,8 +294,6 @@ class Genemsa:
     # Allele selection functions
     def get(self, ref_allele: str) -> str:
         """ Get the sequence by allele name """
-        if ref_allele not in self.alleles:
-            raise ValueError(f"{ref_allele} not found")
         return self.alleles[ref_allele]
 
     def select_allele(self, query: Optional[str, List[str]]) -> Genemsa:
@@ -312,7 +337,7 @@ class Genemsa:
     # Sequence adding functions
     def add(self, name: str, seq: str):
         """
-        Add a sequence into MSA
+        Add a sequence into MSA (inplace)
 
         Make sure the sequence length is same as in MSA
         """
@@ -326,10 +351,31 @@ class Genemsa:
         self.alleles[name] = seq
         return self
 
+    def remove(self, name: Optional[str|List[str]]):
+        """
+        Remove a/some sequence from MSA (inplace)
+        """
+        if type(name) is str:
+            del self.alleles[name]
+            return self
+        elif type(name) is list:
+            for n in name:
+                del self.alleles[n]
+            return self
+        # else
+        raise TypeError("Bad usage")
+
     def extend(self, msa: Genemsa):
-        """ Merge MSA into this instance """
+        """ Merge MSA into this instance (inplace) """
         if self.blocks != msa.blocks:
             raise ValueError("Length is different")
+        leng = self.get_length()
+
+        for name, seq in msa.alleles.items():
+            if name in self.alleles:
+                raise ValueError(f"{name} already exist")
+            if len(seq) != leng:
+                raise ValueError(f"Length is different, caused by {name}")
         self.alleles.update(msa.alleles)
         return self
 
@@ -435,7 +481,7 @@ class Genemsa:
           str: A formatted string
 
         Examples:
-          >>> a = msa.select_allele(r"A\*.*:01:01:01$").select_exon([6,7])
+          >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
           >>> print(a.format_alignment_diff())
              gDNA               0
                                 |
@@ -488,7 +534,7 @@ class Genemsa:
           str: A formatted string
 
         Examples:
-          >>> a = msa.select_allele(r"A\*.*:01:01:01$").select_exon([6,7])
+          >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
           >>> print(a.format_alignment())
              gDNA               0
                                 |
@@ -551,7 +597,11 @@ class Genemsa:
         return new_msa
 
     def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
-        """ Transfer this object to MultipleSeqAlignment(biopython) """
+        """
+        Transfer this object to MultipleSeqAlignment(biopython)
+
+        This operation will lost the information of intron's, exon's position and labels
+        """
         return MultipleSeqAlignment(self.to_fasta(gap=True))
 
     def to_fasta(self, gap=True) -> list[SeqRecord]:
@@ -575,7 +625,7 @@ class Genemsa:
 
         Returns:
             frequency (list of list of int):
-                Each items contains the number of ATCG and space
+                Each items contains the number of ATCG and gap. ("E" is count as gap)
         """
         freqs = []
         for i in zip(*self.alleles.values()):
@@ -584,7 +634,7 @@ class Genemsa:
                 i.count("T"),
                 i.count("C"),
                 i.count("G"),
-                i.count("-")])
+                i.count("-") + i.count("E")])
         return freqs
 
     def get_consensus(self, include_gap=False) -> str:
@@ -592,10 +642,16 @@ class Genemsa:
         Generate the consensus sequence by choosing maximum frequency base
 
         Args:
-          include_gap (bool): Allow consensus contains gap
+          include_gap (bool):
+              Allow consensus contains gap if gap is the maximum item.
+
+              If include_gap=False and all the base on that position is gap (not shrinked before),
+              it will warning and fill with A.
         """
         freqs = self.calculate_frequency()
         if not include_gap:
+            if any(sum(f[:4]) == 0 for f in freqs):
+                self.logger.warning("MSA contains gap, try .shrink() before .get_consensus()")
             max_ind = [max(range(4), key=lambda i: f[i]) for f in freqs]
         else:
             max_ind = [max(range(5), key=lambda i: f[i]) for f in freqs]

@@ -167,8 +167,14 @@ You can show the alignments on IGV
 
 
 ## TODO
-* [ ] Sanity check
+* [ ] Testing
+  * [x] Main function
+  * [ ] exon-only sequence handling
+  * [ ] Reading from file
+* [x] Some useful function: `copy`, `remove`, `get_sequence_num`, `get_sequence_names`, `__len__`, `size`
 * [ ] Cannot handle splice variant
+* [ ] merge blocks and labels
+* [ ] Use index to trace orignal position
 
 
 ## Requirement
@@ -187,6 +193,13 @@ pip3 install -e pyHLAMSA
 ```
 pip3 install mkdocs mkdocs-material mkdocstrings
 mkdocs serve
+```
+
+## Test
+```
+pip3 intall -e .
+pip3 install pytest
+pytest
 ```
 
 ## Citation

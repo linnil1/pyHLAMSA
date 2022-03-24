@@ -11,8 +11,11 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      # docs
-      - run: pip install mkdocs-material mkdocstrings
-      # this project
-      - run: pip install .
-      - run: mkdocs gh-deploy --force
+      - name: Install temporary packages for document and testing
+        run: pip install mkdocs-material mkdocstrings pytest
+      - name: Install this package
+        run: pip install .
+      - name: Test
+        run: pytest
+      - name: Deploy web
+        run: mkdocs gh-deploy --force

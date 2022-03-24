@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pyHLAMSA",
-    version="0.2.1",
+    version="0.3.0",
     author="linnil1",
     author_email="linnil1.886@gmail.com",
     description="A small and simple utility to read IMGT HLA data",
@@ -18,8 +18,10 @@ setuptools.setup(
         "pysam"
     ],
     classifiers=[
+        "Development Status :: 3 - Alpha",
         "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
+        "License :: OSI Approved :: MIT License",
     ],
-    python_requires='>=3.8',
+    python_requires=">=3.8",
 )
