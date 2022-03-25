@@ -189,8 +189,9 @@ class Genemsa:
 
         new_msa = self.select_chunk(exon_index)
         new_msa.seq_type = "nuc"
-        for allele, seq in new_msa.alleles.items():
-            assert "E" not in seq
+        # not need to check
+        # for allele, seq in new_msa.alleles.items():
+        #     assert "E" not in seq
         return new_msa
 
     def select_chunk(self, index=[]) -> Genemsa:
@@ -326,7 +327,7 @@ class Genemsa:
                            if "E" not in seq}
         return new_msa
 
-    def select_imcomplete(self) -> Genemsa:
+    def select_incomplete(self) -> Genemsa:
         """ Select exon-only sequences (`E` exists in the sequence)"""
         new_msa = Genemsa(self.gene_name, self.seq_type,
                           self.blocks, self.labels)
@@ -380,10 +381,10 @@ class Genemsa:
         return self
 
     # Functions deal with exon-only alleles
-    def fill_imcomplete(self, ref_allele: str):
+    def fill_incomplete(self, ref_allele: str):
         """ Fill the `E` in exon-only sequences with ref_allele sequence """
         if ref_allele not in self.alleles:
-            raise ValueError(f"{ref_allele} not found")
+            raise KeyError(f"{ref_allele} not found")
 
         ref_seq = self.alleles[ref_allele]
         for allele, seq in self.alleles.items():
@@ -397,6 +398,8 @@ class Genemsa:
         Merge nuc MSA into gen MSA
 
         The intron of nuc MSA will fill by `E`
+
+        TODO: rewrite
         """
         # merge when allele in both nuc and gen
         if not (self.seq_type == "gen" and msa_nuc.seq_type == "nuc"):

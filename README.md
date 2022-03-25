@@ -167,10 +167,10 @@ You can show the alignments on IGV
 
 
 ## TODO
-* [ ] Testing
+* [x] Testing
   * [x] Main function
-  * [ ] exon-only sequence handling
-  * [ ] Reading from file
+  * [x] exon-only sequence handling
+  * [x] Reading from file
 * [x] Some useful function: `copy`, `remove`, `get_sequence_num`, `get_sequence_names`, `__len__`, `size`
 * [ ] Cannot handle splice variant
 * [ ] merge blocks and labels
@@ -201,6 +201,18 @@ pip3 intall -e .
 pip3 install pytest
 pytest
 ```
+
+## Some QA
+* Why not inherit Bio.AlignIO.MultipleSeqAlignment?
+
+The class does't support lot of functions than I expected.
+
+And it's tidious to overwrite most of the functions to maintain our blocks
+
+* Why not use numpy to save the sequence?
+
+Performance issue is not my bottlenet yet.
+
 
 ## Citation
 * IGV

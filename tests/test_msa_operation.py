@@ -306,25 +306,73 @@ class TestMsaExonOnly(unittest.TestCase):
     """
     This deal with the case where MSA contains exon-only sequences
     """
-    # TODO
-    # select_complete
-    # select_incomplete
-    # fill_imcomplete
-    # merge_exon
-    # merge_dat
-    pass
+    def test_partical_seq(self):
+        # setup
+        msa = Genemsa("yourname", seq_type="gen")
+        alleles = {
+            'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
+            'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
+            'c2': "CAATTG|GGT--GTCGGGT|---|A|AG",
+            'e0': "EEEEEE|GGT--ATCGGGT|EEE|C|AG",  # edit from a1
+            'e1': "EEEEEE|GGT--ATCGGGT|EEE|E|AG",  # edit from a1
+            'e2': "CCACTG|GGT--ATCGGGT|ETC|C|AG",  # edit from a1
+        }
+        msa.blocks = list(map(len, alleles['a0'].split("|")))
+        msa.labels = [
+            ["five_prime_UTR", "5UTR"],
+            ["exon", "exon1"],
+            ["intron", "intron1"],
+            ["exon", "exon2"],
+            ["three_prime_UTR", "3UTR"],
+        ]
+        msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
 
+        # Check E in sequence
+        self.assertEqual(msa.select_complete().get_sequence_names(), ["a0", "a1", "c2"])
+        self.assertEqual(msa.select_incomplete().get_sequence_names(), ["e0", "e1", "e2"])
+        self.assertEqual(msa.select_exon().select_incomplete().get_sequence_names(), ["e1"])
 
-class TestMsaReadFromDB(unittest.TestCase):
-    """
-    Test the correctness of reading data provided by Database
-    """
-    # TODO
-    # read_alignment_file
-    # parse_alignment
-    # read_MSF_file
-    # read_dat
-    pass
+        # check fill the E
+        partical_seq_name = msa.select_incomplete().get_sequence_names()
+        newmsa = msa.fill_incomplete('a1')
+        for name in partical_seq_name:
+            self.assertEqual(msa.get(name), msa.get('a1'))
+
+    def test_merge_exon(self):
+        # setup
+        alleles = {
+            'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
+            'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
+            'c2': "CAATTG|GGT--GTCGGGT|---|A|AG",
+        }
+        msa = Genemsa("yourname", seq_type="gen")
+        msa.blocks = list(map(len, alleles['a0'].split("|")))
+        msa.labels = [
+            ["five_prime_UTR", "5UTR"],
+            ["exon", "exon1"],
+            ["intron", "intron1"],
+            ["exon", "exon2"],
+            ["three_prime_UTR", "3UTR"],
+        ]
+        msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
+
+        # selecct exon part and rename: add "e" before the name
+        msa_nuc = msa.select_exon()
+        msa_nuc.alleles.update({"e" + name: seq for name, seq in msa_nuc.alleles.items()})
+
+        # main
+        msa_merged = msa.merge_exon(msa_nuc)
+
+        # test exon is same
+        msa_merged_exon = msa_merged.select_incomplete().select_exon()
+        self.assertEqual(len(msa_merged_exon), len(alleles))
+        for name in msa_merged_exon.get_sequence_names():
+            self.assertEqual(msa_merged_exon.get(name), msa_nuc.get(name))
+
+        # test intron is E
+        msa_merged_intron = msa_merged.select_incomplete().select_chunk(list(range(0, len(msa.blocks), 2)))
+        for name in msa_merged_intron.get_sequence_names():
+            self.assertEqual(set(msa_merged_intron.get(name)), set("E"))
 
 
 if __name__ == '__main__':
