@@ -92,6 +92,17 @@ class Genemsa:
         """ Get the first record in MSA """
         return next(iter(self.alleles.items()))
 
+    def __add__(self, msa: Genemsa) -> Genemsa:
+        """ Concat 2 MSA """
+        if set(self.get_sequence_names()) != set(msa.get_sequence_names()):
+            return ValueError("Can not concat these two MSA because allele is different")
+        newmsa = self.copy()
+        newmsa.blocks.extend(msa.blocks)
+        newmsa.labels.extend(msa.labels)
+        for name, seq in msa.alleles.items():
+            newmsa.alleles[name] += seq
+        return newmsa
+
     # reading functions
     def read_alignment_file(self, fname: str):
         """ Read MSA format file `fname` and save it in the instance """
@@ -234,6 +245,10 @@ class Genemsa:
             new_msa.alleles[allele] = new_seq
 
         return new_msa
+
+    def split(self):
+        """ Split the msa by blocks """
+        return [self.select_block([i]) for i in range(len(self.blocks))]
 
     def __getitem__(self, index=[]) -> Genemsa:
         """

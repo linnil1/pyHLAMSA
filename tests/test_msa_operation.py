@@ -301,6 +301,25 @@ class TestMsaMainFunction(unittest.TestCase):
         # and already test it in load_msa and save_msa
         pass
 
+    def test_split(self):
+        msa_blocks = self.msa.split()
+        self.assertEqual(self.input_allele['a1'].count("|") + 1, len(msa_blocks))
+        self.assertEqual([i.get_length() for i in msa_blocks], list(map(len, self.input_allele['a1'].split("|"))))
+
+        for newmsa in msa_blocks:
+            self.assertEqual(len(newmsa.blocks), 1)
+            self.assertEqual(len(newmsa.labels), 1)
+            self.assertEqual(len(newmsa), len(self.input_allele))
+
+    def test_concat(self):
+        s = self.msa.split()
+        newmsa = s[0]
+        for i in s[1:]:
+            newmsa += i
+        print(newmsa)
+        self.assertEqual(newmsa.blocks, self.msa.blocks)
+        self.assertEqual(newmsa.labels, self.msa.labels)
+
 
 class TestMsaExonOnly(unittest.TestCase):
     """

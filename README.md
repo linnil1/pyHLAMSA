@@ -171,7 +171,7 @@ You can show the alignments on IGV
   * [x] Main function
   * [x] exon-only sequence handling
   * [x] Reading from file
-* [x] Some useful function: `copy`, `remove`, `get_sequence_num`, `get_sequence_names`, `__len__`, `size`
+* [x] Some useful function: `copy`, `remove`, `get_sequence_num`, `get_sequence_names`, `__len__`, `size`, `split`, `concat`
 * [ ] Cannot handle splice variant
 * [ ] merge blocks and labels
 * [ ] Use index to trace orignal position
