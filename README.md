@@ -70,7 +70,7 @@ print(a.calculate_frequency())
 consensus_seq = a.get_consensus(include_gap=False)
 
 # fill the exon-only allele by consensus
-a.add("A*consensus", consensus_seq)
+a.append("A*consensus", consensus_seq)
 a.fill_imcomplete("A*consensus")
 
 # shrink if all base in the column are gap
@@ -94,7 +94,7 @@ a_sub = a_sub[50:200]
 a_sub.select_exon([2,3])
 
 # extract exon2, intron2, exon3
-a_sub.select_chunk([3,4,5])
+a_sub.select_block([3,4,5])
 
 # Reverse the sequence
 a_rv =  a_sub.reverse_complement()

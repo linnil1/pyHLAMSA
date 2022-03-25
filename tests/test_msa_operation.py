@@ -152,19 +152,19 @@ class TestMsaMainFunction(unittest.TestCase):
         n = len(self.input_allele)
 
         # add new sequence
-        self.msa.add("test", seq)
+        self.msa.append("test", seq)
         self.assertEqual(len(self.msa), n + 1)
-        self.msa.add("test2", seq)
+        self.msa.append("test2", seq)
         self.assertEqual(len(self.msa), n + 2)
 
         # same name error
         with self.assertRaises(ValueError):
-            self.msa.add("test", seq)
+            self.msa.append("test", seq)
         self.assertEqual(len(self.msa), n + 2)
 
         #  different length
         with self.assertRaises(ValueError):
-            self.msa.add("test1", seq + "C")
+            self.msa.append("test1", seq + "C")
         self.assertEqual(len(self.msa), n + 2)
 
         # remove
@@ -223,7 +223,7 @@ class TestMsaMainFunction(unittest.TestCase):
         for name in newmsa.get_sequence_names():
             self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
 
-    def test_select_chunk(self):
+    def test_select_block(self):
         chunk_num = self.input_allele['a1'].count("|") + 1
         self.assertEqual(self.msa.get_sequence_names(), list(self.input_allele.keys()))
 
@@ -233,13 +233,13 @@ class TestMsaMainFunction(unittest.TestCase):
         with self.assertRaises(IndexError):
             self.msa.select_exon([chunk_num // 2 + 1])
         with self.assertRaises(IndexError):
-            self.msa.select_chunk([-2])
+            self.msa.select_block([-2])
         with self.assertRaises(IndexError):
-            self.msa.select_chunk([chunk_num])
+            self.msa.select_block([chunk_num])
 
         # chunk vs exon
         exon = self.msa.select_exon([1, 2])  # exon index start from 1
-        exon_1 = self.msa.select_chunk([1, 3])  # chunk index start from 0
+        exon_1 = self.msa.select_block([1, 3])  # chunk index start from 0
         self.assertEqual(len(exon), len(self.input_allele))
         self.assertEqual(exon.get_length(), exon_1.get_length())
 
@@ -253,7 +253,7 @@ class TestMsaMainFunction(unittest.TestCase):
         exon_2 = self.msa.select_exon()
         self.assertEqual(exon.get_length(), exon_2.get_length())
         # check select last intron
-        utr = self.msa.select_chunk([-1])
+        utr = self.msa.select_block([-1])
         for name in utr.get_sequence_names():
             self.assertEqual(utr.get(name), self.input_allele[name].split("|")[-1])
 
@@ -316,7 +316,6 @@ class TestMsaMainFunction(unittest.TestCase):
         newmsa = s[0]
         for i in s[1:]:
             newmsa += i
-        print(newmsa)
         self.assertEqual(newmsa.blocks, self.msa.blocks)
         self.assertEqual(newmsa.labels, self.msa.labels)
 
@@ -389,7 +388,7 @@ class TestMsaExonOnly(unittest.TestCase):
             self.assertEqual(msa_merged_exon.get(name), msa_nuc.get(name))
 
         # test intron is E
-        msa_merged_intron = msa_merged.select_incomplete().select_chunk(list(range(0, len(msa.blocks), 2)))
+        msa_merged_intron = msa_merged.select_incomplete().select_block(list(range(0, len(msa.blocks), 2)))
         for name in msa_merged_intron.get_sequence_names():
             self.assertEqual(set(msa_merged_intron.get(name)), set("E"))
 
