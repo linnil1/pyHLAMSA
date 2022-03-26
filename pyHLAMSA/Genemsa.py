@@ -687,15 +687,7 @@ class Genemsa:
             output_str += self.format_alignment_from_center(b_left, right=b_right - b_left + right)
         return output_str
 
-    # Save or transform type/filetype
-    def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
-        """
-        Transfer this object to MultipleSeqAlignment(biopython)
-
-        This operation will lost the information of intron's, exon's position and labels
-        """
-        return MultipleSeqAlignment(self.to_fasta(gap=True))
-
+    # Save function
     def to_fasta(self, gap=True) -> list[SeqRecord]:
         """
         Transfer MSA to list of SeqRecord
@@ -930,7 +922,28 @@ class Genemsa:
                 f.write("\t".join(record) + "\n")
         return records
 
-    # Read file function
+    # type transform
+    def meta_to_json(self) -> Dict:
+        """ Extract all meta information about this msa into json """
+        meta = {
+            'blocks': copy.deepcopy(self.blocks),
+            'seq_type': self.seq_type,
+            'name': self.gene_name,
+        }
+        return meta
+
+    @classmethod
+    def meta_from_json(cls, data=None) -> Genemsa:
+        """ Import meta information from json """
+        if data:
+            return Genemsa(data['name'], data['seq_type'], data['blocks'])
+        else:
+            return Genemsa("")
+
+    def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
+        """ Transfer this object to MultipleSeqAlignment(biopython) """
+        return MultipleSeqAlignment(self.to_fasta(gap=True), annotations=self.meta_to_json())
+
     @classmethod
     def from_MultipleSeqAlignment(cls, bio_msa: MultipleSeqAlignment) -> Genemsa:
         """
@@ -938,10 +951,13 @@ class Genemsa:
 
         See more details in [biopython](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
         """
-        new_msa = Genemsa("")
-        new_msa.blocks = [{'length': bio_msa.get_alignment_length()}]
+        new_msa = cls.meta_from_json(bio_msa.annotations)
+        if not new_msa.blocks:
+            new_msa.blocks = [{"length": bio_msa.get_alignment_length()}]
+
         for seq in bio_msa:
             new_msa.alleles[seq.id] = str(seq.seq)
+        assert new_msa.get_length() == bio_msa.get_alignment_length()
         return new_msa
 
     @classmethod

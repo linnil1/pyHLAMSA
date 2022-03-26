@@ -223,6 +223,7 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # test Bio.MultipleSeqAlignment
         newmsa = Genemsa.from_MultipleSeqAlignment(self.msa.to_MultipleSeqAlignment())
+        self.assertEqual(self.msa.blocks, newmsa.blocks)
         for name in newmsa.get_sequence_names():
             self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
 
