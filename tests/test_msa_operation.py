@@ -22,14 +22,18 @@ class TestMsaMainFunction(unittest.TestCase):
             'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
             'c2': "CAATTG|GGT--GTCGGGT|---|A|AG",
         }
-        self.msa.blocks = list(map(len, alleles['a0'].split("|")))
-        self.msa.labels = [
+        labels = [
             ["five_prime_UTR", "5UTR"],
             ["exon", "exon1"],
             ["intron", "intron1"],
             ["exon", "exon2"],
             ["three_prime_UTR", "3UTR"],
         ]
+        self.msa.blocks = [{
+            'length': len(seq),
+            'type': labels[i][0],
+            'name': labels[i][1]
+        } for i, seq in enumerate(alleles['a1'].split("|"))]
         self.msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
         self.input_allele = alleles
 
@@ -41,20 +45,20 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # after shrink
         # original msa not chanaged
-        self.assertEqual(self.msa.blocks, list(map(len, seq.split("|"))))
+        self.assertEqual(self.msa.get_block_length(), list(map(len, seq.split("|"))))
         self.assertEqual(self.msa.get_length(), len(seq.replace("|", "")))
         # newmsa
         #    CCATT-|GGT--GTCGGGT|TTC|CAG
         # -> CCATT-|GGTGTCGGGT|TTC|CAG
         self.assertEqual(newmsa.get_length(), len(seq.replace("|", "").replace("-", "")))
-        self.assertEqual(newmsa.blocks, list(map(len, seq.replace("-", "").split("|"))))
+        self.assertEqual(newmsa.get_block_length(), list(map(len, seq.replace("-", "").split("|"))))
 
         # shrink c2 only: 0-length blocks because of gap
         c2_seq = self.input_allele['c2']
         c2 = self.msa.select_allele(["c2"]).shrink()
         self.assertEqual(c2.get_length(), len(c2_seq.replace("|", "").replace("-", "")))
         self.assertEqual(len(c2.blocks), c2_seq.count("|") + 1)
-        self.assertEqual(c2.blocks[2], 0)
+        self.assertEqual(c2.blocks[2]['length'], 0)
 
     def test_consensus(self):
         alleles = {k: v.replace("|", "") for k, v in self.input_allele.items()}
@@ -121,7 +125,6 @@ class TestMsaMainFunction(unittest.TestCase):
         # check for same msa
         self.assertEqual(len(newmsa), len(self.input_allele))
         self.assertEqual(newmsa.blocks, self.msa.blocks)
-        self.assertEqual(newmsa.labels, self.msa.labels)
         for name in newmsa.get_sequence_names():
             self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
 
@@ -244,8 +247,8 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(exon.get_length(), exon_1.get_length())
 
         # check it's exon
-        for label in exon.labels:
-            self.assertEqual(label[0], "exon")
+        for b in exon.blocks:
+            self.assertEqual(b['type'], "exon")
         for name in exon.get_sequence_names():
             self.assertEqual(exon.get(name), "".join(self.input_allele[name].split("|")[1::2]))
 
@@ -308,7 +311,6 @@ class TestMsaMainFunction(unittest.TestCase):
 
         for newmsa in msa_blocks:
             self.assertEqual(len(newmsa.blocks), 1)
-            self.assertEqual(len(newmsa.labels), 1)
             self.assertEqual(len(newmsa), len(self.input_allele))
 
     def test_concat(self):
@@ -317,7 +319,6 @@ class TestMsaMainFunction(unittest.TestCase):
         for i in s[1:]:
             newmsa += i
         self.assertEqual(newmsa.blocks, self.msa.blocks)
-        self.assertEqual(newmsa.labels, self.msa.labels)
 
 
 class TestMsaExonOnly(unittest.TestCase):
@@ -335,14 +336,18 @@ class TestMsaExonOnly(unittest.TestCase):
             'e1': "EEEEEE|GGT--ATCGGGT|EEE|E|AG",  # edit from a1
             'e2': "CCACTG|GGT--ATCGGGT|ETC|C|AG",  # edit from a1
         }
-        msa.blocks = list(map(len, alleles['a0'].split("|")))
-        msa.labels = [
+        labels = [
             ["five_prime_UTR", "5UTR"],
             ["exon", "exon1"],
             ["intron", "intron1"],
             ["exon", "exon2"],
             ["three_prime_UTR", "3UTR"],
         ]
+        msa.blocks = [{
+            'length': len(seq),
+            'type': labels[i][0],
+            'name': labels[i][1]
+        } for i, seq in enumerate(alleles['a1'].split("|"))]
         msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
 
         # Check E in sequence
@@ -364,14 +369,18 @@ class TestMsaExonOnly(unittest.TestCase):
             'c2': "CAATTG|GGT--GTCGGGT|---|A|AG",
         }
         msa = Genemsa("yourname", seq_type="gen")
-        msa.blocks = list(map(len, alleles['a0'].split("|")))
-        msa.labels = [
+        labels = [
             ["five_prime_UTR", "5UTR"],
             ["exon", "exon1"],
             ["intron", "intron1"],
             ["exon", "exon2"],
             ["three_prime_UTR", "3UTR"],
         ]
+        msa.blocks = [{
+            'length': len(seq),
+            'type': labels[i][0],
+            'name': labels[i][1]
+        } for i, seq in enumerate(alleles['a1'].split("|"))]
         msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
 
         # selecct exon part and rename: add "e" before the name
@@ -391,6 +400,18 @@ class TestMsaExonOnly(unittest.TestCase):
         msa_merged_intron = msa_merged.select_incomplete().select_block(list(range(0, len(msa.blocks), 2)))
         for name in msa_merged_intron.get_sequence_names():
             self.assertEqual(set(msa_merged_intron.get(name)), set("E"))
+
+        # test when exon change when mergin
+        msa_nuc = msa.select_exon()
+        msa_nuc.alleles.update({name:       seq + "--" for name, seq in msa_nuc.alleles.items()})
+        msa_nuc.alleles.update({"e" + name: seq + "AA" for name, seq in msa_nuc.alleles.items()})
+        msa_nuc.blocks[-1]['length'] += 2
+
+        # main
+        msa_merged = msa.merge_exon(msa_nuc)
+        for name in msa_merged.select_complete().get_sequence_names():
+            self.assertEqual(msa_merged.get(name).replace("-", ""),
+                             alleles[name].replace("|", "").replace("-", ""))
 
 
 if __name__ == '__main__':
