@@ -1,5 +1,7 @@
 import re
+import copy
 import logging
+from collections import defaultdict
 from typing import List, Tuple, Dict, Tuple
 from Bio import AlignIO, SeqIO
 from Bio.Align import MultipleSeqAlignment
@@ -94,7 +96,7 @@ def read_alignment_sequence(fname: str) -> Dict[str, str]:
     return alleles
 
 
-def read_dat_block(file_dat: str):
+def read_dat_block(file_dat: str) -> Dict:
     """
     Read block information in .dat file
 
@@ -138,9 +140,12 @@ def read_dat_block(file_dat: str):
     return data
 
 
-def apply_dat_info_on_msa(msa, dat) -> Genemsa:
+def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
     """
-    Merge dat object
+    Apply the dat information to MSA to cut the exon, intron position.
+
+    This function will estimate the intron/exon position in MSA,
+    when given the intron/exon position in no-gap sequence
 
     Args:
         dat (object): Object created from `Genemsa.read_dat`
@@ -154,110 +159,110 @@ def apply_dat_info_on_msa(msa, dat) -> Genemsa:
     if msa.seq_type != "gen" and msa.seq_type != "nuc":
         raise TypeError("Check this object is gen or nuc")
     dat = copy.deepcopy(dat)
-    # I don't know how it work...
-    # need more documentation
 
-    # Check consistent between dat and msf
-    block_cord = {}
+    # block_cord save the min and max possible position of intron and exon
+    # first element: the maximum of the first position
+    # first element: the minimum of the last position
+    block_cord = defaultdict(lambda: [msf_length, 0])
+    # new_alleles: save the sequence
     new_alleles = {}
-    for allele, seq in msa.alleles.items():
-        # Check allele name in the dat
-        # and sequence is consistent to dat
-        hla_name = allele
-        assert hla_name in dat
 
-        # extract exon region
+    for allele_name, seq in msa.alleles.items():
+        if allele_name not in dat:
+            logger.warning(f"Ignore {allele_name}: not exist in dat")
+            continue
+
+        # make sure the intron/exon order
+        dat[allele_name] = sorted(dat[allele_name], key=lambda i: i[1])
+
+        # rename UTR
+        if "UTR" == dat[allele_name][0][0]:
+            dat[allele_name][0][0] = "5UTR"
+        if "UTR" == dat[allele_name][-1][0]:
+            dat[allele_name][-1][0] = "3UTR"
+
+        # type is nuc i.e. no exon exist
+        # remove all intron, and recalculate the position
         if msa.seq_type == "nuc":
             dat_hla = []
             end = 0
-            for i in [i for i in dat[hla_name] if "exon" in i[0]]:
+            for i in [i for i in dat[allele_name] if "exon" in i[0]]:
                 gap = i[1] - end - 1
                 dat_hla.append([i[0], i[1] - gap, i[2] - gap])
                 end = dat_hla[-1][2]
-            dat[hla_name] = dat_hla
+            dat[allele_name] = dat_hla
 
-        if len(seq.replace("-", "")) != dat[hla_name][-1][2]:
-            logger.warning(f"Ignore {allele}, msf length is different from dat")
+        # check sequence length
+        if len(seq.replace("-", "")) != dat[allele_name][-1][2]:
+            logger.warning(f"Ignore {allele_name}, msf length is different from dat")
+            continue
+        # assert len(seq) == msf_length
+        # check sequence content
+        if not all(i in "ATCG-" for i in seq):
+            logger.warning(f"Ignore {allele_name}, msf length contains character not in ATCG-(gap)")
             continue
 
-        # rename UTR
-        # assume blocks are ordered
-        if "UTR" == dat[hla_name][0][0]:
-            dat[hla_name][0][0] = "5UTR"
-        if "UTR" == dat[hla_name][-1][0]:
-            dat[hla_name][-1][0] = "3UTR"
-
-        # Coordination mapping from sequence to msf
+        # Coordination mapping from sequence to gapped-sequence
         seq_cord = []
-        assert len(seq) == msf_length
         for i in range(len(seq)):
             if seq[i] != "-":
-                assert seq[i] in "ATCG"
                 seq_cord.append(i)
 
-        # Get the position of each block in msf
+        # Calculate the intron/exon position after insert this allele
+        # If the intron/exon overlap -> ignore this allele, restore the position
         old_cord = copy.deepcopy(block_cord)
-        for block_name, start, end in dat[hla_name]:
-            if block_name not in block_cord:
-                block_cord[block_name] = [99999, 0]
-
-            block_cord[block_name][0] = min(block_cord[block_name][0],
-                                            seq_cord[start - 1])
-            block_cord[block_name][1] = max(block_cord[block_name][1],
-                                            seq_cord[end - 1] + 1)
-
-        # Check consistent
-        # Assume first allele has correct coordination
-        # , otherwise all allele will ignore
+        for block_name, start, end in dat[allele_name]:
+            # calculate the position
+            block_cord[block_name][0] = min(block_cord[block_name][0], seq_cord[start - 1])
+            block_cord[block_name][1] = max(block_cord[block_name][1], seq_cord[end   - 1] + 1)
         block_cord_list = list(sorted(block_cord.values()))
         for i in range(1, len(block_cord_list)):
-            if block_cord_list[i][0] < block_cord_list[i - 1][1]:
-                logger.warning(f"Ignore {allele}, msf inconsistent")
+            # is overlap
+            if block_cord_list[i - 1][1] > block_cord_list[i][0]:
+                logger.warning(f"Ignore {allele_name}, maybe something wrong in dat")
                 block_cord = old_cord
                 break
         else:
-            new_alleles[allele] = seq
+            # success
+            new_alleles[allele_name] = seq
 
-    # Reset position of each block
-    # If perfect -> start_i == end_{i-1}
-    # If not -> start_i = end_{i-1}
-    block_cord_list = list(sorted(block_cord.items(), key=lambda i: i[1]))
-    # TODO: is end == msf_length
-    end = msf_length
-    # end = block_cord_list[-1][1][1]
-    for i in reversed(range(len(block_cord_list))):
-        block_cord_list[i], end = ([block_cord_list[i][0],
-                                    [block_cord_list[i][1][0], end]],
-                                   block_cord_list[i][1][0])
+    # Because the ensure two consecutive region will not overlap before,
+    # we just set any value between the lower and upper bound of each intron/exon position in block_cord
+    block_cord_list = []
+    start_pos = 0
+    for block_name, (start, end) in sorted(block_cord.items(), key=lambda i: i[1]):
+        assert start_pos <= end
+        block_cord_list.append((block_name, [start_pos, end]))
+        start_pos = end
+    assert block_cord_list[-1][1][1] <= msf_length
+    block_cord_list[-1][1][1] = msf_length
 
-    # Check the sequence length in msf is same as block coordination
+    # double check the regions is match dat information
     alleles = new_alleles
     new_alleles = {}
-    block_cord = dict(block_cord_list)
-    for allele, seq in alleles.items():
-        allele_block = {i[0]: i[2] - i[1] + 1 for i in dat[allele]}
+    for allele_name, seq in alleles.items():
+        block_length = {i[0]: i[2] - i[1] + 1 for i in dat[allele_name]}
 
-        for block_name in block_cord:
-            len_block = len(seq[block_cord[block_name][0]:block_cord[block_name][1]].replace("-", ""))
-            len_block_ref = allele_block.get(block_name, 0)
-            # should always true, otherwise ignore in above
+        for block_name, (start, end) in block_cord_list:
+            len_block = len(seq[start:end].replace("-", ""))
+            len_block_ref = block_length.get(block_name, 0)
             assert len_block == len_block_ref
         else:
-            new_alleles[allele] = seq
+            new_alleles[allele_name] = seq
 
-    # To new object
+    # New msa
     new_msa = msa.copy()
     new_msa.alleles = new_alleles
     new_msa.blocks = []
     for name, (start, end) in block_cord_list:
-        b = {'length': end - start}
-        if "3UTR" == name:
-            b.update({'type': "three_prime_UTR", 'name': "3UTR"})
-        elif "5UTR" == name:
-            b.update({'type': "five_prime_UTR", 'name': "5UTR"})
-        elif "exon" in name:
-            b.update({'type': "exon", 'name': name})
-        elif "intron" in name:
-            b.update({'type': "intron", 'name': name})
-        new_msa.blocks.append(b)
+        new_msa.blocks.append({
+            'length': end - start,
+            'name': name,
+            'type': {
+                "3UTR": "three_prime_UTR",
+                "5UTR": "five_prime_UTR",
+                "exon": "exon",
+                "intron": "intron",
+            }.get(name),
+        })
     return new_msa

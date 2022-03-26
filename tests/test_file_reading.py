@@ -10,9 +10,9 @@ class TestMsaReadFromDB(unittest.TestCase):
     Test the correctness of reading data provided by Database
     """
     def setUp(self):
-        # os.system("gunzip -k ./tests/hla_A01.dat.gz")
-        # os.system("gunzip -k ./tests/A01_gen.txt.gz")
-        # os.system("gunzip -k ./tests/A01_gen.msf.gz")
+        os.system("gunzip -k ./tests/hla_A01.dat.gz")
+        os.system("gunzip -k ./tests/A01_gen.txt.gz")
+        os.system("gunzip -k ./tests/A01_gen.msf.gz")
         pass
 
     def test_dat(self):
@@ -66,20 +66,31 @@ class TestMsaReadFromDB(unittest.TestCase):
         for name in msa.get_sequence_names():
             self.assertEqual(msa.get(name).replace('-', ''),
                              msa_ali.get(name).replace('-', ''))
-        self.assertEqual(sorted(msa.get_sequence_names()), sorted(msa_ali.get_sequence_names))
+        self.assertEqual(sorted(msa.get_sequence_names()), sorted(msa_ali.get_sequence_names()))
 
     def test_msf_with_dat(self):
         # main test
         dat = Readmsa.read_dat_block("tests/hla_A01.dat")
         msa = Readmsa.from_MSF_file("tests/A01_gen.msf")
+        msa.gene_name = "A"
+        msa.seq_type = "gen"
+
         msa1 = Readmsa.apply_dat_info_on_msa(msa, dat)
         self.assertEqual(len(msa1.blocks), 17)
-        self.assertEqual(msa1.get_length(), 3834)
-        self.assertEqual(len(msa1), 301)
+        self.assertEqual(msa1.get_length(), 3890)
+
+        # why A*01:11N be ignored
+        # exon3:
+        # in dat: 252 bases
+        # exon            1015..1266
+        # in msf: 276 bases
+        # The sequence length in exon3 is not match
+        self.assertEqual(len(msa1), 301 - 1)
+        self.assertTrue("A*01:11N" not in msa1.get_sequence_names())
 
         # compare result
         msa2 = Readmsa.from_alignment_file(f"tests/A01_gen.txt")
-        self.assertEqual(sorted(msa1.get_sequence_names()), sorted(msa2.get_sequence_names))
+        self.assertEqual(sorted(set(msa1.get_sequence_names()) | set(["A*01:11N"])), sorted(msa2.get_sequence_names()))
         for m1, m2 in zip(msa1.split(), msa2.split()):
             for name in msa1.get_sequence_names():
                 self.assertEqual(msa1.get(name).replace('-', ''),

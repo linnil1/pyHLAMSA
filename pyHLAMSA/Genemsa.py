@@ -61,10 +61,6 @@ class Genemsa:
         """ Get the block's length of MSA """
         return [i['length'] for i in self.blocks]
 
-    def get_sequence_num(self) -> int:
-        """ Get the number of sequences in MSA """
-        return len(self.alleles)
-
     def __len__(self) -> int:
         """ Get the number of sequences in MSA """
         return len(self.alleles)
@@ -116,7 +112,7 @@ class Genemsa:
         self.alleles[name] = seq
         return self
 
-    def remove(self, name: Optional[str|List[str]]):
+    def remove(self, name: Optional[str | List[str]]):
         """
         Remove a/some sequence from MSA (inplace)
         """
@@ -261,7 +257,7 @@ class Genemsa:
         # recalcuate blocks
         gen_pos = self._get_block_position()
         for i in range(len(self.blocks)):
-            new_msa.blocks[i]['length'] = sum(masks[gen_pos[i]:gen_pos[i+1]])
+            new_msa.blocks[i]['length'] = sum(masks[gen_pos[i]:gen_pos[i + 1]])
         assert sum(masks) == new_msa.get_length()
 
         # remove base in allele
@@ -660,7 +656,7 @@ class Genemsa:
         prev_pos = max(pos - left, 0)
         output_str += f" {'gDNA':<18} {' ' * (pos - prev_pos)}{pos}\n"
         output_str += f" {' '   * 18} {' ' * (pos - prev_pos)}|\n"
-        new_msa = self[prev_pos:pos+right]
+        new_msa = self[prev_pos:pos + right]
         output_str += new_msa.format_alignment_diff(position_header=False)
         return output_str
 
