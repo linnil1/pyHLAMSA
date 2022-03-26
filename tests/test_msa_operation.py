@@ -209,7 +209,6 @@ class TestMsaMainFunction(unittest.TestCase):
         n = len(self.input_allele)
         self.assertEqual(self.msa.get_sequence_names(), list(self.input_allele.keys()))
         # shape information checking
-        self.assertEqual(self.msa.get_sequence_num(), n)
         self.assertEqual(len(self.msa), n)
         self.assertEqual(self.msa.get_length(), len(self.input_allele['a1'].replace("|", "")))
         self.assertEqual(self.msa.size(), (n, len(self.input_allele['a1'].replace("|", ""))))
@@ -404,7 +403,7 @@ class TestMsaExonOnly(unittest.TestCase):
 
         # test when exon change when mergin
         msa_nuc = msa.select_exon()
-        msa_nuc.alleles.update({name:       seq + "--" for name, seq in msa_nuc.alleles.items()})
+        msa_nuc.alleles.update({name: seq + "--" for name, seq in msa_nuc.alleles.items()})
         msa_nuc.alleles.update({"e" + name: seq + "AA" for name, seq in msa_nuc.alleles.items()})
         msa_nuc.blocks[-1]['length'] += 2
 
