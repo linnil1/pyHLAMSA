@@ -1,6 +1,7 @@
 from __future__ import annotations
 import re
 import copy
+import json
 import logging
 from typing import List, Tuple, Dict, Tuple
 
@@ -944,26 +945,9 @@ class Genemsa:
         """ Transfer this object to MultipleSeqAlignment(biopython) """
         return MultipleSeqAlignment(self.to_fasta(gap=True), annotations=self.meta_to_json())
 
-    @classmethod
-    def from_MultipleSeqAlignment(cls, bio_msa: MultipleSeqAlignment) -> Genemsa:
-        """
-        Transfer MultipleSeqAlignment instance(biopython) to Genemsa
-
-        See more details in [biopython](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
-        """
-        new_msa = cls.meta_from_json(bio_msa.annotations)
-        if not new_msa.blocks:
-            new_msa.blocks = [{"length": bio_msa.get_alignment_length()}]
-
-        for seq in bio_msa:
-            new_msa.alleles[seq.id] = str(seq.seq)
-        assert new_msa.get_length() == bio_msa.get_alignment_length()
-        return new_msa
-
-    @classmethod
     def read_MSF_file(cls, file_msf: str) -> Genemsa:
         """ Read .msf file """
-        return Genemsa.from_MultipleSeqAlignment(AlignIO.read(file_msf, "msf"))
+        return cls.from_MultipleSeqAlignment(AlignIO.read(file_msf, "msf"))
 
     @classmethod
     def read_dat_block(cls, file_dat: str):
@@ -1198,34 +1182,38 @@ class Genemsa:
             del alleles[allele]
         return alleles
 
+    @classmethod
+    def from_MultipleSeqAlignment(cls, bio_msa: MultipleSeqAlignment) -> Genemsa:
+        """
+        Transfer MultipleSeqAlignment instance(biopython) to Genemsa
+
+        See more details in [biopython](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
+        """
+        new_msa = cls.meta_from_json(bio_msa.annotations)
+        if not new_msa.blocks:
+            new_msa.blocks = [{"length": bio_msa.get_alignment_length()}]
+
+        for seq in bio_msa:
+            new_msa.alleles[seq.id] = str(seq.seq)
+        assert new_msa.get_length() == bio_msa.get_alignment_length()
+        return new_msa
+
     # out model save and load
     # TODO: rewrite to read/load json meta information
     @classmethod
-    def load_msa(cls, file_fasta, file_gff) -> Genemsa:
+    def load_msa(cls, file_fasta, file_json) -> Genemsa:
         """ load this object to fasta and gff """
         # read
-        msa = cls.from_MultipleSeqAlignment(AlignIO.read(file_fasta, "fasta"))
-        msa.blocks = []
+        msa = AlignIO.read(file_fasta, "fasta")
+        with open(file_json) as f:
+            msa.annotations = json.load(f)
+        # main
+        new_msa = cls.from_MultipleSeqAlignment(msa)
+        assert len(new_msa._get_first()[1]) == new_msa.get_length()
+        return new_msa
 
-        # the blocks and labels from reference
-        for row in open(file_gff):
-            if not row.startswith("pyHLAMSA*consensus\t"):
-                continue
-            row = row.split("\t")
-            msa.blocks.append({
-                'length': int(row[4]) - int(row[3]) + 1,
-                'type': row[2],
-                'name': row[-1][3:].split("_")[0],
-            })
-
-        # check
-        assert len(msa.alleles["pyHLAMSA*consensus"]) == msa.get_length()
-        msa.remove("pyHLAMSA*consensus")
-        return msa
-
-    def save_msa(self, file_fasta, file_gff):
+    def save_msa(self, file_fasta, file_json):
         """ Save this object to fasta and gff """
-        # use pyHLAMSA*consensus as reference
-        self.append("pyHLAMSA*consensus", self.get_consensus(include_gap=False))
         self.save_fasta(file_fasta, gap=True)
-        self.save_gff(file_gff)
+        with open(file_json, "w") as f:
+            json.dump(self.meta_to_json(), f)
