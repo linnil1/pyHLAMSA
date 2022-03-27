@@ -14,3 +14,8 @@ plugins:
           show_if_no_docstring: True
     watch:
       - pyHLAMSA
+markdown_extensions:
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences

@@ -63,7 +63,13 @@ class Genemsa:
         return [i['length'] for i in self.blocks]
 
     def __len__(self) -> int:
-        """ Get the number of sequences in MSA """
+        """
+        Get the number of sequences in MSA
+
+        Example:
+          >>> len(a_gen)
+          4100
+        """
         return len(self.alleles)
 
     def size(self) -> Tuple[int, int]:
@@ -71,7 +77,13 @@ class Genemsa:
         return (len(self), self.get_length())
 
     def get_sequence_names(self) -> List[str]:
-        """ Get the all the allele's sequence name in MSA """
+        """
+        Get the all the allele's sequence name in MSA
+
+        Example:
+           >>> a_gen.get_sequence_names()[:3]
+           ['A*01:01:01:01', 'A*01:01:01:02N', 'A*01:01:01:03']
+        """
         return list(self.alleles.keys())
 
     def get(self, ref_allele: str) -> str:
@@ -284,10 +296,16 @@ class Genemsa:
         return base
 
     def __add__(self, msa: Genemsa) -> Genemsa:
-        """ Concat 2 MSA """
+        """
+        Concat 2 MSA
+
+        Example:
+          >>> print(a_gen.select_exon([2]) + a_gen.select_exon([3]))
+          <A nuc alleles=4100 block=exon2(335) exon3(413)>
+        """
         if set(self.get_sequence_names()) != set(msa.get_sequence_names()):
             raise ValueError("Can not concat because some allele is miss: " +
-                 str(set(self.get_sequence_names()).symmetric_difference(set(msa.get_sequence_names()))))
+                             str(set(self.get_sequence_names()).symmetric_difference(set(msa.get_sequence_names()))))
         new_msa = self.copy()
         new_msa.blocks.extend(copy.deepcopy(msa.blocks))
         for name, seq in msa.alleles.items():
@@ -437,7 +455,7 @@ class Genemsa:
         return new_msa
 
     def fill_incomplete(self, ref_allele: str):
-        """ Fill the `E` in exon-only sequences with ref_allele sequence """
+        """ Fill the `E` in exon-only sequences with ref_allele sequence (inplace) """
         if ref_allele not in self.alleles:
             raise KeyError(f"{ref_allele} not found")
 
@@ -490,8 +508,8 @@ class Genemsa:
         # TODO: rewrite: using label to merge
         if not (self.seq_type == "gen" and msa_nuc.seq_type == "nuc"):
             raise TypeError("Should merge nuc into gen")
-        if (self.gene_name != msa_nuc.gene_name or
-                len(self.blocks) != len(msa_nuc.blocks) * 2 + 1):
+        if (self.gene_name != msa_nuc.gene_name
+                or len(self.blocks) != len(msa_nuc.blocks) * 2 + 1):
             raise ValueError("Check object's name and block are correct")
 
         msas_gen = self.split()
@@ -672,6 +690,31 @@ class Genemsa:
 
         Returns:
           str: A formatted string
+        Example:
+            ```
+            Total variantion: 71
+             gDNA                   4
+                                    |
+             A*01:01:01:01      GCTCCC.AC
+             A*02:01:01:01      ----T-.--
+             A*03:01:01:01      ------.--
+             A*11:01:01:01      ------.--
+             A*23:01:01:01      ------.--
+             A*25:01:01:01      ------.--
+             A*26:01:01:01      ------.--
+             A*29:01:01:01      ------.--
+
+             gDNA                    24
+                                     |
+             A*01:01:01:01      ATTTCTTCAC ATCCG
+             A*02:01:01:01      ---------- -----
+             A*03:01:01:01      ---------- -----
+             A*11:01:01:01      ------A--- C----
+             A*23:01:01:01      ------C--- -----
+             A*25:01:01:01      ------A--- C----
+             A*26:01:01:01      ------A--- C----
+             A*29:01:01:01      -----AC--- -----
+            ```
         """
         bases = self.get_variantion_base()
         output_str = f"Total variantion: {len(bases)}\n"
@@ -689,21 +732,6 @@ class Genemsa:
         for b_left, b_right in merged_bases:
             output_str += self.format_alignment_from_center(b_left, right=b_right - b_left + right)
         return output_str
-
-    # Save function
-    def to_fasta(self, gap=True) -> list[SeqRecord]:
-        """
-        Transfer MSA to list of SeqRecord
-
-        Args:
-            gap (bool): The sequence included gap or not
-        """
-        if gap:
-            return [SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
-                    for allele, seq in self.alleles.items()]
-        else:
-            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")), id=allele, description="")
-                    for allele, seq in self.alleles.items()]
 
     # Align sequences on allele
     def align(self, seq: str, target_allele="", aligner=None) -> str:
@@ -786,6 +814,21 @@ class Genemsa:
                 i[0] = 8
 
         return cigar
+
+    # Save function
+    def to_fasta(self, gap=True) -> list[SeqRecord]:
+        """
+        Transfer MSA to list of SeqRecord
+
+        Args:
+            gap (bool): The sequence included gap or not
+        """
+        if gap:
+            return [SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
+                    for allele, seq in self.alleles.items()]
+        else:
+            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")), id=allele, description="")
+                    for allele, seq in self.alleles.items()]
 
     def save_fasta(self, fname: str, gap=True):
         """
@@ -966,7 +1009,14 @@ class Genemsa:
     # out model save and load
     @classmethod
     def load_msa(cls, file_fasta, file_json) -> Genemsa:
-        """ load this object to fasta and gff """
+        """
+        load this object to fasta and gff
+
+        Example:
+          >>> from pyHLAMSA import Genemsa
+          >>> a_gen.save_msa("a_gen.fa", "a_gen.json")
+          >>> a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
+        """
         # read
         msa = AlignIO.read(file_fasta, "fasta")
         with open(file_json) as f:

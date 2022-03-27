@@ -58,7 +58,7 @@ class Familymsa:
         """ List all the gene's name in this family """
         return list(self.genes.keys())
 
-    def __getitem__(self, index:str) -> Genemsa:
+    def __getitem__(self, index: str) -> Genemsa:
         """ Get specific gene's msa """
         return self.genes[index]
 
@@ -103,7 +103,7 @@ class HLAmsa(Familymsa):
         super().__init__(genes, filetype,
                          db_folder=imgt_alignment_folder, version=version)
 
-    def _download_db(self, version:str):
+    def _download_db(self, version: str):
         """ Download the IMGTHLA alignments folder to `db_folder` """
         # TODO: Auto find the latest version
         fname = f"Alignments_Rel_{version}"
@@ -192,9 +192,10 @@ class HLAmsa(Familymsa):
 
 class HLAmsaEX(Familymsa):
     """
-    A HLA interface but read gene from MSF and hla.dat
+    A HLA interface but read gene from MSF and
+    read intron/exon information from hla.dat
 
-    I think this one is mucher reliable
+    I think this one is much reliable
 
     Attributes:
         genes (dict of str, Genemsa): The msa object for each gene
@@ -331,49 +332,6 @@ class KIRmsa(Familymsa):
             names = names_gen & names_nuc
         return sorted(names)
 
-    def _read_msf(self, gene: str, filetype: List[str]):
-        self.dat = Genemsa.read_dat(f"{self.imgt_folder}/KIR.dat")
-
-        if "gen" in filetype:
-            msa_gen = Genemsa(gene, seq_type="gen")
-            msa_gen.read_MSF_file(f"{self.imgt_folder}/msf/{gene}_gen.msf")
-            msa_gen = msa_gen.merge_dat(self.dat)
-            self.logger.debug(f"{msa_gen}")
-
-        if "nuc" in filetype:
-            msa_nuc = Genemsa(gene, seq_type="nuc")
-            msa_nuc.read_MSF_file(f"{self.imgt_folder}/msf/{gene}_nuc.msf")
-            msa_nuc = msa_nuc.merge_dat(self.dat)
-
-            # deal with pseudo -> add 0 length blocks
-            # 2DL4 -> intron3/4 as intron3
-            if gene != "KIR2DL4":
-                new_blocks = []
-                new_labels = []
-                num = 1
-                for i in range(len(msa_nuc.blocks)):
-                    while msa_nuc.labels[i][1] != f"exon{num}":
-                        new_labels.append(("exon", f"exon{num}"))
-                        new_blocks.append(0)
-                        num += 1
-                    new_blocks.append(msa_nuc.blocks[i])
-                    new_labels.append(msa_nuc.labels[i])
-                    num += 1
-                msa_nuc.blocks = new_blocks
-                msa_nuc.labels = new_labels
-            self.logger.debug(f"{msa_nuc}")
-
-        # KIR2DL5 -> only exon
-        if "gen" in filetype and "nuc" in filetype \
-                and gene not in ["KIR2DL5", "KIR3DL3"]:
-            return msa_gen.merge_exon(msa_nuc)
-        elif "gen" in filetype:
-            return msa_gen
-        elif "nuc" in filetype:
-            return msa_nuc
-        else:
-            return None
-
     def _read_db_gene(self, gene: str, filetype: List[str]):
         """
         Read `{gene}_{filetype}.txt`.
@@ -384,7 +342,10 @@ class KIRmsa(Familymsa):
         """
         if not hasattr(self, "dat"):
             self.logger.debug(f"Reading kir.dat")
-            self.dat = Readmsa.read_dat_block(f"{self.db_folder}/KIR.dat")
+            if os.path.exists(f"{self.db_folder}/KIR.dat"):
+                self.dat = Readmsa.read_dat_block(f"{self.db_folder}/KIR.dat")
+            else:
+                self.dat = Readmsa.read_dat_block(f"{self.db_folder}/kir.dat")
 
         if "gen" in filetype:
             msa_gen = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_gen.msf")
@@ -412,7 +373,7 @@ class KIRmsa(Familymsa):
             # exon 3 is pseudo exon
             # so, fill with gene's exon3
             gene_has_pseudo_exon3 = ["KIR2DL1", "KIR2DL2", "KIR2DL3", "KIR2DP1",
-                    "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS4", "KIR2DS5"]
+                                     "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS4", "KIR2DS5"]
             if gene in gene_has_pseudo_exon3:
 
                 exon3 = msa_gen.select_block([5])

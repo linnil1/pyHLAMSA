@@ -98,5 +98,31 @@ class TestMsaReadFromDB(unittest.TestCase):
                                  msa2.get(name).replace('-', ''))
 
 
+class TestMsaHLA(unittest.TestCase):
+    @unittest.skipIf(not os.path.exists("alignment_v3470"), "Tested on local")
+    def test_hla_align(self):
+        from pyHLAMSA import HLAmsa, HLAmsaEX
+        genes = ["A", "B", "C"]
+        hla0 = HLAmsa(genes, filetype="gen", imgt_alignment_folder="alignment_v3470", version="3470")
+        hla1 = HLAmsa(genes, imgt_alignment_folder="alignment_v3470")
+        hla2 = HLAmsaEX(genes, imgt_folder="IMGT_v3470", version="3470")
+        for gene in genes:
+            for name in set(hla0[gene].get_sequence_names()) & set(hla1[gene].get_sequence_names()):
+                self.assertEqual(hla0[gene].get(name).replace("-", "").replace("E", ""), hla1[gene].get(name).replace("-", "").replace("E", ""))
+            for name in set(hla1[gene].get_sequence_names()) & set(hla2[gene].get_sequence_names()):
+                self.assertEqual(hla1[gene].get(name).replace("-", "").replace("E", ""), hla2[gene].get(name).replace("-", "").replace("E", ""))
+
+    @unittest.skipIf(not os.path.exists("KIR_v2100"), "Tested on local")
+    def test_kir(self):
+        from pyHLAMSA import KIRmsa
+        kir0 = KIRmsa(filetype=["gen"], ipd_folder="KIR_v2100", version="2100")
+        kir1 = KIRmsa(ipd_folder="KIR_v2100")
+        self.assertEqual(set(kir0.list_genes()), set(kir1.list_genes()))
+        genes = set(kir0.list_genes())
+        for gene in genes:
+            for name in set(kir0[gene].get_sequence_names()) & set(kir1[gene].get_sequence_names()):
+                self.assertEqual(kir0[gene].get(name).replace("-", "").replace("E", ""), kir1[gene].get(name).replace("-", "").replace("E", ""))
+
+
 if __name__ == '__main__':
     unittest.main()

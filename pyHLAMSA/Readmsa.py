@@ -230,7 +230,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
             block_name, start, end = d['name'], d['start'], d['end']
             # calculate the position
             block_cord[block_name][0] = min(block_cord[block_name][0], seq_cord[start - 1])
-            block_cord[block_name][1] = max(block_cord[block_name][1], seq_cord[end   - 1] + 1)
+            block_cord[block_name][1] = max(block_cord[block_name][1], seq_cord[end - 1] + 1)
         block_cord_list = list(sorted(block_cord.values()))
         for i in range(1, len(block_cord_list)):
             # is overlap

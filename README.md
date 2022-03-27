@@ -1,6 +1,6 @@
 # pyHLAMSA
 
-This is a small python utility to parse alignments in IMGT.
+This is a small python utility that deal with MSA(multiple sequence alignment)
 
 Implemented with some useful functions shown below.
 
@@ -8,162 +8,309 @@ Still in development.
 
 ## Features
 
-### Download IMGT and read it
-It can be automatically downloaded and parse IMGAHLA gen and nuc.
+### 1. Read sequences from database in one line
 
-You can download by yourself. [IMGT ftp](ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/)
+`HLAmsa` provided a simple way to read HLA data
 
-``` python
-# A simple interface read A B DPA1 allele
-# If the txt file not exist in imgt_folder, it will download itself
-hla = HLAmsa(["A", "B", "DPA1"], filetype=["gen", "nuc"], version="3430")
-a = hla.genes["A"]
-print(a)
-
-
-# Genemsa is a main class to store alignments and implemented some important function
-a = Genemsa("A", "gen")
-a = a.read_alignment_file("alignments/A_gen.txt")
-print(a)
-```
-
-### Read MSF and hla.dat
-``` python
-# A simple interface read A B DPA1 allele
-# If the txt file not exist in imgt_folder, it will download itself
-hla = HLAmsaEX(["A", "B", "DPA1"], filetype=["gen", "nuc"], version="3430")
-a = hla.genes["A"]
-print(a)
-
-
-# Genemsa is a main class to store alignments and implemented some important function
-a = Genemsa("A", "gen")
-a = a.read_MSF_file("IMGT/msf/A_gen.msf")
-a = a.merge_dat(Genemsa.read_dat("IMGT/hla.dat"))
-print(a)
-```
-
-### Merge
-Merging gen and nuc alignments is easy
+It can automatically download and read the sequences
 
 ``` python
-# If gen and nuc are both in filetype, it will merge
-hla = HLAmsa(["A"], filetype=["gen", "nuc"])
-# It's ok to read one of them without merging
-hla1 = HLAmsa(["A"], filetype=["gen"])
-hla2 = HLAmsa(["A"], filetype=["nuc"])
+>>> from pyHLAMSA import HLAmsa
 
+>>> hla = HLAmsa(["A", "B"], filetype="gen",
+                 imgt_alignment_folder="alignment_v3470",
+                 version="3470")
 
-# Or merge by yourself
-a_gen = Genemsa("A", "gen")
-a_gen.read_alignment_file("alignments/A_gen.txt")
-a_nuc = Genemsa("A", "nuc")
-a_nuc.read_alignment_file("alignments/A_nuc.txt")
-a_gen = a_gen.merge_exon(a_nuc)
+>>> print(hla.list_genes())
+['A', 'B']
+
+>>> print(hla["A"])
+<A gen alleles=4101 block=5UTR(301) exon1(80) intron1(130) exon2(335) intron2(273) exon3(413) intron3(666) exon4(287) intron4(119) exon5(117) intron5(444) exon6(33) intron6(143) exon7(48) intron7(170) exon8(5) 3UTR(302)>
 ```
 
-### Consensus
-Calculate variant frequency and consensus
+`KIRmsa` can also read sequences of KIR
 
 ``` python
-print(a.calculate_frequency())
-consensus_seq = a.get_consensus(include_gap=False)
+>>> from pyHLAMSA import KIRmsa
 
-# fill the exon-only allele by consensus
-a.append("A*consensus", consensus_seq)
-a.fill_imcomplete("A*consensus")
+# If don't specific the genes, it will read all genes.
+>>> kir = KIRmsa(ipd_folder="KIR_v2110", version="2110")
 
-# shrink if all base in the column are gap
-a = a.shrink()
+>>> print(kir.list_genes())
+['KIR2DL1', 'KIR2DL2', 'KIR2DL3', 'KIR2DL4', 'KIR2DL5', 'KIR2DP1', 'KIR2DS1', 'KIR2DS2', 'KIR2DS3', 'KIR2DS4', 'KIR2DS5', 'KIR3DL1', 'KIR3DL2', 'KIR3DL3', 'KIR3DP1', 'KIR3DS1']
+
+>>> print(kir["KIR2DL1"])
+<KIR2DL1 gen alleles=173 block=5UTR(268) exon1(34) intron1(964) exon2(36) intron2(728) exon3(282) intron3(1441) exon4(300) intron4(1534) exon5(294) intron5(3157) exon6(51) intron6(4270) exon7(102) intron7(462) exon8(53) intron8(98) exon9(177) 3UTR(510)>
 ```
 
-### Select
-Select and insert sequences
+### 2. Merge gene and nuc MSA is quiet simple
+
+This main features give us a chance to use genomic MSA and nucleotide MSA at the same time.
+
+The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` after merged.
 
 ``` python
-# use regex to choose what allele you want
-a_sub = a.select_allele(r"DPA1\*.*:01:01:01$")
+>>> hla = HLAmsa(["A"], filetype=["gen", "nuc"],
+                 imgt_alignment_folder="alignment_v3470")
+>>> print(hla["A"])
+<A gen alleles=7349 block=5UTR(301) exon1(80) intron1(130) exon2(351) intron2(273) exon3(436) intron3(666) exon4(361) intron4(119) exon5(117) intron5(444) exon6(33) intron6(143) exon7(48) intron7(170) exon8(5) 3UTR(302)>
 
-# insert one sequence
-a_sub.add("A*consensus", a.get_consensus(include_gap=False))
+# or manually
+>>> a_gen = HLAmsa("A", filetype="gen", 
+>>>                imgt_alignment_folder="alignment_v3470")["A"]
 
-# extract the alignments from 50 to 199 bp
-a_sub = a_sub[50:200]
+>>> print(a_gen)
+<A gen alleles=4101 block=5UTR(301) exon1(80) intron1(130) exon2(335) intron2(273) exon3(413) intron3(666) exon4(287) intron4(119) exon5(117) intron5(444) exon6(33) intron6(143) exon7(48) intron7(170) exon8(5) 3UTR(302)>
 
-# extract exon2 and exon3
-a_sub.select_exon([2,3])
+>>> a_nuc = HLAmsa("A", filetype="nuc", 
+>>>                imgt_alignment_folder="alignment_v3470")["A"]
+>>> print(a_nuc)
+<A nuc alleles=7353 block=exon1(80) exon2(351) exon3(436) exon4(361) exon5(117) exon6(33) exon7(48) exon8(5)>
 
-# extract exon2, intron2, exon3
-a_sub.select_block([3,4,5])
-
-# Reverse the sequence
-a_rv =  a_sub.reverse_complement()
+>>> a_gen = a_gen.remove('A*03:437Q')
+>>> print(a_gen.merge_exon(a_nuc))
+<A gen alleles=7349 block=5UTR(301) exon1(80) intron1(130) exon2(351) intron2(273) exon3(436) intron3(666) exon4(361) intron4(119) exon5(117) intron5(444) exon6(33) intron6(143) exon7(48) intron7(170) exon8(5) 3UTR(302)>
 ```
 
-### Output
-Change to other format. e.g.
+### 3. Block-based selection: You can select ANY intron/exon.
+
+``` python
+# select exon2 and exon3
+>>> exon23 = a_gen.select_exon([2,3])  # 1-base
+>>> print(exon23)
+<A nuc alleles=4100 block=exon2(335) exon3(413)>
+
+
+# select exon2 + intron2 + exon3
+>>> e2i2e3 = a_gen.select_block([3,4,5])  # 0-base
+>>> print(e2i2e3)
+<A  alleles=4100 block=exon2(335) intron2(273) exon3(413)>
+```
+
+### 4. Easy to compare alleles: select and print
+
+``` python
+# select first 10 alleles
+>> exon23_10 = exon23.select_allele(exon23.get_sequence_names()[:10])
+>>> print(exon23_10)
+<A nuc alleles=10 block=exon2(335) exon3(413)>
+
+# print it
+>>> print(exon23_10.format_alignment())
+ gDNA               0
+                    |
+ A*01:01:01:01      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:02N     GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:03      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:04      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:05      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:06      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:07      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:08      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:09      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+ A*01:01:01:10      GCTCCC-ACT CCATGAGGTA TTTCTTCACA TCCGTGTCCC GGCCCGGCCG CGGGGA---- GCCCCGCTTC ATCGCCGTGG GC-------- ----------
+
+# using regex to select
+# "|" indicate the border of block, in this case, it's the border of exon2 and exon3
+>>> exon23_1field = exon23.select_allele(r"A\*.*:01:01:01$")
+>>> print(exon23_1field.format_alignment_diff())
+ gDNA               300
+                    |
+ A*01:01:01:01      GACCCTGCGC GGCTACTACA ACCAGAGCGA GGACG|GTGAG TGACCCCGGC CCGGGG.CGC AGGTCACGAC C...CCTCAT CCCCC.ACGG ACGGGCCAGG
+ A*02:01:01:01      ---------- ---------- ---------- --C--|----- ---------- ------.--- ---------- -...T----- -----.---- ----------
+ A*03:01:01:01      ---------- ---------- ---------- --C--|----- ---------- -G----.--- ------G--- -...------ -----.---- ----------
+ A*11:01:01:01      ---------- ---------- ---------- -----|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*23:01:01:01      --T-GC--T- C--------- ---------- --C--|----- ---------- ------.--- ---------- -...------ -----.---- -------G--
+ A*25:01:01:01      --T-GC--T- C--------- ---------- -----|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*26:01:01:01      ---------- ---------- ---------- -----|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*29:01:01:01      ---------- ---------- ---------- --C--|----- ---------- ------.--- ---------- -...T----- -----.---- -------G--
+ A*30:01:01:01      ---------- ---------- ---------- --C--|----- ---------- -G----.--- ---------- -...------ -----.---- ----------
+ A*32:01:01:01      --T-GC--T- C--------- ---------- --C--|----- ---------- ------.--- ---------- -...T----- -----.---- ----------
+ A*33:01:01:01      ---------- ---------- ---------- --C--|----- -------A-- ------.--- ---------- -...T----- -----.---- ----------
+ A*34:01:01:01      ---------- ---------- ---------- -----|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*36:01:01:01      ---------- ---------- ---------- -----|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*66:01:01:01      ---------- ---------- ---------- -----|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*68:01:01:01      ---------- ---------- ---------- --C--|----- ---------- ------.--- ---------- -...------ -----.---- ----------
+ A*69:01:01:01      ---------- ---------- ---------- --C--|----- ---------- ------.--- ---------- -...T----- -----.---- ----------
+ A*74:01:01:01      ---------- ---------- ---------- --C--|----- ---------- -G----.--- ------G--- -...------ -----.---- ----------
+ A*80:01:01:01      ---------- ---------- ---------- -----|----- ---------- ------.--- ---------- -...------ ----T.---- ----------
+
+# show only variantiation
+>>> print(exon23_1field.format_variantion_base())
+Total variantion: 71
+ gDNA                   4
+                        |
+ A*01:01:01:01      GCTCCC.AC
+ A*02:01:01:01      ----T-.--
+ A*03:01:01:01      ------.--
+ A*11:01:01:01      ------.--
+ A*23:01:01:01      ------.--
+ A*25:01:01:01      ------.--
+ A*26:01:01:01      ------.--
+ A*29:01:01:01      ------.--
+ A*30:01:01:01      ------.--
+ A*32:01:01:01      ------.--
+ A*33:01:01:01      ------.--
+ A*34:01:01:01      ------.--
+ A*36:01:01:01      ------.--
+ A*66:01:01:01      ------.--
+ A*68:01:01:01      ------.--
+ A*69:01:01:01      ------.--
+ A*74:01:01:01      ------.--
+ A*80:01:01:01      ------.--
+
+
+ gDNA                    24
+                         |
+ A*01:01:01:01      ATTTCTTCAC ATCCG
+ A*02:01:01:01      ---------- -----
+ A*03:01:01:01      ---------- -----
+ A*11:01:01:01      ------A--- C----
+ A*23:01:01:01      ------C--- -----
+ A*25:01:01:01      ------A--- C----
+ A*26:01:01:01      ------A--- C----
+ A*29:01:01:01      -----AC--- -----
+ A*30:01:01:01      ------C--- -----
+ A*32:01:01:01      ---------- -----
+ A*33:01:01:01      -----AC--- -----
+ A*34:01:01:01      ------A--- C----
+ A*36:01:01:01      ---------- -----
+ A*66:01:01:01      ------A--- C----
+ A*68:01:01:01      ------A--- C----
+ A*69:01:01:01      ------A--- C----
+ A*74:01:01:01      ---------- -----
+ A*80:01:01:01      ---------- -----
+```
+
+### 5. Some useful operation
+
+``` python
+# Calculate variant frequency of ( A T C G - ) per base
+>>> print(exon23.calculate_frequency()[:10])
+[[2, 3, 0, 4095, 0], [2, 1, 4097, 0, 0], [0, 4098, 2, 0, 0], [0, 3, 4095, 2, 0], [0, 911, 3188, 0, 1], [0, 1, 4097, 1, 1], [0, 0, 1, 0, 4099], [4097, 0, 0, 2, 1], [4, 3, 4090, 3, 0], [1, 4097, 1, 1, 0]]
+
+# Get consensus(The largest one in frequency) among the msa
+>>> exon23.get_consensus(include_gap=True)
+'GCTCCC-ACTCCATGAGGTATTTCTTCACATCCGTGTCCCGGCCCGGCCGCGGGGA----GCCCCGCTTCATCGCCGTGGGC-----------------------TACGTGGACG-ACACG-CAGTTCGTGCGGTTCGACAGCGACGCCGCGAGCCAGAGGATGGAGCCG--------------------CGGGCGCCGTGGATA-GAGCAGGAGGGGCCGGAGTATTGGGACCAGGAGACACGGA-------------A-TGTGAAGGCCCACTCACAGACTGACCGAGTGGACCTGGGGACCCTGCGCGGCTACTACAACCAGAGCGAGGCCGGTTCTCACACC-ATCCAGATGATGTATGGCTGCGACG--------------TGGGG-TCGGACGGGCGCTTCCTCCGCGGGTACCAGCA---GGACGCCTACGACGGCAAGGATTAC---ATCGCCCTGAAC------------------------GAGGACCTGCGCTCTTGGACCGCGGCGGAC--------ATGGCGGCTCAGATCACCAAGCGC-AAGT----GGGAGG--CGGCCC-ATGT------------------------------------------GGCGG-AGCAGTTGAGAGCCTACCTGGAGGGCACG--------TGCGTG----GAGTGGCTCCG--CAGATA-CCTGGAGAACGGGAAGGAGACGCTGCAGC-----------------GCACGG'
+
+# Add sequence into MSA
+>>> a_merged = hla["A"]
+>>> consensus_seq = a_merged.get_consensus(include_gap=True)
+>>> a_merged.append("A*consensus", consensus_seq)
+>>> a_merged.fill_imcomplete("A*consensus")
+
+# Shrink: remove gap if all bases in the column are gap
+>>> print(exon23_10.shrink().format_alignment_diff())
+ gDNA               200
+                    |
+ A*01:01:01:01      AAGGCCCACT CACAGACTGA CCGAGCGAAC CTGGGGACCC TGCGCGGCTA CTACAACCAG AGCGAGGACG| GTTCTCACAC CATCCAGATA ATGTATGGCT
+ A*01:01:01:02N     ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:03      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:04      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:05      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:06      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:07      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:08      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:09      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+ A*01:01:01:10      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+
+# select specific column 
+>>> a_gen[12:100]
+<A  alleles=4100 block=(88)>
+
+>>> print(a_gen[[12,100]].format_alignment())
+ gDNA               0
+                    |
+ A*01:01:01:01      GG
+ A*01:01:01:02N     -G
+ A*01:01:01:03      GG
+ A*01:01:01:04      --
+ A*01:01:01:05      --
+ A*01:01:01:06      --
+ A*01:01:01:07      --
+ A*01:01:01:08      --
+ A*01:01:01:09      --
+ A*01:01:01:10      --
+ A*01:01:01:11      GG
+ A*01:01:01:12      GG
+
+# concat
+>>> print(a_gen.select_exon([2]) + a_gen.select_exon([3]))
+<A nuc alleles=4100 block=exon2(335) exon3(413)>
+```
+
+
+### 6. Write and export the MSA
+
+**Causion: If you run `merge_exon`, or the msa is from `filetype=['gen', 'nuc']`,
+You should fill the `E` BEFORE save it.**
+
+You can fill it by consensus_seq shown before.
+
 
 * IMGT alignment format
-* MultipleSeqAlignment
-* list of SeqRecord
-* bam
-* gff
 
 ``` python
-# print object
-print(a_sub)
-
-# print one sequence
-a_sub.alleles["query"]
-
-# print raw alignments
-print(a_sub.select_exon().format_alignment())
-
-# print diff alignment(Look like xx_gen.txt)
-print(a_sub.select_exon([]).format_alignment_diff("query"))
-
-# Convert object to MultipleSeqAlignment(Bio.Align)
-# Thus, you can save in any format
-print(a_sub.to_MultipleSeqAlignment())
-
-# save to fasta(no gap)
-SeqIO.write(a_sub.to_fasta(gap=False), "tmp.fa", "fasta")
-
-# save to bam file
-a_sub.save_bam("tmp.bam", ref_allele="A*consensus")
-
-# save to gff3 (This file can show where exons are in IGV)
-a_sub.save_gff("tmp.gff", strand="-")
+print(a_gen.format_alignment_diff(), file=open("filename.txt", "w"))
 ```
 
-### Example
+* MultipleSeqAlignment
 
-see `example.py`
+Transfer to [MultipleSeqAlignment](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
 
+``` python
+>>> print(a_gen.to_MultipleSeqAlignment())
+Alignment with 4100 rows and 3866 columns
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:01
+--------------------------------------------...--- A*01:01:01:02N
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:03
+--------------------------------------------...--- A*01:01:01:04
+--------------------------------------------...AAA A*01:01:01:05
+--------------------------------------------...--- A*01:01:01:06
+--------------------------------------------...AAA A*01:01:01:07
+--------------------------------------------...--- A*01:01:01:08
+--------------------------------------------...AAA A*01:01:01:09
+--------------------------------------------...--- A*01:01:01:10
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:11
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:12
+--------------------------------------------...AAA A*01:01:01:13
+--------------------------------------------...AAA A*01:01:01:14
+--------------------------------------------...--- A*01:01:01:15
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:16
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:17
+CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:18
+...
+--------------------------------------------...--- A*80:07
 ```
- A*consensus        ATGGCCGTCA TGGCGCCCCG AACCCTCGTC CTGCTACTCT CGGGGGCCCT GGCCCTGGCC CTGACCCAGA CCTGGGCGGG| GCTCCCCACT CCATGAGGTA
- A*01:01:01:01      ---------- ---------- -------C-- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*02:01:01:01      ---------- ---------- ---------- ---------- -------T-- ------**** **-------- ---------*| ----T-*--- ----------
- A*03:01:01:01      ---------- ---------- -------C-- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*11:01:01:01      ---------- ---------- -------C-- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*23:01:01:01      ---------- ---------- ---------- ---------- ---------- ------**** **-------- -------A-*| ------*--- ----------
- A*25:01:01:01      ---------- ---------- ---------- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*26:01:01:01      ---------- ---------- ---------- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*29:01:01:01      ---------- ---------- -------C-- ---------- T--------- ------**** **-------- ---------*| ------*--- ----------
- A*30:01:01:01      ---------- ---------- -------C-- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*32:01:01:01      ---------- ---------- -------C-- ---------- T--------- ------**** **-------- ---------*| ------*--- ----------
- A*33:01:01:01      ---------- ---------- -------C-- ---------- T--------- ------**** **-------- ---------*| ------*--- ----------
- A*34:01:01:01      ------A--- ---------- ---------- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*36:01:01:01      ---------- ---------- -------C-- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*66:01:01:01      ---------- ---------- ---------- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*68:01:01:01      ---------- ---------- ---------- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*69:01:01:01      ---------- ---------- ---------- ---------- ---------- ------**** **-------- ---------*| ------*--- ----------
- A*74:01:01:01      ---------- ---------- -------C-- ---------- T--------- ------**** **-------- --A------*| ------*--- ----------
- A*80:01:01:01      ---------- --C------- -------C-- ---------- ---------- ------**** **-------- -------A-*| ------*--- ----------
+
+* list of SeqRecord
+``` python
+# Save as MSA
+SeqIO.write(a_gen.to_fasta(gap=True), "filename.msa.fa", "fasta")
+# Save as no-gapped sequences
+SeqIO.write(a_gen.to_fasta(gap=False), "filename.fa", "fasta")
 ```
 
-You can show the alignments on IGV
+* bam
+``` python
+a_gen.save_bam("filename.bam")
+```
+
+* gff
+``` python
+a_gen.save_gff("filename.gff")
+```
+
+After save the MSA as bam and gff, you can show the alignments on IGV
 ![msa_igv_example](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
+
+* save/load
+I use json and fasta to save our model
+``` python
+from pyHLAMSA import Genemsa
+a_gen.save_msa("a_gen.fa", "a_gen.json")
+a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
+```
 
 
 ## TODO
@@ -171,9 +318,10 @@ You can show the alignments on IGV
   * [x] Main function
   * [x] exon-only sequence handling
   * [x] Reading from file
-* [x] Some useful function: `copy`, `remove`, `get_sequence_num`, `get_sequence_names`, `__len__`, `size`, `split`, `concat`
-* [ ] Cannot handle splice variant
-* [ ] merge blocks and labels
+* [x] Some useful function: `copy`, `remove`, `get_sequence_names`, `__len__`, `size`, `split`, `concat`
+* [x] Cannot handle pseudo exon
+* [x] merge blocks and labels
+* [x] Fix KIR when merge gen and nuc
 * [ ] Use index to trace orignal position
 
 
@@ -182,12 +330,15 @@ You can show the alignments on IGV
 * biopython
 * pysam
 * wget
+* git
 
-## Install
+
+## Installation
 ```
 git clone https://github.com/linnil1/pyHLAMSA
 pip3 install -e pyHLAMSA
 ```
+
 
 ## Setup Document
 ```
@@ -195,23 +346,25 @@ pip3 install mkdocs mkdocs-material mkdocstrings
 mkdocs serve
 ```
 
+
 ## Test
 ```
-pip3 intall -e .
+pip3 install -e .
 pip3 install pytest
 pytest
 ```
 
+
 ## Some QA
-* Why not inherit Bio.AlignIO.MultipleSeqAlignment?
+> Why not inherit Bio.AlignIO.MultipleSeqAlignment?
 
 The class does't support lot of functions than I expected.
 
-And it's tidious to overwrite most of the functions to maintain our blocks
+And it's tidious to overwrite most of the functions to maintain our blocks information
 
-* Why not use numpy to save the sequence?
+> Why not use numpy to save the sequence?
 
-Performance issue is not my bottlenet yet.
+Performance issue is not my bottle-neck yet.
 
 
 ## Citation
@@ -224,6 +377,6 @@ Performance issue is not my bottlenet yet.
 * This github
 
 ## Document
-See https://linnil1.github.io/pyHLAMSA/
+See [https://linnil1.github.io/pyHLAMSA](See https://linnil1.github.io/pyHLAMSA)
 
 ::: pyHLAMSA
