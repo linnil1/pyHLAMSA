@@ -91,7 +91,7 @@ def read_alignment_sequence(fname: str) -> Dict[str, str]:
         alleles[allele] = "".join(seq).replace(".", "-")
 
     for allele in rm_allele:
-        logger.warning(f"Remove {allele} due to length in {fname}")
+        logger.warning(f"{allele} violate msa length in {fname}. Removed")
         del alleles[allele]
     return alleles
 

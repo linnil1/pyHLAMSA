@@ -48,9 +48,10 @@ class Genemsa:
 
     # Show the MSA attribute
     def __str__(self):
+        block_info = ' '.join([f"{b.get('name', '')}({b['length']})" for b in self.blocks])
         return f"<{self.gene_name} {self.seq_type} "\
                f"alleles={len(self.alleles)} "\
-               f"block={self.blocks}>"
+               f"block={block_info}>"
 
     def get_length(self) -> int:
         """ Get the length of MSA """
@@ -446,7 +447,7 @@ class Genemsa:
                                                 for i in range(len(seq))])
         return self
 
-    def merge_exon(self, msa_nuc: Genemsa, replace_exon=True):
+    def merge_exon(self, msa_nuc: Genemsa):
         """
         Merge nuc MSA into gen MSA
 
@@ -498,13 +499,14 @@ class Genemsa:
         nuc_names = set(msa_nuc.get_sequence_names())
         new_msa = Genemsa(self.gene_name, self.seq_type)
         new_msa.alleles = {name: "" for name in gen_names | nuc_names}
+        exclude_name = set()
 
         for i_gen in range(len(self.blocks)):
             # intron -> fill with E
             if i_gen % 2 == 0:
                 for name in nuc_names - gen_names:
                     msas_gen[i_gen].append(name, "E" * self.blocks[i_gen]['length'])
-                new_msa += msas_gen[i_gen]
+                new_msa += msas_gen[i_gen].remove(list(exclude_name))
             # exon -> check before merge
             elif i_gen % 2 == 1:
                 i_nuc = i_gen // 2
@@ -513,12 +515,15 @@ class Genemsa:
                         or any(msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name) for name in (nuc_names & gen_names))):
                     # check before merge
                     if len(gen_names - nuc_names):
-                        raise ValueError("Some alleles doesn't exist in nuc MSA")
-                    if any(msas_nuc[i_nuc].get(name).replace("-", "") !=
-                           msas_gen[i_gen].get(name).replace("-", "")
-                           for name in gen_names):
-                        raise ValueError("Some exon sequences in gen MSA is not same as in nuc MSA")
-                new_msa += msas_nuc[i_nuc]
+                        raise ValueError(f"Some alleles doesn't exist in nuc MSA: {gen_names - nuc_names}")
+
+                    diff_name = list(filter(lambda name: msas_nuc[i_nuc].get(name).replace("-", "") != msas_gen[i_gen].get(name).replace("-", ""), gen_names))
+                    # TODO: can i skip pseudo gene
+                    if diff_name:
+                        self.logger.warning(f"Some exon sequences in gen MSA is not same as in nuc MSA {self.blocks[i_gen]['name']}: {diff_name}")
+                        new_msa.remove(diff_name)
+                        exclude_name.update(diff_name)
+                new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
         return new_msa
 
     # Format function
