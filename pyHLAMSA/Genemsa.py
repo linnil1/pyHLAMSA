@@ -286,7 +286,8 @@ class Genemsa:
     def __add__(self, msa: Genemsa) -> Genemsa:
         """ Concat 2 MSA """
         if set(self.get_sequence_names()) != set(msa.get_sequence_names()):
-            raise ValueError("Can not concat these two MSA because allele is different")
+            raise ValueError("Can not concat because some allele is miss: " +
+                 str(set(self.get_sequence_names()).symmetric_difference(set(msa.get_sequence_names()))))
         new_msa = self.copy()
         new_msa.blocks.extend(copy.deepcopy(msa.blocks))
         for name, seq in msa.alleles.items():

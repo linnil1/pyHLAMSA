@@ -244,7 +244,6 @@ class HLAmsaEX(Familymsa):
             names = names_nuc = (self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | DRB) - set(["E"])
         if "gen" in filetype and "nuc" in filetype:
             names = names_gen & names_nuc
-
         return sorted(names)
 
     def _read_db_gene(self, gene: str, filetype: List[str]):
@@ -296,67 +295,43 @@ class HLAmsaEX(Familymsa):
             return None
 
 
-class KIRmsa(HLAmsa):
+class KIRmsa(Familymsa):
     """
-    A KIR interface but read gene from MSF and KIR.dat
+    A KIR interface that read MSA from MSF and KIR.dat
 
     Attributes:
         genes (dict of str, Genemsa): The msa object for each gene
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 imgt_folder="IPDKIR", version="2100"):
+                 ipd_folder="KIR_v2100", version="2100"):
+        super().__init__(genes, filetype, db_folder=ipd_folder, version=version)
+
+    def _download_db(self, version="2100"):
         """
-        The instance will download the KIR IMGT alignment folder into `imgt_folder`
-        with version `verion` and read the `{gene}_{filetype}.msf` files.
-
-        Args:
-            genes (list of str): A list of genes you want to read.
-
-                Leave Empty if you want read all gene in KIR
-
-                set None to read none of gene.
-
-            filetype (list of str): A list of filetype.
-
-                If both `gen` and `nuc` are given, it will merge them automatically.
+        Download the KIR to `IPDKIR`
         """
-        self.logger = logging.getLogger(__name__)
-        self.imgt_folder = imgt_folder
-        if not os.path.exists(self.imgt_folder):
-            self._download(True, version=version)
-        else:
-            self.logger.info(f"IMGT ver={version} exists")
-        assert os.path.exists(self.imgt_folder)
+        # TODO: Auto find the latest version
+        self._run_shell("git", "clone", "https://github.com/ANHIG/IPDKIR", self.db_folder)
+        self._run_shell("git", "checkout", version, cwd=self.db_folder)
 
-        # gene
-        self.genes = {}
-        if genes is None:
-            return
-        if not genes:
-            genes = self.list_gene()
+    def _get_name(self, search_name: str):
+        """ Extract name from file pattern """
+        arr_files = glob(search_name)
+        return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-        self.logger.info(f"Read Gene {genes}")
-        for gene in genes:
-            self.logger.info(f"Reading {gene}")
-            self.genes[gene] = self._read_msf(gene, filetype)
-            self.logger.debug(f"Merged {self.genes[gene]}")
-
-    def list_gene(self) -> List[str]:
+    def _list_db_gene(self, filetype) -> List[str]:
         """ List the gene in folder """
-        fs = glob(f"{self.imgt_folder}/msf/*.msf")
-        genes = set([f.split("/")[-1].split("_")[0] for f in fs])
-        genes = sorted(list(genes))
-        return genes
+        if "gen" in filetype:
+            names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf")
+        if "nuc" in filetype:
+            # Most's of E nuc is different from dat record
+            names = names_nuc = self._get_name(f"{self.db_folder}/msf/*_nuc.msf")
+        if "gen" in filetype and "nuc" in filetype:
+            names = names_gen & names_nuc
+        return sorted(names)
 
     def _read_msf(self, gene: str, filetype: List[str]):
-        """
-        Read `{gene}_{filetype}.txt`.
-
-        If both `gen` and `nuc` are given, it will merge them.
-
-        The alignment data is stored in `self.genes[gene]` in `Genemsa` instance
-        """
         self.dat = Genemsa.read_dat(f"{self.imgt_folder}/KIR.dat")
 
         if "gen" in filetype:
@@ -399,12 +374,64 @@ class KIRmsa(HLAmsa):
         else:
             return None
 
-    def _download(self, download=True, version="2100"):
+    def _read_db_gene(self, gene: str, filetype: List[str]):
         """
-        Download the KIR to `IPDKIR`
+        Read `{gene}_{filetype}.txt`.
+
+        If both `gen` and `nuc` are given, it will merge them.
+
+        The alignment data is stored in `self.genes[gene]` in `Genemsa` instance
         """
-        if os.path.exists(self.imgt_folder):
-            return
-        # TODO: Auto find the latest version
-        os.system(f"git clone https://github.com/ANHIG/IPDKIR {self.imgt_folder}")
-        os.system(f"cd {self.imgt_folder} && git checkout {version} && cd ..")
+        if not hasattr(self, "dat"):
+            self.logger.debug(f"Reading kir.dat")
+            self.dat = Readmsa.read_dat_block(f"{self.db_folder}/KIR.dat")
+
+        if "gen" in filetype:
+            msa_gen = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_gen.msf")
+            msa_gen.seq_type = "gen"
+            msa_gen.gene_name = gene
+            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat)
+            self.logger.debug(f"Gen {msa_gen}")
+
+        if "nuc" in filetype:
+            msa_nuc = Genemsa(gene, seq_type="nuc")
+            msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
+            msa_nuc.seq_type = "nuc"
+            msa_nuc.gene_name = gene
+            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat)
+            self.logger.debug(f"Nuc {msa_nuc}")
+
+        if "gen" in filetype and "nuc" in filetype:
+            # remove some gen not included in nuc
+            diff_name = list(set(msa_gen.get_sequence_names()) - set(msa_nuc.get_sequence_names()))
+            if diff_name:
+                self.logger.warning(f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+            msa_gen = msa_gen.remove(diff_name)
+
+            # specical case
+            # exon 3 is pseudo exon
+            # so, fill with gene's exon3
+            gene_has_pseudo_exon3 = ["KIR2DL1", "KIR2DL2", "KIR2DL3", "KIR2DP1",
+                    "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS4", "KIR2DS5"]
+            if gene in gene_has_pseudo_exon3:
+
+                exon3 = msa_gen.select_block([5])
+                for name in set(msa_nuc.get_sequence_names()) - set(msa_gen.get_sequence_names()):
+                    exon3.append(name, "-" * exon3.get_length())
+                msas = msa_nuc.split()
+                msa_nuc = msa_nuc.select_block(list(range(0, 2))) \
+                          + exon3 \
+                          + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks))))
+                msa_nuc.seq_type = "nuc"
+
+            # merge
+            msa_merged = msa_gen.merge_exon(msa_nuc)
+            self.logger.debug(f"Merged {msa_merged}")
+            return msa_merged
+
+        elif "gen" in filetype:
+            return msa_gen
+        elif "nuc" in filetype:
+            return msa_nuc
+        else:
+            return None

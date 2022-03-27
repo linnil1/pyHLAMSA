@@ -114,29 +114,36 @@ def read_dat_block(file_dat: str) -> Dict:
 
     for line in open(file_dat):
         # read allele name
-        if "allele=" in line:
+        if "/allele=" in line:
             now_allele = line.split('"')[1]
             now_allele = now_allele.replace("HLA-", "")
             # no duplicated allele_name
             assert now_allele not in data
             data[now_allele] = []
+        elif not line.startswith("FT"):
+            continue
 
         # read blocks
         elif re.match(r"FT\s+((UTR)|(exon)|(intron))", line):
             line = line.split()
-            data[now_allele].append([line[1], *map(lambda a: int(a), line[2].split(".."))])
-            if line[1] != "UTR":
-                read_next = True
+            start, end = list(map(lambda a: int(a), line[2].split("..")))
+            data[now_allele].append({
+                'name': line[1],
+                'start': start,
+                'end': end,
+            })
 
         # read block name .e.g. exon1 exon2
-        elif read_next:
-            read_next = False
-            data[now_allele][-1][0] += line.split('"')[1]
+        elif "/number=" in line:
+            data[now_allele][-1]['name'] += line.split('"')[1]
+        elif "/pseudo" in line:
+            data[now_allele][-1]['pseudo'] = True
+        else:
+            continue
 
     # make sure the order start and end position in dat are correct
     for allele in data:
-        data[allele] = list(sorted(data[allele], key=lambda a: a[1]))
-
+        data[allele] = list(sorted(data[allele], key=lambda a: a['start']))
     return data
 
 
@@ -173,27 +180,35 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
             continue
 
         # make sure the intron/exon order
-        dat[allele_name] = sorted(dat[allele_name], key=lambda i: i[1])
+        dat[allele_name] = sorted(dat[allele_name], key=lambda i: i['start'])
 
         # rename UTR
-        if "UTR" == dat[allele_name][0][0]:
-            dat[allele_name][0][0] = "5UTR"
-        if "UTR" == dat[allele_name][-1][0]:
-            dat[allele_name][-1][0] = "3UTR"
+        if "UTR" == dat[allele_name][0]['name']:
+            dat[allele_name][0]['name'] = "5UTR"
+        if "UTR" == dat[allele_name][-1]['name']:
+            dat[allele_name][-1]['name'] = "3UTR"
 
         # type is nuc i.e. no exon exist
         # remove all intron, and recalculate the position
         if msa.seq_type == "nuc":
             dat_hla = []
             end = 0
-            for i in [i for i in dat[allele_name] if "exon" in i[0]]:
-                gap = i[1] - end - 1
-                dat_hla.append([i[0], i[1] - gap, i[2] - gap])
-                end = dat_hla[-1][2]
+            for d in filter(lambda i: "exon" in i['name'], dat[allele_name]):
+                # set pseduo gene length = 0
+                if d.get('pseudo', False):
+                    d['end'] = d['start'] - 1
+                # gap  = total previous intron length
+                gap = d['start'] - end - 1
+                dat_hla.append({
+                    'name': d['name'],
+                    'start': d['start'] - gap,
+                    'end': d['end'] - gap
+                })
+                end = dat_hla[-1]['end']
             dat[allele_name] = dat_hla
 
         # check sequence length
-        if len(seq.replace("-", "")) != dat[allele_name][-1][2]:
+        if len(seq.replace("-", "")) != dat[allele_name][-1]['end']:
             logger.warning(f"Ignore {allele_name}, msf length is different from dat")
             continue
         # assert len(seq) == msf_length
@@ -211,7 +226,8 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
         # Calculate the intron/exon position after insert this allele
         # If the intron/exon overlap -> ignore this allele, restore the position
         old_cord = copy.deepcopy(block_cord)
-        for block_name, start, end in dat[allele_name]:
+        for d in dat[allele_name]:
+            block_name, start, end = d['name'], d['start'], d['end']
             # calculate the position
             block_cord[block_name][0] = min(block_cord[block_name][0], seq_cord[start - 1])
             block_cord[block_name][1] = max(block_cord[block_name][1], seq_cord[end   - 1] + 1)
@@ -241,7 +257,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
     alleles = new_alleles
     new_alleles = {}
     for allele_name, seq in alleles.items():
-        block_length = {i[0]: i[2] - i[1] + 1 for i in dat[allele_name]}
+        block_length = {i['name']: i['end'] - i['start'] + 1 for i in dat[allele_name]}
 
         for block_name, (start, end) in block_cord_list:
             len_block = len(seq[start:end].replace("-", ""))

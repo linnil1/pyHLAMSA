@@ -18,27 +18,28 @@ class TestMsaReadFromDB(unittest.TestCase):
     def test_dat(self):
         data = Readmsa.read_dat_block("./tests/hla_A01.dat")
         self.assertEqual(data['A*01:01:01:01'], [
-            ['UTR', 1, 300],
-            ['exon1', 301, 373],
-            ['intron1', 374, 503],
-            ['exon2', 504, 773],
-            ['intron2', 774, 1014],
-            ['exon3', 1015, 1290],
-            ['intron3', 1291, 1869],
-            ['exon4', 1870, 2145],
-            ['intron4', 2146, 2247],
-            ['exon5', 2248, 2364],
-            ['intron5', 2365, 2806],
-            ['exon6', 2807, 2839],
-            ['intron6', 2840, 2981],
-            ['exon7', 2982, 3029],
-            ['intron7', 3030, 3198],
-            ['exon8', 3199, 3203],
-            ['UTR', 3204, 3503]
+            {'name': 'UTR', 'start': 1, 'end': 300},
+            {'name': 'exon1', 'start': 301, 'end': 373},
+            {'name': 'intron1', 'start': 374, 'end': 503},
+            {'name': 'exon2', 'start': 504, 'end': 773},
+            {'name': 'intron2', 'start': 774, 'end': 1014},
+            {'name': 'exon3', 'start': 1015, 'end': 1290},
+            {'name': 'intron3', 'start': 1291, 'end': 1869},
+            {'name': 'exon4', 'start': 1870, 'end': 2145},
+            {'name': 'intron4', 'start': 2146, 'end': 2247},
+            {'name': 'exon5', 'start': 2248, 'end': 2364},
+            {'name': 'intron5', 'start': 2365, 'end': 2806},
+            {'name': 'exon6', 'start': 2807, 'end': 2839},
+            {'name': 'intron6', 'start': 2840, 'end': 2981},
+            {'name': 'exon7', 'start': 2982, 'end': 3029},
+            {'name': 'intron7', 'start': 3030, 'end': 3198},
+            {'name': 'exon8', 'start': 3199, 'end': 3203},
+            {'name': 'UTR', 'start': 3204, 'end': 3503}
         ])
+
         self.assertEqual(data['A*01:01:64'], [
-            ['exon2', 1, 270],
-            ['exon3', 271, 546]
+            {'name': 'exon2', 'start': 1, 'end': 270},
+            {'name': 'exon3', 'start': 271, 'end': 546},
         ])
 
     def test_msa_file(self):
