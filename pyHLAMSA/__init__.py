@@ -51,7 +51,7 @@ class Familymsa:
         # main
         self._download(version)
         for gene_name in genes:
-            self.logger.info(f"Reading {gene_name}")
+            self.logger.info(f"Reading {gene_name}'s sequences")
             self.genes[gene_name] = self._read_db_gene(gene_name, filetype)
 
     def list_genes(self):
@@ -99,7 +99,7 @@ class HLAmsa(Familymsa):
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 imgt_alignment_folder="alignments_v3430", version="3430"):
+                 imgt_alignment_folder="alignment_v3470", version="3470"):
         super().__init__(genes, filetype,
                          db_folder=imgt_alignment_folder, version=version)
 
@@ -127,19 +127,12 @@ class HLAmsa(Familymsa):
             names = names_nuc = self._get_name(f"{self.db_folder}/*_nuc.txt") | DRB
         if "gen" in filetype and "nuc" in filetype:
             names = names_gen & names_nuc
-            # * P -> only exon
-            # * N the nuc has one more bp than in gen
-            #    <N gen alleles=5 block=5UTR(225) exon1(161) 3UTR(250)>
-            #    <N nuc alleles=5 block=exon1(162)>
-            # * E exon7 is ambiguous, exon8 is gone
+            # * E exon7 is ambiguous, exon8 is gone (Also exon8 is not pseudo exon)
             #    <E gen alleles=258 block=5UTR(301) exon1(64) intron1(130) exon2(270) intron2(244) exon3(276) intron3(621) exon4(276) intron4(124) exon5(117) intron5(751) exon6(33) intron6(104) exon7(43) intron7(165) exon8(5) 3UTR(356)>
             #    <E nuc alleles=262 block=exon1(64) exon2(270) exon3(276) exon4(276) exon5(117) exon6(33) exon7(41)>
-            # * S exon1 is ambiguous
-            #   <S gen alleles=0 block=5UTR(222) exon1(28) intron1(104) exon2(48) intron2(161) exon3(192) 3UTR(120)>
-            #   <S gen alleles=7 block=5UTR(222) exon1(27) intron1(104) exon2(48) intron2(161) exon3(192) 3UTR(120)>
             if "gen" in filetype and "nuc" in filetype:
-                names = names - set(["N", "E", "S"])
-        return list(sorted(names))
+                names = names - set(["E"])
+        return list(sorted(names))[10:]
 
     def _read_db_gene(self, gene: str, filetype=set(["gen", "nuc"])):
         """
@@ -155,20 +148,19 @@ class HLAmsa(Familymsa):
                 # P: special case: has even block
                 # <P gen alleles=5 block=(475) (261) (589) (276) (124) (117) (412) (33) (150) (48) (163) (297)>
                 msa_gen._assume_label()
-            self.logger.debug(f"Read {msa_gen}")
+            self.logger.debug(f"Gen {msa_gen}")
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
                 msa_nuc = Readmsa.from_alignment_file(f"{self.db_folder}/DRB_nuc.txt")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
-                self.logger.debug(f"{msa_nuc}")
             else:
                 msa_nuc = Readmsa.from_alignment_file(f"{self.db_folder}/{gene}_nuc.txt")
-                self.logger.debug(f"{msa_nuc}")
 
             msa_nuc.seq_type = "nuc"
             msa_nuc.gene_name = gene
             msa_nuc._assume_label()
+            self.logger.debug(f"Nuc {msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
             # remove some gene
@@ -179,7 +171,7 @@ class HLAmsa(Familymsa):
 
             # merge
             msa_merged = msa_gen.merge_exon(msa_nuc)
-            self.logger.debug(f"{msa_merged}")
+            self.logger.debug(f"Merged {msa_merged}")
             return msa_merged
 
         elif "gen" in filetype:
@@ -202,7 +194,7 @@ class HLAmsaEX(Familymsa):
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 imgt_folder="IMGT_v3430", version="3430"):
+                 imgt_folder="IMGT_v3470", version="3470"):
         """
         The instance will download the IMGT/HLA into `imgt_folder`
         with version `verion` and read the `msf/{gene}_{filetype}.msf` files.
@@ -306,6 +298,7 @@ class KIRmsa(Familymsa):
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
                  ipd_folder="KIR_v2100", version="2100"):
+        # Why not version 2110 -> 2DL4,2DL5 has exon 4
         super().__init__(genes, filetype, db_folder=ipd_folder, version=version)
 
     def _download_db(self, version="2100"):

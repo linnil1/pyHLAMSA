@@ -194,8 +194,9 @@ Total variantion: 71
 'GCTCCC-ACTCCATGAGGTATTTCTTCACATCCGTGTCCCGGCCCGGCCGCGGGGA----GCCCCGCTTCATCGCCGTGGGC-----------------------TACGTGGACG-ACACG-CAGTTCGTGCGGTTCGACAGCGACGCCGCGAGCCAGAGGATGGAGCCG--------------------CGGGCGCCGTGGATA-GAGCAGGAGGGGCCGGAGTATTGGGACCAGGAGACACGGA-------------A-TGTGAAGGCCCACTCACAGACTGACCGAGTGGACCTGGGGACCCTGCGCGGCTACTACAACCAGAGCGAGGCCGGTTCTCACACC-ATCCAGATGATGTATGGCTGCGACG--------------TGGGG-TCGGACGGGCGCTTCCTCCGCGGGTACCAGCA---GGACGCCTACGACGGCAAGGATTAC---ATCGCCCTGAAC------------------------GAGGACCTGCGCTCTTGGACCGCGGCGGAC--------ATGGCGGCTCAGATCACCAAGCGC-AAGT----GGGAGG--CGGCCC-ATGT------------------------------------------GGCGG-AGCAGTTGAGAGCCTACCTGGAGGGCACG--------TGCGTG----GAGTGGCTCCG--CAGATA-CCTGGAGAACGGGAAGGAGACGCTGCAGC-----------------GCACGG'
 
 # Add sequence into MSA
+# include_gap=False in get_consensus will ignore the frequency of gap. i.e. choose one of ATCG
 >>> a_merged = hla["A"]
->>> consensus_seq = a_merged.get_consensus(include_gap=True)
+>>> consensus_seq = a_merged.get_consensus(include_gap=False)
 >>> a_merged.append("A*consensus", consensus_seq)
 >>> a_merged.fill_imcomplete("A*consensus")
 

@@ -209,7 +209,10 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
 
         # check sequence length
         if len(seq.replace("-", "")) != dat[allele_name][-1]['end']:
-            logger.warning(f"Ignore {allele_name}, msf length is different from dat")
+            logger.warning(f"Ignore {allele_name}, "
+                           f"msf length is different from dat. "
+                           f"seq: {len(seq.replace('-', ''))} "
+                           f"dat: {dat[allele_name][-1]['end']}")
             continue
         # assert len(seq) == msf_length
         # check sequence content
