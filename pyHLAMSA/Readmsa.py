@@ -5,7 +5,7 @@ from collections import defaultdict
 from typing import List, Tuple, Dict, Tuple
 from Bio import AlignIO, SeqIO
 from Bio.Align import MultipleSeqAlignment
-from . import Genemsa
+from . import Genemsa, BlockInfo
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ def from_alignment_file(fname: str, seq_type="") -> Genemsa:
 
     # use first sequence as reference
     ref_seq = list(alleles.values())[0]
-    new_msa.blocks = [{'length': len(seq)} for seq in ref_seq.split("|")]
+    new_msa.blocks = [BlockInfo(length=len(seq)) for seq in ref_seq.split("|")]
 
     if seq_type:
         new_msa.seq_type = seq_type
@@ -274,14 +274,14 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
     new_msa.alleles = new_alleles
     new_msa.blocks = []
     for name, (start, end) in block_cord_list:
-        new_msa.blocks.append({
-            'length': end - start,
-            'name': name,
-            'type': {
+        new_msa.blocks.append(BlockInfo(
+            length=end - start,
+            name=name,
+            type={
                 "3UTR": "three_prime_UTR",
                 "5UTR": "five_prime_UTR",
                 "exon": "exon",
                 "intron": "intron",
             }.get(name),
-        })
+        ))
     return new_msa

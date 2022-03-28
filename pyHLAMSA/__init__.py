@@ -5,6 +5,7 @@ import subprocess
 from glob import glob
 from typing import List, Set
 
+from .Genemsa import BlockInfo
 from .Genemsa import Genemsa
 from . import Readmsa
 

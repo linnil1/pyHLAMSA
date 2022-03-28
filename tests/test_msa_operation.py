@@ -1,5 +1,5 @@
 import unittest
-from pyHLAMSA import Genemsa
+from pyHLAMSA import Genemsa, BlockInfo
 from tempfile import NamedTemporaryFile, mkstemp
 from Bio import SeqIO, AlignIO
 
@@ -29,11 +29,11 @@ class TestMsaMainFunction(unittest.TestCase):
             ["exon", "exon2"],
             ["three_prime_UTR", "3UTR"],
         ]
-        self.msa.blocks = [{
-            'length': len(seq),
-            'type': labels[i][0],
-            'name': labels[i][1]
-        } for i, seq in enumerate(alleles['a1'].split("|"))]
+        self.msa.blocks = [BlockInfo(
+            length=len(seq),
+            type=labels[i][0],
+            name=labels[i][1],
+        ) for i, seq in enumerate(alleles['a1'].split("|"))]
         self.msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
         self.input_allele = alleles
 
@@ -58,7 +58,7 @@ class TestMsaMainFunction(unittest.TestCase):
         c2 = self.msa.select_allele(["c2"]).shrink()
         self.assertEqual(c2.get_length(), len(c2_seq.replace("|", "").replace("-", "")))
         self.assertEqual(len(c2.blocks), c2_seq.count("|") + 1)
-        self.assertEqual(c2.blocks[2]['length'], 0)
+        self.assertEqual(c2.blocks[2].length, 0)
 
     def test_consensus(self):
         alleles = {k: v.replace("|", "") for k, v in self.input_allele.items()}
@@ -248,7 +248,7 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # check it's exon
         for b in exon.blocks:
-            self.assertEqual(b['type'], "exon")
+            self.assertEqual(b.type, "exon")
         for name in exon.get_sequence_names():
             self.assertEqual(exon.get(name), "".join(self.input_allele[name].split("|")[1::2]))
 
@@ -343,11 +343,11 @@ class TestMsaExonOnly(unittest.TestCase):
             ["exon", "exon2"],
             ["three_prime_UTR", "3UTR"],
         ]
-        msa.blocks = [{
-            'length': len(seq),
-            'type': labels[i][0],
-            'name': labels[i][1]
-        } for i, seq in enumerate(alleles['a1'].split("|"))]
+        msa.blocks = [BlockInfo(
+            length=len(seq),
+            type=labels[i][0],
+            name=labels[i][1],
+        ) for i, seq in enumerate(alleles['a1'].split("|"))]
         msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
 
         # Check E in sequence
@@ -376,11 +376,11 @@ class TestMsaExonOnly(unittest.TestCase):
             ["exon", "exon2"],
             ["three_prime_UTR", "3UTR"],
         ]
-        msa.blocks = [{
-            'length': len(seq),
-            'type': labels[i][0],
-            'name': labels[i][1]
-        } for i, seq in enumerate(alleles['a1'].split("|"))]
+        msa.blocks = [BlockInfo(
+            length=len(seq),
+            type=labels[i][0],
+            name=labels[i][1],
+        ) for i, seq in enumerate(alleles['a1'].split("|"))]
         msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
 
         # selecct exon part and rename: add "e" before the name
@@ -405,7 +405,7 @@ class TestMsaExonOnly(unittest.TestCase):
         msa_nuc = msa.select_exon()
         msa_nuc.alleles.update({name: seq + "--" for name, seq in msa_nuc.alleles.items()})
         msa_nuc.alleles.update({"e" + name: seq + "AA" for name, seq in msa_nuc.alleles.items()})
-        msa_nuc.blocks[-1]['length'] += 2
+        msa_nuc.blocks[-1].length += 2
 
         # main
         msa_merged = msa.merge_exon(msa_nuc)
