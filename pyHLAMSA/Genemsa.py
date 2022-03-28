@@ -49,8 +49,7 @@ class Genemsa:
         blocks (list of BlockInfo): list of block information
     """
 
-    def __init__(self, gene_name: str, seq_type="",
-                 blocks=[]):
+    def __init__(self, gene_name: str, seq_type="", blocks=[]):
         self.gene_name = gene_name
         self.seq_type = seq_type
         self.alleles = {}
@@ -108,8 +107,7 @@ class Genemsa:
         Args:
             copy_allele (bool): copy the sequences
         """
-        new_msa = Genemsa(self.gene_name, self.seq_type,
-                          self.blocks)
+        new_msa = Genemsa(self.gene_name, self.seq_type, self.blocks)
         if copy_allele:
             new_msa.alleles = dict(self.alleles.items())
         return new_msa
@@ -162,7 +160,8 @@ class Genemsa:
         """
         new_msa = self.copy(copy_allele=False)
         if type(query) is str:
-            new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
+            new_msa.alleles = {allele: seq
+                               for allele, seq in self.alleles.items()
                                if re.match(query, allele)}
         elif type(query) is list:
             new_msa.alleles = {name: self.alleles[name] for name in query}
@@ -247,7 +246,7 @@ class Genemsa:
                 i.count("T"),
                 i.count("C"),
                 i.count("G"),
-                i.count("-") + i.count("E")])
+                i.count("-")])
         return freqs
 
     def get_consensus(self, include_gap=False) -> str:
@@ -258,13 +257,15 @@ class Genemsa:
           include_gap (bool):
               Allow consensus contains gap if gap is the maximum item.
 
-              If include_gap=False and all the base on that position is gap (not shrinked before),
+              If include_gap=False and all the base on that position is gap
+              (not shrinked before),
               it will warning and fill with A.
         """
         freqs = self.calculate_frequency()
         if not include_gap:
             if any(sum(f[:4]) == 0 for f in freqs):
-                self.logger.warning("MSA contains gap, try .shrink() before .get_consensus()")
+                self.logger.warning(
+                    "MSA contains gap, try .shrink() before .get_consensus()")
             max_ind = [max(range(4), key=lambda i: f[i]) for f in freqs]
         else:
             max_ind = [max(range(5), key=lambda i: f[i]) for f in freqs]
@@ -286,7 +287,8 @@ class Genemsa:
 
         # remove base in allele
         for allele, seq in self.alleles.items():
-            new_msa.alleles[allele] = "".join([seq[i] for i in range(len(seq)) if masks[i]])
+            new_msa.alleles[allele] = "".join(
+                [seq[i] for i in range(len(seq)) if masks[i]])
 
         return new_msa
 
@@ -314,9 +316,11 @@ class Genemsa:
           >>> print(a_gen.select_exon([2]) + a_gen.select_exon([3]))
           <A nuc alleles=4100 block=exon2(335) exon3(413)>
         """
-        if set(self.get_sequence_names()) != set(msa.get_sequence_names()):
-            raise ValueError("Can not concat because some allele is miss: " +
-                             str(set(self.get_sequence_names()).symmetric_difference(set(msa.get_sequence_names()))))
+        names0 = set(self.get_sequence_names())
+        names1 = set(msa.get_sequence_names())
+        if names0 != names1:
+            raise ValueError("Can not concat because some allele is miss: "
+                             + str(names0.symmetric_difference(names1)))
         new_msa = self.copy()
         new_msa.blocks.extend(copy.deepcopy(msa.blocks))
         for name, seq in msa.alleles.items():
@@ -394,7 +398,8 @@ class Genemsa:
         if not exon_index:
             exon_index = range(1, len(self.blocks), 2)
         else:
-            if not (max(exon_index) <= len(self.blocks) // 2 and min(exon_index) > 0):
+            if not (max(exon_index) <= len(self.blocks) // 2
+                    and min(exon_index) > 0):
                 raise IndexError("Check block index is correct")
             exon_index = [i * 2 - 1 for i in exon_index]
 
@@ -440,7 +445,8 @@ class Genemsa:
         # extract
         gen_pos = self._get_block_position()
         for allele, gen_seq in self.alleles.items():
-            new_seq = "".join([gen_seq[gen_pos[i]:gen_pos[i + 1]] for i in index])
+            new_seq = "".join([gen_seq[gen_pos[i]:gen_pos[i + 1]]
+                               for i in index])
             new_msa.alleles[allele] = new_seq
 
         return new_msa
@@ -472,8 +478,9 @@ class Genemsa:
         ref_seq = self.alleles[ref_allele]
         for allele, seq in self.alleles.items():
             if "E" in seq:
-                self.alleles[allele] = "".join([seq[i] if seq[i] != "E" else ref_seq[i]
-                                                for i in range(len(seq))])
+                self.alleles[allele] = "".join(
+                    [seq[i] if seq[i] != "E" else ref_seq[i]
+                     for i in range(len(seq))])
         return self
 
     def merge_exon(self, msa_nuc: Genemsa):
@@ -534,22 +541,32 @@ class Genemsa:
             # intron -> fill with E
             if i_gen % 2 == 0:
                 for name in nuc_names - gen_names:
-                    msas_gen[i_gen].append(name, "E" * self.blocks[i_gen].length)
+                    msas_gen[i_gen].append(name,
+                                           "E" * self.blocks[i_gen].length)
                 new_msa += msas_gen[i_gen].remove(list(exclude_name))
             # exon -> check before merge
             elif i_gen % 2 == 1:
                 i_nuc = i_gen // 2
                 # content change or length change
                 if (msas_nuc[i_nuc].get_length() != msas_gen[i_gen].get_length()
-                        or any(msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name) for name in (nuc_names & gen_names))):
+                    or any(msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name)
+                           for name in (nuc_names & gen_names))):
                     # check before merge
                     if len(gen_names - nuc_names):
-                        raise ValueError(f"Some alleles doesn't exist in nuc MSA: {gen_names - nuc_names}")
+                        raise ValueError(
+                            f"Some alleles doesn't exist in nuc MSA: "
+                            f"{gen_names - nuc_names}")
 
-                    diff_name = list(filter(lambda name: msas_nuc[i_nuc].get(name).replace("-", "") != msas_gen[i_gen].get(name).replace("-", ""), gen_names))
-                    # TODO: can i skip pseudo gene
+                    diff_name = filter(lambda name:
+                                       msas_nuc[i_nuc].get(name).replace("-", "")
+                                       != msas_gen[i_gen].get(name).replace("-", ""),
+                                       gen_names)
+                    diff_name = list(diff_name)
                     if diff_name:
-                        self.logger.warning(f"Some exon sequences in gen MSA is not same as in nuc MSA {self.blocks[i_gen].name}: {diff_name}")
+                        self.logger.warning(
+                            f"Some exon sequences in gen MSA "
+                            f"is not same as in nuc MSA "
+                            f"{self.blocks[i_gen].name}: {diff_name}")
                         new_msa.remove(diff_name)
                         exclude_name.update(diff_name)
                 new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
@@ -570,13 +587,13 @@ class Genemsa:
           >>> print(a.format_alignment_diff())
              gDNA               0
                                 |
-             A*01:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATG TGTCTCTCAC AGCTTGTAAA G
-             A*02:01:01:01      ---------- ------C--- T--------- ---|------- ---------- ---------- ---------- ---------- -
-             A*03:01:01:01      ---------- ---------- ---------- ---|------- ---------- ---------- ----C----- ---------- -
-             A*11:01:01:01      ---------- ---------- ---------- ---|------- ---------- ---------- ---------- ---------- -
-             A*23:01:01:01      ---------- ------C--- T--------- ---|------- ---------- ---------- ---------- ---------- -
-             A*25:01:01:01      ---------- ------C--- T--------- ---|------- ---------- ---------A ---------- ---------- -
-             A*26:01:01:01      ---------- ------C--- T--------- ---|------- ---------- ---------A ---------- ---------- -
+             A*01:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*02:01:01:01      ---------- ------C--- T--------- ---|------- ----------
+             A*03:01:01:01      ---------- ---------- ---------- ---|------- ----------
+             A*11:01:01:01      ---------- ---------- ---------- ---|------- ----------
+             A*23:01:01:01      ---------- ------C--- T--------- ---|------- ----------
+             A*25:01:01:01      ---------- ------C--- T--------- ---|------- ----------
+             A*26:01:01:01      ---------- ------C--- T--------- ---|------- ----------
         """
         if not len(self.alleles):
             raise ValueError("MSA is empty")
@@ -622,13 +639,13 @@ class Genemsa:
           >>> print(a.format_alignment())
              gDNA               0
                                 |
-             A*01:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATG TGTCTCTCAC AGCTTGTAAA G
-             A*02:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATG TGTCTCTCAC AGCTTGTAAA G
-             A*03:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATG TGTCCCTCAC AGCTTGTAAA G
-             A*11:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATG TGTCTCTCAC AGCTTGTAAA G
-             A*23:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATG TGTCTCTCAC AGCTTGTAAA G
-             A*25:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATA TGTCTCTCAC AGCTTGTAAA G
-             A*26:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG GGCTCTGATA TGTCTCTCAC AGCTTGTAAA G
+             A*01:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*02:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*03:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*11:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*23:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*25:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+             A*26:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
         """
         if not self.blocks or not self.alleles:
             raise ValueError("MSA is empty")
@@ -740,51 +757,17 @@ class Genemsa:
 
         # format the string
         for b_left, b_right in merged_bases:
-            output_str += self.format_alignment_from_center(b_left, right=b_right - b_left + right)
+            output_str += self.format_alignment_from_center(
+                b_left, right=b_right - b_left + right)
         return output_str
-
-    # Align sequences on allele
-    def align(self, seq: str, target_allele="", aligner=None) -> str:
-        """
-        Align the seq on msa (Experimental)
-
-        Args:
-            seq (str): The sequence you want to align on
-            target_allele (str): I temporary align the sequences against target_allele
-            aligner (PairwiseAligner): If set as None,
-                the object will initizalize the parameters like EMBOSS
-        Returns:
-            result_sequence (str): The gap in sequence will set to '-'
-        """
-        if not len(self.alleles):
-            raise ValueError("MSA is empty")
-        if not target_allele:
-            target_allele = self._get_first()[0]
-        if target_allele not in self.alleles:
-            raise ValueError(f"{target_allele} not found")
-
-        # setup aligner
-        if not aligner:
-            aligner = PairwiseAligner()
-            aligner.alphabet = "ATCG-E"
-            aligner.target_open_gap_score = -99999
-            aligner.query_open_gap_score = -10
-            aligner.query_extend_gap_score = -.5
-            aligner.match = 5
-            aligner.mismatch = -4
-
-        # align
-        target_seq = self.alleles[target_allele]
-        result_seq = format(aligner.align(target_seq, seq)[0]).split("\n")[-2]
-        assert len(result_seq) == len(target_seq)
-        return result_seq
 
     # Functions for writing to bam file
     def _calculate_cigar(self, a: str, b: str) -> List[Tuple[int, int]]:
         """
         Compare two sequences and output cigartuples
 
-        The cigar_tuple is defined in https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
+        The cigar_tuple is defined in
+        https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
         """
         # Compare two sequence
         c = []
@@ -834,10 +817,12 @@ class Genemsa:
             gap (bool): The sequence included gap or not
         """
         if gap:
-            return [SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
+            return [SeqRecord(Seq(seq.replace("E", "-")),
+                              id=allele, description="")
                     for allele, seq in self.alleles.items()]
         else:
-            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")), id=allele, description="")
+            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")),
+                              id=allele, description="")
                     for allele, seq in self.alleles.items()]
 
     def save_fasta(self, fname: str, gap=True):
@@ -960,7 +945,8 @@ class Genemsa:
         # save allele info in each record
         for allele, seq in self.alleles.items():
             record = []
-            pos = [len(seq[:i].replace("E", "").replace("-", "")) for i in block_pos]
+            pos = [len(seq[:i].replace("E", "").replace("-", ""))
+                   for i in block_pos]
 
             for i in range(len(self.blocks)):
                 # ref source type start end . strand . tags
@@ -992,20 +978,23 @@ class Genemsa:
     def meta_from_json(cls, data=None) -> Genemsa:
         """ Import meta information from json """
         if data:
-            return Genemsa(data['name'], data['seq_type'], [BlockInfo(**b) for b in data['blocks']])
+            return Genemsa(data['name'], data['seq_type'],
+                           blocks=[BlockInfo(**b) for b in data['blocks']])
         else:
             return Genemsa("")
 
     def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
         """ Transfer this object to MultipleSeqAlignment(biopython) """
-        return MultipleSeqAlignment(self.to_fasta(gap=True), annotations=self.meta_to_json())
+        return MultipleSeqAlignment(self.to_fasta(gap=True),
+                                    annotations=self.meta_to_json())
 
     @classmethod
     def from_MultipleSeqAlignment(cls, bio_msa: MultipleSeqAlignment) -> Genemsa:
         """
         Transfer MultipleSeqAlignment instance(biopython) to Genemsa
 
-        See more details in [biopython](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
+        See more details in [biopython](
+        https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
         """
         new_msa = cls.meta_from_json(bio_msa.annotations)
         if not new_msa.blocks:

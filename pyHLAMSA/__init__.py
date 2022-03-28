@@ -13,27 +13,19 @@ from . import Readmsa
 class Familymsa:
     """
     A abstract class to handle Gene Family
+
+    When init, it will
+
+    * Init parameter
+    * Download db
+    * Read db to Genemsa
+
+    Attributes:
+        genes (dict): The dictionary use gene_name as key and msa object as value
     """
+
     def __init__(self, genes=[], filetype=["gen", "nuc"],
                  db_folder="alignments", version="latest"):
-        """
-        When init, it will
-
-        * Init parameter
-        * Download db
-        * Read db to Genemsa
-
-        Args:
-            genes (str or list of str): A list of genes you want to read.
-
-                Leave Empty if you want read all gene in HLA
-
-                set None to read none of gene.
-
-            filetype (str or list of str): A list of filetype.
-
-                If both `gen` and `nuc` are given, it will merge them automatically.
-        """
         self.logger = logging.getLogger(__name__)
         self.db_folder = db_folder
         self.genes = {}
@@ -95,12 +87,37 @@ class HLAmsa(Familymsa):
     """
     A HLA interface
 
-    Attributes:
-        genes (dict of str, Genemsa): The msa object for each gene
-    """
 
+    Attributes:
+        genes (dict): The dictionary use gene_name as key and msa object as value
+    """
     def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 imgt_alignment_folder="alignment_v3470", version="3470"):
+                 imgt_alignment_folder=None, version="3470"):
+        """
+        Args:
+            genes (str or list of str): A list of genes you want to read.
+
+                Leave Empty if you want read all gene in HLA
+
+            filetype (str or list of str): A list of filetype.
+
+                If both `gen` and `nuc` are given, it will merge them automatically.
+
+            imgt_alignment_folder (str): Path to your IMGT-formatted MSA alignment file
+
+                You can manually download from
+                <http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/>
+                and unzip Alignments_Rel_3470.zip
+
+                Or it will automatically download the database with assigned `version` to
+                `imgt_alignment_folder`. Default is `./alignment_v{verion}`
+
+            version (str): IMGT version you want to download
+
+                If `imgt_alignment_folder` is existed, this value will be ignored.
+        """
+        if imgt_alignment_folder is None:
+            imgt_alignment_folder = f"alignment_v{version}"
         super().__init__(genes, filetype,
                          db_folder=imgt_alignment_folder, version=version)
 
@@ -129,8 +146,12 @@ class HLAmsa(Familymsa):
         if "gen" in filetype and "nuc" in filetype:
             names = names_gen & names_nuc
             # * E exon7 is ambiguous, exon8 is gone (Also exon8 is not pseudo exon)
-            #    <E gen alleles=258 block=5UTR(301) exon1(64) intron1(130) exon2(270) intron2(244) exon3(276) intron3(621) exon4(276) intron4(124) exon5(117) intron5(751) exon6(33) intron6(104) exon7(43) intron7(165) exon8(5) 3UTR(356)>
-            #    <E nuc alleles=262 block=exon1(64) exon2(270) exon3(276) exon4(276) exon5(117) exon6(33) exon7(41)>
+            #    <E gen alleles=258 block=5UTR(301) exon1(64) intron1(130)
+            #        exon2(270) intron2(244) exon3(276) intron3(621) exon4(276)
+            #        intron4(124) exon5(117) intron5(751) exon6(33) intron6(104)
+            #        exon7(43) intron7(165) exon8(5) 3UTR(356)>
+            #    <E nuc alleles=262 block=exon1(64) exon2(270) exon3(276)
+            #        exon4(276) exon5(117) exon6(33) exon7(41)>
             if "gen" in filetype and "nuc" in filetype:
                 names = names - set(["E"])
         return list(sorted(names))[10:]
@@ -147,7 +168,8 @@ class HLAmsa(Familymsa):
             msa_gen.gene_name = gene
             if gene != "P":
                 # P: special case: has even block
-                # <P gen alleles=5 block=(475) (261) (589) (276) (124) (117) (412) (33) (150) (48) (163) (297)>
+                # <P gen alleles=5 block=(475) (261) (589) (276) (124) (117)
+                #                        (412) (33) (150) (48) (163) (297)>
                 msa_gen._assume_label()
             self.logger.debug(f"Gen {msa_gen}")
         if "nuc" in filetype:
@@ -165,9 +187,11 @@ class HLAmsa(Familymsa):
 
         if "gen" in filetype and "nuc" in filetype:
             # remove some gene
-            diff_name = list(set(msa_gen.get_sequence_names()) - set(msa_nuc.get_sequence_names()))
+            diff_name = list(set(msa_gen.get_sequence_names())
+                             - set(msa_nuc.get_sequence_names()))
             if diff_name:
-                self.logger.warning(f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+                self.logger.warning(
+                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
             msa_gen = msa_gen.remove(diff_name)
 
             # merge
@@ -188,29 +212,38 @@ class HLAmsaEX(Familymsa):
     A HLA interface but read gene from MSF and
     read intron/exon information from hla.dat
 
-    I think this one is much reliable
+    I think this one is more reliable
 
     Attributes:
-        genes (dict of str, Genemsa): The msa object for each gene
+        genes (dict): The dictionary use gene_name as key and msa object as value
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 imgt_folder="IMGT_v3470", version="3470"):
+                 imgt_folder=None, version="3470"):
         """
-        The instance will download the IMGT/HLA into `imgt_folder`
-        with version `verion` and read the `msf/{gene}_{filetype}.msf` files.
-
         Args:
-            genes (list of str): A list of genes you want to read.
+            genes (str or list of str): A list of genes you want to read.
 
                 Leave Empty if you want read all gene in HLA
 
-                set None to read none of gene.
-
-            filetype (list of str): A list of filetype.
+            filetype (str or list of str): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
+
+            imgt_folder (str): Path to your IMGT/HLA root folder
+
+                You can manually download <https://github.com/ANHIG/IMGTHLA/> and
+                checkout to specific branch
+
+                Or it will automatically download the database with assigned `version` to
+                `imgt_folder`. Default is `./IMGT_v{verion}`
+
+            version (str): IMGT version you want to download
+
+                If `imgt_folder` is existed, this value will be ignored.
         """
+        if imgt_folder is None:
+            imgt_folder = f"IMGT_v{version}"
         super().__init__(genes, filetype,
                          db_folder=imgt_folder, version=version)
 
@@ -219,7 +252,8 @@ class HLAmsaEX(Familymsa):
         Download the IMGT/HLA msf and hla.dat to folder `imgt_folder`
         """
         # TODO: Auto find the latest version
-        self._run_shell("git", "clone", "https://github.com/ANHIG/IMGTHLA.git", self.db_folder)
+        self._run_shell("git", "clone",
+                        "https://github.com/ANHIG/IMGTHLA.git", self.db_folder)
         self._run_shell("git", "checkout", version, cwd=self.db_folder)
         self._run_shell("git", "lfs", "pull", cwd=self.db_folder)
 
@@ -234,8 +268,9 @@ class HLAmsaEX(Familymsa):
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf") | DRB
         if "nuc" in filetype:
-            # Most's of E nuc is different from dat record
-            names = names_nuc = (self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | DRB) - set(["E"])
+            # HLA-E nuc doessn't have exon8
+            names = names_nuc = (self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | DRB
+                                 - set(["E"]))
         if "gen" in filetype and "nuc" in filetype:
             names = names_gen & names_nuc
         return sorted(names)
@@ -272,9 +307,11 @@ class HLAmsaEX(Familymsa):
 
         if "gen" in filetype and "nuc" in filetype:
             # remove some gen not included in nuc
-            diff_name = list(set(msa_gen.get_sequence_names()) - set(msa_nuc.get_sequence_names()))
+            diff_name = list(set(msa_gen.get_sequence_names())
+                             - set(msa_nuc.get_sequence_names()))
             if diff_name:
-                self.logger.warning(f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+                self.logger.warning(
+                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
             msa_gen = msa_gen.remove(diff_name)
 
             # merge
@@ -298,8 +335,32 @@ class KIRmsa(Familymsa):
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 ipd_folder="KIR_v2100", version="2100"):
+                 ipd_folder=None, version="2100"):
+        """
+        Args:
+            genes (str or list of str): A list of genes you want to read.
+
+                Leave Empty if you want read all gene in HLA
+
+            filetype (str or list of str): A list of filetype.
+
+                If both `gen` and `nuc` are given, it will merge them automatically.
+
+            ipd_folder (str): Path to your IPD/KIR folder
+
+                You can manually download <https://github.com/ANHIG/IPDKIR> and
+                checkout to specific branch
+
+                Or it will automatically download the database with assigned `version` to
+                `ipd_folder`. Default is `./kIR_v{verion}`
+
+            version (str): IMGT version you want to download
+
+                If `ipd_folder` is existed, this value will be ignored.
+        """
         # Why not version 2110 -> 2DL4,2DL5 has exon 4
+        if ipd_folder is None:
+            ipd_folder = f"KIR_v{version}"
         super().__init__(genes, filetype, db_folder=ipd_folder, version=version)
 
     def _download_db(self, version="2100"):
@@ -358,25 +419,29 @@ class KIRmsa(Familymsa):
 
         if "gen" in filetype and "nuc" in filetype:
             # remove some gen not included in nuc
-            diff_name = list(set(msa_gen.get_sequence_names()) - set(msa_nuc.get_sequence_names()))
+            diff_name = list(set(msa_gen.get_sequence_names()) -
+                             set(msa_nuc.get_sequence_names()))
             if diff_name:
-                self.logger.warning(f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+                self.logger.warning(
+                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
             msa_gen = msa_gen.remove(diff_name)
 
             # specical case
             # exon 3 is pseudo exon
             # so, fill with gene's exon3
             gene_has_pseudo_exon3 = ["KIR2DL1", "KIR2DL2", "KIR2DL3", "KIR2DP1",
-                                     "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS4", "KIR2DS5"]
+                                     "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS4",
+                                     "KIR2DS5"]
             if gene in gene_has_pseudo_exon3:
 
                 exon3 = msa_gen.select_block([5])
-                for name in set(msa_nuc.get_sequence_names()) - set(msa_gen.get_sequence_names()):
+                for name in (set(msa_nuc.get_sequence_names())
+                             - set(msa_gen.get_sequence_names())):
                     exon3.append(name, "-" * exon3.get_length())
                 msas = msa_nuc.split()
-                msa_nuc = msa_nuc.select_block(list(range(0, 2))) \
-                          + exon3 \
-                          + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks))))
+                msa_nuc = (msa_nuc.select_block(list(range(0, 2)))
+                           + exon3
+                           + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks)))))
                 msa_nuc.seq_type = "nuc"
 
             # merge

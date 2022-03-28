@@ -351,8 +351,9 @@ mkdocs serve
 ## Test
 ```
 pip3 install -e .
-pip3 install pytest
+pip3 install pytest pycodestyle
 pytest
+pycodestyle pyHLAMSA/*.py
 ```
 
 

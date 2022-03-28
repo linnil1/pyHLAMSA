@@ -217,7 +217,8 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
         # assert len(seq) == msf_length
         # check sequence content
         if not all(i in "ATCG-" for i in seq):
-            logger.warning(f"Ignore {allele_name}, msf length contains character not in ATCG-(gap)")
+            logger.warning(f"Ignore {allele_name}, msf length contains invalid character"
+                           " i.e. character shoudle be one of ATCG-(gap)")
             continue
 
         # Coordination mapping from sequence to gapped-sequence
@@ -232,8 +233,10 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
         for d in dat[allele_name]:
             block_name, start, end = d['name'], d['start'], d['end']
             # calculate the position
-            block_cord[block_name][0] = min(block_cord[block_name][0], seq_cord[start - 1])
-            block_cord[block_name][1] = max(block_cord[block_name][1], seq_cord[end - 1] + 1)
+            block_cord[block_name][0] = min(block_cord[block_name][0],
+                                            seq_cord[start - 1])
+            block_cord[block_name][1] = max(block_cord[block_name][1],
+                                            seq_cord[end - 1] + 1)
         block_cord_list = list(sorted(block_cord.values()))
         for i in range(1, len(block_cord_list)):
             # is overlap
@@ -246,7 +249,8 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
             new_alleles[allele_name] = seq
 
     # Because the ensure two consecutive region will not overlap before,
-    # we just set any value between the lower and upper bound of each intron/exon position in block_cord
+    # we just set any value between the lower and upper bound
+    # of each intron/exon position in block_cord
     block_cord_list = []
     start_pos = 0
     for block_name, (start, end) in sorted(block_cord.items(), key=lambda i: i[1]):
