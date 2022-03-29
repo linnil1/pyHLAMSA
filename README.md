@@ -323,7 +323,9 @@ a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
 * [x] Cannot handle pseudo exon
 * [x] merge blocks and labels
 * [x] Fix KIR when merge gen and nuc
-* [ ] Use index to trace orignal position
+* [x] Use index to trace orignal position
+* [ ] Download latest version of IMGT or IPD
+* [ ] CYP
 
 
 ## Requirement

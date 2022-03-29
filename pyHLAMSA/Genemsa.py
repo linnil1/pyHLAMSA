@@ -633,11 +633,13 @@ class Genemsa:
         return new_msa.reset_index()
 
     # Format function
-    def format_alignment_diff(self, ref_allele="", position_header=True) -> str:
+    def format_alignment_diff(self, ref_allele="", show_position_set=None) -> str:
         """
         Print the sequences of all alleles diff from `ref_allele` sequence.
 
         The format is similiar to IMGT alignment format.
+
+        Check `.format_alignment()` for output detail.
 
         Returns:
           str: A formatted string
@@ -645,15 +647,16 @@ class Genemsa:
         Examples:
           >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
           >>> print(a.format_alignment_diff())
-             gDNA               0
-                                |
-             A*01:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*02:01:01:01      ---------- ------C--- T--------- ---|------- ----------
-             A*03:01:01:01      ---------- ---------- ---------- ---|------- ----------
-             A*11:01:01:01      ---------- ---------- ---------- ---|------- ----------
-             A*23:01:01:01      ---------- ------C--- T--------- ---|------- ----------
-             A*25:01:01:01      ---------- ------C--- T--------- ---|------- ----------
-             A*26:01:01:01      ---------- ------C--- T--------- ---|------- ----------
+                              3166                                  3342
+                                 |                                     |
+             A*01:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCC
+             A*02:01:01:01       ---------- ------C--- T--------- ---| ------- -------
+             A*03:01:01:01       ---------- ---------- ---------- ---| ------- -------
+             A*11:01:01:01       ---------- ---------- ---------- ---| ------- -------
+             A*23:01:01:01       ---------- ------C--- T--------- ---| ------- -------
+             A*25:01:01:01       ---------- ------C--- T--------- ---| ------- -------
+             A*26:01:01:01       ---------- ------C--- T--------- ---| ------- -------
+             A*29:01:01:01       ---------- ------C--- T--------- ---| ------- -------
         """
         if not len(self.alleles):
             raise ValueError("MSA is empty")
@@ -682,14 +685,83 @@ class Genemsa:
                     new_seq += seq[i]
             new_msa.alleles[allele] = new_seq
         new_msa.alleles[ref_allele] = new_msa.alleles[ref_allele].replace("-", ".")
-        return new_msa.format_alignment(position_header=position_header)
+        return new_msa.format_alignment(show_position_set=show_position_set)
 
-    def format_alignment(self, wrap=100, position_header=True) -> str:
+    def _apply_print_format(self, print_format_per_lines):
+        """
+        This function only controlling the layout not logic, used by `format_alignment`
+
+        It may overlap the text if the print_format in `print_format_per_lines`
+        doesn't given enough space.
+
+        Args:
+          print_format_per_lines (list of list of dict):
+            The outer list is for each line and
+            the inner list is a list of print_format
+            Here is my print_format
+            ```
+            {
+                # print the position
+                index: True
+                # type of printable word
+                type: "base" | "allele_name" | "char"
+                # the width
+                length: 12  # for all
+                # if type=base
+                # pos = position of base
+                pos: 12
+                # if type=char
+                # it will print the word
+                word: ""  # for char
+            }
+            ```
+        """
+        output_str = ""
+        for pfl in print_format_per_lines:
+            # index line
+            index_left_space = 0
+            for pf in pfl:
+                index_left_space += pf.get('length', 1)
+                if pf.get('index'):
+                    # note: 1-base
+                    output_str += f"{self.index[pf['pos']].pos + 1:>{index_left_space}}"
+                    index_left_space = 0
+            output_str += "\n"
+
+            # indicator line
+            index_left_space = 0
+            for pf in pfl:
+                index_left_space += pf.get('length', 1)
+                if pf.get('index'):
+                    output_str += f"{'|':>{index_left_space}}"
+                    index_left_space = 0
+            output_str += "\n"
+
+            # allele line
+            for name, seq in self.alleles.items():
+                for pf in pfl:
+                    if pf['type'] == 'char':
+                        output_str += pf['word']
+                    elif pf['type'] == 'allele_name':
+                        output_str += f"{name:<{pf['length']}}"
+                    elif pf['type'] == 'base':
+                        output_str += seq[pf['pos']]
+                output_str += "\n"
+
+            # separate each line
+            output_str += "\n\n"
+        return output_str
+
+    def format_alignment(self, wrap=100, show_position_set=None) -> str:
         """
         Print the MSA
 
+        Note: The index shown on output string is 1-base absolute position.
+        If you want to print in relative position, use `.reset_index()` first.
+
         Args:
-          wrap (int): The max-length to wrap sequences
+          wrap (int): The maximum base per line
+          show_position_set (set): The list of position(0-base) you want to indicate
 
         Returns:
           str: A formatted string
@@ -697,57 +769,95 @@ class Genemsa:
         Examples:
           >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
           >>> print(a.format_alignment())
-             gDNA               0
-                                |
-             A*01:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*02:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*03:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*11:01:01:01      ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*23:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*25:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
-             A*26:01:01:01      ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA|GCAGTGA CAGTGCCCAG
+                              3166                                  3342
+                                 |                                     |
+             A*01:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*02:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*03:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*11:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*23:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*25:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
         """
         if not self.blocks or not self.alleles:
             raise ValueError("MSA is empty")
-        output_str = ""
-        bid = 0
-        block_pos = self._get_block_position()
-        block_pos, seq_length = block_pos[1:-1], block_pos[-1]
 
-        for pos in range(0, seq_length, wrap):
-            # Find the insertion point
-            seq_part_len = min(seq_length, pos + wrap) - pos
-            split_data = [(seq_part_len, 3, "\n")]  # pos, priority, char
-            split_data += [(i, 2, " ") for i in range(10, seq_part_len, 10)]
-            while bid < len(block_pos) and pos < block_pos[bid] <= pos + seq_part_len:
-                split_data.append((block_pos[bid] - pos, 1, "|"))
-                bid += 1
-            split_data = sorted(split_data)
+        pos = 0
+        last_index = -1
+        seq_length = self.get_length()
+        block_pos = self._get_block_position()[1:]  # remove first
 
-            # Header per wrapping
-            if position_header:
-                output_str += f" {'gDNA':<18} {pos}\n"
-                output_str += " " * 20 + "|\n"
+        format_lines = []
+        format_line = []
+        while pos < seq_length:
+            index = False  # if this base need index
 
-            # alleles
-            for allele, seq in self.alleles.items():
-                output_str += f" {allele:18} "
-                cur_pos = pos
-                for j in split_data:
-                    if j[0] > len(seq):
-                        break
-                    output_str += seq[cur_pos:pos + j[0]]
-                    output_str += j[2]
-                    cur_pos = pos + j[0]
-            output_str += "\n\n"
-        return output_str
+            # init a line
+            if not format_line:
+                format_line.append({'type': 'char', 'word': " "})
+                format_line.append({'type': 'allele_name', 'length': 18})
+                format_line.append({'type': 'char', 'word': " "})
+                line_length = 20
+                last_index_pos = 0
+                num_base_in_line = 0
+                index = True
+
+            # block indicator
+            if pos == block_pos[0]:
+                block_pos.pop(0)
+                format_line.append({'type': 'char', 'word': "|"})
+                index = True
+
+            # not consecutive position: show the index
+            if self.index[pos].pos != last_index + 1:
+                format_line.append({'type': 'char', 'word': " "})
+                line_length += 1
+                index = True
+            last_index = self.index[pos].pos
+
+            # force to show
+            if show_position_set is not None:
+                index = self.index[pos].pos in show_position_set
+
+            # space to avoid index overlapping
+            # pos is 0-base
+            while (index
+                   and last_index_pos + len(str(self.index[pos].pos + 1)) > line_length):
+                format_line.append({'type': 'char', 'word': " "})
+                line_length += 1
+
+            # base
+            format_line.append({'type': 'base', 'pos': pos, 'index': index})
+            pos += 1
+            line_length += 1
+            num_base_in_line += 1
+            if index:
+                last_index_pos = line_length
+
+            # break the line
+            if (num_base_in_line >= wrap
+                    or (line_length > 120 and num_base_in_line % 10 == 0)):
+                format_lines.append(format_line)
+                format_line = []
+                continue
+
+            # split 10 bases in a line
+            if num_base_in_line % 10 == 0:
+                format_line.append({'type': 'char', 'word': " "})
+                line_length += 1
+
+        if format_line:
+            format_lines.append(format_line)
+
+        return self._apply_print_format(format_lines)
 
     def format_alignment_from_center(self, pos: int, left=5, right=5) -> str:
         """
         Print all alleles sequences from the center of specific position
 
+        Check `.format_alignment()` for output format detail
+
         Args:
-          pos (int): The position wanted at the center
+          pos (int or list of int): The (0-base relative) positions
           left (int): How many base shall print at the left of the center
           right (int): How many base shall print at the right of the center
 
@@ -763,48 +873,55 @@ class Genemsa:
              HLA-A*03:20        -----G----
           ```
         """
-        output_str = ""
-        prev_pos = max(pos - left, 0)
-        output_str += f" {'gDNA':<18} {' ' * (pos - prev_pos)}{pos}\n"
-        output_str += f" {' '   * 18} {' ' * (pos - prev_pos)}|\n"
-        new_msa = self[prev_pos:pos + right]
-        output_str += new_msa.format_alignment_diff(position_header=False)
-        return output_str
+        if type(pos) is int:
+            pos = [pos]
+
+        show_position_set = set(self.index[i].pos for i in pos)
+        msa = None
+        for p in pos:
+            if msa is None:
+                msa = self[p - left: p + right]
+            else:
+                msa += self[p - left: p + right]
+        return msa.format_alignment_diff(show_position_set=show_position_set)
 
     def format_variantion_base(self) -> str:
         """
         A handy function to show all the variation between the alleles
+
+        Note: the `|` in the output string is NOT intron and exon boundary
+
+        Check `.format_alignment()` for output format detail
 
         Returns:
           str: A formatted string
         Example:
             ```
             Total variantion: 71
-             gDNA                   4
-                                    |
-             A*01:01:01:01      GCTCCC.AC
-             A*02:01:01:01      ----T-.--
-             A*03:01:01:01      ------.--
-             A*11:01:01:01      ------.--
-             A*23:01:01:01      ------.--
-             A*25:01:01:01      ------.--
-             A*26:01:01:01      ------.--
-             A*29:01:01:01      ------.--
-
-             gDNA                    24
-                                     |
-             A*01:01:01:01      ATTTCTTCAC ATCCG
-             A*02:01:01:01      ---------- -----
-             A*03:01:01:01      ---------- -----
-             A*11:01:01:01      ------A--- C----
-             A*23:01:01:01      ------C--- -----
-             A*25:01:01:01      ------A--- C----
-             A*26:01:01:01      ------A--- C----
-             A*29:01:01:01      -----AC--- -----
+                                    308    314          329          342    349
+                                      |      |            |            |      |
+             A*01:01:01:01       TGGCCGTCAT GGCGCC| CCCT CCTCCT| ACTC TCGGGGGCCC TGG
+             A*02:01:01:01       ---------- ------| ---- -G----| ---- --------T- ---
+             A*03:01:01:01       ---------- ------| ---- ------| ---- ---------- ---
+             A*11:01:01:01       ---------- ------| ---- ------| ---- ---------- ---
+             A*23:01:01:01       ---------- ------| ---- -G----| ---- ---------- ---
+             A*25:01:01:01       ---------- ------| ---- -G----| ---- ---------- ---
+             A*26:01:01:01       ---------- ------| ---- -G----| ---- ---------- ---
+             A*29:01:01:01       ---------- ------| ---- ------| ---- -T-------- ---
+             A*30:01:01:01       ---------- ------| ---- ------| ---- ---------- ---
+             A*32:01:01:01       ---------- ------| ---- ------| ---- -T-------- ---
+             A*33:01:01:01       ---------- ------| ---- ------| ---- -T-------- ---
+             A*34:01:01:01       -----A---- ------| ---- -G----| ---- ---------- ---
+             A*36:01:01:01       ---------- ------| ---- ------| ---- ---------- ---
+             A*66:01:01:01       ---------- ------| ---- -G----| ---- ---------- ---
+             A*68:01:01:01       ---------- ------| ---- -G----| ---- ---------- ---
+             A*69:01:01:01       ---------- ------| ---- -G----| ---- ---------- ---
+             A*74:01:01:01       ---------- ------| ---- ------| ---- -T-------- ---
+             A*80:01:01:01       ---------- -C----| ---- ------| ---- ---------- ---
             ```
         """
         bases = self.get_variantion_base()
-        output_str = f"Total variantion: {len(bases)}\n"
+        output_str = f"#Total variantion: {len(bases)}\n"
 
         # merge if two variant are too close
         merged_bases = []
@@ -816,10 +933,15 @@ class Genemsa:
                 merged_bases.append([b, b])
 
         # format the string
+        # Using the property of index
+        show_position_set = set(self.index[i].pos for i in bases)
+        msa = None
         for b_left, b_right in merged_bases:
-            output_str += self.format_alignment_from_center(
-                b_left, right=b_right - b_left + right)
-        return output_str
+            if msa is None:
+                msa = self[b_left - 5: b_right + 5]
+            else:
+                msa += self[b_left - 5: b_right + 5]
+        return msa.format_alignment_diff(show_position_set=show_position_set)
 
     # Functions for writing to bam file
     def _calculate_cigar(self, a: str, b: str) -> List[Tuple[int, int]]:
@@ -977,7 +1099,10 @@ class Genemsa:
             for i in range(len(self.blocks)):
                 self.blocks[i].type = "gene_fragment"
                 self.blocks[i].name = f"block{i+1}"
-        self.reset_index()
+
+        # inplace to reset the index
+        self.index = self.reset_index().index
+        return self
 
     def save_gff(self, fname: str, strand="+"):
         """
