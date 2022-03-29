@@ -36,6 +36,7 @@ class TestMsaMainFunction(unittest.TestCase):
         ) for i, seq in enumerate(alleles['a1'].split("|"))]
         self.msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
         self.input_allele = alleles
+        self.msa = self.msa.reset_index()
 
     def test_shrink(self):
         # before shrink
@@ -198,6 +199,7 @@ class TestMsaMainFunction(unittest.TestCase):
         for name in newmsa.get_sequence_names():
             self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
         self.assertEqual(self.msa.blocks, newmsa.blocks)
+        self.assertEqual(self.msa.index, newmsa.index)
 
         # modify new msa wll nott change orignal msa
         newmsa.alleles['a1'] = "123"
@@ -321,6 +323,37 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(newmsa.blocks, self.msa.blocks)
 
 
+    def test_index(self):
+        # length
+        self.assertEqual(list(range(len(self.input_allele['a1'].replace("|", "")))),
+                         [i.pos for i in self.msa.index])
+        # block
+        for msa in self.msa.split():
+            for ind in msa.index:
+                self.assertEqual(ind.name, msa.blocks[0].name)
+
+        # getitem
+        index = [0, 2, 4]
+        newmsa = self.msa[index]
+        self.assertEqual([i.pos for i in newmsa.index], index)
+        self.assertEqual(newmsa.get_length(), len(index))
+        self.assertEqual(len(newmsa.index), len(index))
+
+    def test_index_shrink(self):
+        newmsa = self.msa.shrink()
+        # miss = gap
+        miss_pos = set(range(len(self.input_allele['a1'].replace("|", "")))) - set([i.pos for i in newmsa.index])
+        self.assertEqual(len(miss_pos), 2)
+        for pos in miss_pos:
+            for name in self.input_allele:
+                self.assertEqual(self.input_allele[name].replace("|", "")[pos], "-"),
+
+        # shrink to  reset index
+        newmsa = newmsa.reset_index()
+        self.assertEqual(set(range(len(self.input_allele['a1'].replace("|", "").replace("-", "")))),
+                         set([i.pos for i in newmsa.index]))
+
+
 class TestMsaExonOnly(unittest.TestCase):
     """
     This deal with the case where MSA contains exon-only sequences
@@ -349,6 +382,7 @@ class TestMsaExonOnly(unittest.TestCase):
             name=labels[i][1],
         ) for i, seq in enumerate(alleles['a1'].split("|"))]
         msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
+        msa = msa.reset_index()
 
         # Check E in sequence
         self.assertEqual(msa.select_complete().get_sequence_names(), ["a0", "a1", "c2"])
@@ -382,6 +416,7 @@ class TestMsaExonOnly(unittest.TestCase):
             name=labels[i][1],
         ) for i, seq in enumerate(alleles['a1'].split("|"))]
         msa.alleles = {k: v.replace("|", "") for k, v in alleles.items()}
+        msa = msa.reset_index()
 
         # selecct exon part and rename: add "e" before the name
         msa_nuc = msa.select_exon()

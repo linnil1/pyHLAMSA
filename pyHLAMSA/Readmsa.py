@@ -28,7 +28,7 @@ def from_alignment_file(fname: str, seq_type="") -> Genemsa:
 
     if seq_type:
         new_msa.seq_type = seq_type
-        new_msa._assume_label()
+        new_msa._assume_label()  # include label
 
     # check
     leng = new_msa.get_length()
@@ -275,7 +275,6 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
 
     # New msa
     new_msa = msa.copy()
-    new_msa.alleles = new_alleles
     new_msa.blocks = []
     for name, (start, end) in block_cord_list:
         new_msa.blocks.append(BlockInfo(
@@ -288,4 +287,6 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
                 "intron": "intron",
             }.get(name),
         ))
+    new_msa = new_msa.reset_index()
+    new_msa.alleles = new_alleles
     return new_msa

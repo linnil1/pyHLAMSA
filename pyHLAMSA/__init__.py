@@ -5,8 +5,7 @@ import subprocess
 from glob import glob
 from typing import List, Set
 
-from .Genemsa import BlockInfo
-from .Genemsa import Genemsa
+from .Genemsa import Genemsa, BlockInfo, IndexInfo
 from . import Readmsa
 
 
@@ -293,7 +292,6 @@ class HLAmsaEX(Familymsa):
             self.logger.debug(f"{msa_gen}")
 
         if "nuc" in filetype:
-            msa_nuc = Genemsa(gene, seq_type="nuc")
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
                 msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/DRB_nuc.msf")
@@ -410,7 +408,6 @@ class KIRmsa(Familymsa):
             self.logger.debug(f"Gen {msa_gen}")
 
         if "nuc" in filetype:
-            msa_nuc = Genemsa(gene, seq_type="nuc")
             msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
             msa_nuc.seq_type = "nuc"
             msa_nuc.gene_name = gene

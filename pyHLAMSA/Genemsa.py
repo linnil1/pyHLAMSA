@@ -28,6 +28,21 @@ class BlockInfo:
     type: str = ""
 
 
+@dataclasses.dataclass
+class IndexInfo:
+    """
+    A class to save index information
+
+    Attributes:
+      pos: The position index
+      name: (Optional) The belonged block name for the position
+      type: (Optional) The belonged block tag  for the position
+    """
+    pos: int
+    name: str = ""
+    type: str = ""
+
+
 class Genemsa:
     """
     An useful MSA interface
@@ -47,14 +62,16 @@ class Genemsa:
             so I fill the intron with E.
 
         blocks (list of BlockInfo): list of block information
+        index (list of IndexInfo): list of index(position) information
     """
 
-    def __init__(self, gene_name: str, seq_type="", blocks=[]):
+    def __init__(self, gene_name: str, seq_type="", blocks=[], index=[]):
         self.gene_name = gene_name
         self.seq_type = seq_type
         self.alleles = {}
         self.blocks = copy.deepcopy(blocks)  # intron exon length
         self.logger = logging.getLogger(__name__)
+        self.index = copy.deepcopy(index)
 
     # Show the MSA attribute
     def __str__(self):
@@ -107,7 +124,8 @@ class Genemsa:
         Args:
             copy_allele (bool): copy the sequences
         """
-        new_msa = Genemsa(self.gene_name, self.seq_type, self.blocks)
+        new_msa = Genemsa(self.gene_name, self.seq_type,
+                          blocks=self.blocks, index=self.index)
         if copy_allele:
             new_msa.alleles = dict(self.alleles.items())
         return new_msa
@@ -191,6 +209,7 @@ class Genemsa:
         """ Reverse the sequences """
         new_msa = self.copy(copy_allele=False)
         new_msa.blocks = copy.deepcopy(list(reversed(self.blocks)))
+        new_msa.index = copy.deepcopy(list(reversed(self.index)))
         new_msa.alleles = {allele: str(Seq(seq).reverse_complement())
                            for allele, seq in self.alleles.items()}
         return new_msa
@@ -284,6 +303,7 @@ class Genemsa:
         for i in range(len(self.blocks)):
             new_msa.blocks[i].length = sum(masks[gen_pos[i]:gen_pos[i + 1]])
         assert sum(masks) == new_msa.get_length()
+        new_msa.index = [new_msa.index[i] for i in range(len(masks)) if masks[i]]
 
         # remove base in allele
         for allele, seq in self.alleles.items():
@@ -295,6 +315,16 @@ class Genemsa:
     def get_variantion_base(self) -> List[str]:
         """
         Get the base positions where variation occurs
+
+        Example:
+          ```
+          msa:
+            s0: AAT
+            s1: AAC
+            s2: CAC
+          >>> msa.get_variantion_base()
+          [0, 2]
+          ```
 
         Returns:
           positions:
@@ -323,6 +353,7 @@ class Genemsa:
                              + str(names0.symmetric_difference(names1)))
         new_msa = self.copy()
         new_msa.blocks.extend(copy.deepcopy(msa.blocks))
+        new_msa.index.extend(copy.deepcopy(msa.index))
         for name, seq in msa.alleles.items():
             new_msa.alleles[name] += seq
         return new_msa
@@ -352,16 +383,40 @@ class Genemsa:
             new_msa.alleles = {allele: seq[index]
                                for allele, seq in self.alleles.items()}
             new_msa.blocks = [BlockInfo(length=len(new_msa._get_first()[1]))]
+            new_msa.index = copy.deepcopy(self.index[index])
             return new_msa
         elif isinstance(index, tuple) or isinstance(index, list):
             new_msa = Genemsa(self.gene_name)
             new_msa.alleles = {allele: "".join([seq[i] for i in index])
                                for allele, seq in self.alleles.items()}
             new_msa.blocks = [BlockInfo(length=len(new_msa._get_first()[1]))]
+            new_msa.index = copy.deepcopy([self.index[i] for i in index])
             return new_msa
         # Fail
         else:
             raise TypeError("Bad usage")
+
+    def reset_index(self) -> Genemsa:
+        """
+        Reset index:
+        The old position information will be discard.
+
+        Each position information will be counted from 0 and
+        the label and name will copy from its block information
+        """
+        new_msa = self.copy()
+        start = 0
+        new_msa.index = []
+        for b in self.blocks:
+            for j in range(b.length):
+                new_msa.index.append(IndexInfo(
+                    pos=start,
+                    type=b.type,
+                    name=b.name,
+                ))
+                start += 1
+        assert start == self.get_length()
+        return new_msa
 
     # some helper functions
     def _get_block_position(self) -> List[int]:
@@ -449,6 +504,9 @@ class Genemsa:
                                for i in index])
             new_msa.alleles[allele] = new_seq
 
+        # extract index
+        for i in index:
+            new_msa.index.extend(copy.deepcopy(self.index[gen_pos[i]:gen_pos[i + 1]]))
         return new_msa
 
     def split(self):
@@ -492,6 +550,8 @@ class Genemsa:
 
         If the exon part of gen MSA is differnet (e.g. less gapped) from nuc MSA,
         Genemsa will try to merge if it can
+
+        Note that the index will be reset
 
         Example:
           ```
@@ -570,7 +630,7 @@ class Genemsa:
                         new_msa.remove(diff_name)
                         exclude_name.update(diff_name)
                 new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
-        return new_msa
+        return new_msa.reset_index()
 
     # Format function
     def format_alignment_diff(self, ref_allele="", position_header=True) -> str:
@@ -917,6 +977,7 @@ class Genemsa:
             for i in range(len(self.blocks)):
                 self.blocks[i].type = "gene_fragment"
                 self.blocks[i].name = f"block{i+1}"
+        self.reset_index()
 
     def save_gff(self, fname: str, strand="+"):
         """
@@ -968,6 +1029,7 @@ class Genemsa:
     def meta_to_json(self) -> Dict:
         """ Extract all meta information about this msa into json """
         meta = {
+            'index': [dataclasses.asdict(i) for i in self.index],
             'blocks': [dataclasses.asdict(b) for b in self.blocks],
             'seq_type': self.seq_type,
             'name': self.gene_name,
@@ -979,7 +1041,8 @@ class Genemsa:
         """ Import meta information from json """
         if data:
             return Genemsa(data['name'], data['seq_type'],
-                           blocks=[BlockInfo(**b) for b in data['blocks']])
+                           blocks=[BlockInfo(**b) for b in data['blocks']],
+                           index=[IndexInfo(**i) for i in data['index']])
         else:
             return Genemsa("")
 
@@ -999,6 +1062,8 @@ class Genemsa:
         new_msa = cls.meta_from_json(bio_msa.annotations)
         if not new_msa.blocks:
             new_msa.blocks = [BlockInfo(length=bio_msa.get_alignment_length())]
+        if not new_msa.index:
+            new_msa = new_msa.reset_index()
 
         for seq in bio_msa:
             new_msa.alleles[seq.id] = str(seq.seq)
