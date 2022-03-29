@@ -594,7 +594,9 @@ class Genemsa:
         gen_names = set(self.get_sequence_names())
         nuc_names = set(msa_nuc.get_sequence_names())
         new_msa = Genemsa(self.gene_name, self.seq_type)
-        new_msa.alleles = {name: "" for name in gen_names | nuc_names}
+        # make sure the order
+        new_msa.alleles = {name: "" for name in self.get_sequence_names()}
+        new_msa.alleles.update({name: "" for name in msa_nuc.get_sequence_names()})
         exclude_name = set()
 
         for i_gen in range(len(self.blocks)):
