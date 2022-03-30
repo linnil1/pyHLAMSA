@@ -641,6 +641,10 @@ class Genemsa:
 
         The format is similiar to IMGT alignment format.
 
+        * `-` indicate same as reference(first line)
+        * `*` indicate deletion
+        * `ATCG` indicate the SNV
+
         Check `.format_alignment()` for output detail.
 
         Returns:
