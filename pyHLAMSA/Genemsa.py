@@ -1110,7 +1110,7 @@ class Genemsa:
         self.index = self.reset_index().index
         return self
 
-    def save_gff(self, fname: str, strand="+"):
+    def save_gff(self, fname: str, strand="+", ref_allele="", igv_show_label=False):
         """
         Save to GFF3 format
 
@@ -1120,41 +1120,57 @@ class Genemsa:
 
               If the strand is "-", it will add `strand` in GFF file,
               if you want to reverse the sequence, please use `reverse_complement` first.
+
+          ref_allele (str): The name of allele (Must be the same in save_bam)
+          igv_show_label (bool): If it's false, it will generate proper GFF3.
+              Set it for True as default for easiler label reading in IGV.
+
         """
-        # http://gmod.org/wiki/GFF3
+        # TODO: should I save strand == '-' in model?
         if not len(self.blocks):
             raise ValueError("MSA is empty")
+        if not ref_allele:
+            ref_allele = self._get_first()[0]
+        if ref_allele not in self.alleles:
+            raise ValueError(f"{ref_allele} not found")
 
         # labels
         if not all(b.type for b in self.blocks):
             self._assume_label()
 
-        # TODO: should I save strand == '-' in model?
-        # init pos and strand
-        records = []
-        block_pos = self._get_block_position()
+        # Gene
+        gene_name = self.gene_name or ref_allele
+        records = [[
+            self.gene_name or ref_allele, "pyHLAMSA", "gene",
+            str(1), str(self.get_length()), ".", strand, ".",
+            f"ID={gene_name};Name={gene_name}"
+        ]]
 
-        # save allele info in each record
-        for allele, seq in self.alleles.items():
-            record = []
-            pos = [len(seq[:i].replace("E", "").replace("-", ""))
-                   for i in block_pos]
-
-            for i in range(len(self.blocks)):
-                # ref source type start end . strand . tags
-                record.append(
-                    [allele, "pyHLAMSA", self.blocks[i].type,
-                     str(pos[i] + 1), str(pos[i + 1]), ".", strand, ".",
-                     f"ID={self.blocks[i].name}_{allele}"]
-                )
-            records.extend(record)
+        # Blocks
+        pos = 0
+        for b in self.blocks:
+            # http://gmod.org/wiki/GFF3
+            # gff3 format:
+            #   header: ref source type start end . strand . tags
+            #   pos: 1-base included position
+            #   type: In HLA annotations exon=CDS
+            records.append(
+                [ref_allele, "pyHLAMSA",
+                 b.type if b.type != "exon" else "CDS",
+                 str(pos + 1), str(pos + b.length), ".", strand, ".",
+                 f"ID={b.name}_{ref_allele}"]
+            )
+            # To show the label of all block in IGV
+            # I break the relation (Remove parent attribute)
+            if not igv_show_label:
+                records[-1][-1] += f";Parent={gene_name}"
+            pos += b.length
 
         # save
         with open(fname, "w") as f:
             f.write("##gff-version 3\n")
-            for record in records:
-                f.write("\t".join(record) + "\n")
-        return records
+            f.write("\n".join(["\t".join(record) for record in records]))
+        return None
 
     # type transform
     def meta_to_json(self) -> Dict:
