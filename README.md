@@ -43,6 +43,8 @@ It can automatically download and read the sequences
 <KIR2DL1 gen alleles=173 block=5UTR(268) exon1(34) intron1(964) exon2(36) intron2(728) exon3(282) intron3(1441) exon4(300) intron4(1534) exon5(294) intron5(3157) exon6(51) intron6(4270) exon7(102) intron7(462) exon8(53) intron8(98) exon9(177) 3UTR(510)>
 ```
 
+Kind note: In our modules, `exon` is actually CDS, so it doesn't include `UTR`.
+
 ### 2. Merge gene and nuc MSA is quiet simple
 
 This main features give us a chance to use genomic MSA and nucleotide MSA at the same time.

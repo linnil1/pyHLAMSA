@@ -85,7 +85,7 @@ class Genemsa:
         # 0 sequences is allow
         return sum(self.get_block_length())
 
-    def get_block_length(self) -> int:
+    def get_block_length(self) -> List[int]:
         """ Get the block's length of MSA """
         return [i.length for i in self.blocks]
 
@@ -256,7 +256,7 @@ class Genemsa:
 
         Returns:
             frequency (list of list of int):
-                Each items contains the number of ATCG and gap. ("E" is count as gap)
+                Each items contains the number of ATCG and gap.
         """
         freqs = []
         for i in zip(*self.alleles.values()):
@@ -436,68 +436,96 @@ class Genemsa:
         Extract the exon by index.
 
         Args:
-          exon_index (list of int): Index start from 1. i.e.
+          exon_index (list of int or list of str): Index start from 1. i.e.
 
             * 1 for exon1
             * 2 for exon2
 
             Leave empty if you want all the exons
-        """
-        # TODO: use label to select
-        if self.seq_type != "gen":
-            raise TypeError("Check this object is gen or not")
-        if len(self.blocks) % 2 != 1:
-            raise IndexError("introns + exon should be odd")
 
+            If the exon_index contains list of string,
+            it will select by name
+
+        Example:
+          >>> a_gen.select_exon([2]))
+          <A gen alleles=7350 block=exon2(351)>
+
+          >>> a_gen.select_exon([2, 3]))
+          <A nuc alleles=7350 block=exon2(351) exon3(436)>
+
+          >>> a_gen.select_exon(["exon2", "exon3"]))
+          <A nuc alleles=7350 block=exon2(351) exon3(436)>
+        """
+        possible_exon_index = [i for i in range(len(self.blocks))
+                               if self.blocks[i].type == "exon"]
         # If not specific the index, extract all exons
         if not exon_index:
-            exon_index = range(1, len(self.blocks), 2)
+            exon_index = possible_exon_index
         else:
-            if not (max(exon_index) <= len(self.blocks) // 2
-                    and min(exon_index) > 0):
-                raise IndexError("Check block index is correct")
-            exon_index = [i * 2 - 1 for i in exon_index]
+            exon_indexs = []
+            for i in exon_index:
+                if type(i) is int:
+                    exon_indexs.append(i * 2 - 1)
+                else:
+                    exon_indexs.append([b.name for b in self.blocks].index(i))
+            exon_index = exon_indexs
 
+        # check
+        for ind in exon_index:
+            if ind not in possible_exon_index:
+                raise IndexError(f"You select the block is not exon: {ind}")
         new_msa = self.select_block(exon_index)
         new_msa.seq_type = "nuc"
-        # not need to check
-        # for allele, seq in new_msa.alleles.items():
-        #     assert "E" not in seq
         return new_msa
 
-    def select_block(self, index=[]) -> Genemsa:
+    def select_block(self, index) -> Genemsa:
         """
         Extract blocks by index
 
         Args:
           index (list of int): Leave empty if you want all the blocks.
 
-            Index start from 1.
-            e.g.
+            Index start from 0.  e.g.
 
             * 0 for 5-UTR
             * 1 for exon1
             * 2 for intron1
             * 3 for exon2
             * 4 for 3-UTR(for two exons gene)
-            * -1 for 3-UTR(for all case)
+            * -1 for last block
+
+            or you can use list of string,
+            it will select by block name
+
+        Example:
+          >>> a_gen.select_block([-1])
+          <A  alleles=4101 block=3UTR(302)>
+
+          >>> a_gen.select_block([2, 3])
+          <A  alleles=4101 block=intron1(130) exon2(335)>
+
+          >>> a_gen.select_block(["5UTR", "exon3"])
+          <A  alleles=4101 block=5UTR(301) exon3(413)>
         """
-        if not index:  # all region
-            return self.copy()
-        if not (max(index) <= len(self.blocks) and min(index) >= -1):
-            raise IndexError("Check block index is correct")
+        block_name_mapping = {b.name: i for i, b in enumerate(self.blocks)}
 
         # replace -1 (3-UTR)
         for i in range(len(index)):
-            if index[i] == -1:
+            if type(index[i]) is str:
+                index[i] = block_name_mapping[index[i]]
+            elif index[i] == -1:
                 index[i] = len(self.blocks) - 1
+
+        # check index boundary
+        if not (max(index) < len(self.blocks) and min(index) >= -1):
+            raise IndexError("Check block index is correct")
 
         # new a msa object
         new_msa = Genemsa(self.gene_name)
         for i in index:
             new_msa.blocks.append(copy.deepcopy(self.blocks[i]))
 
-        # extract
+        # extract the sequences inside block region
         gen_pos = self._get_block_position()
         for allele, gen_seq in self.alleles.items():
             new_seq = "".join([gen_seq[gen_pos[i]:gen_pos[i + 1]]
@@ -582,33 +610,45 @@ class Genemsa:
             4: "EE|TTC|EE"
           ```
         """
-        # TODO: rewrite: using label to merge
+        # These two are not necessary
         if not (self.seq_type == "gen" and msa_nuc.seq_type == "nuc"):
             raise TypeError("Should merge nuc into gen")
-        if (self.gene_name != msa_nuc.gene_name
-                or len(self.blocks) != len(msa_nuc.blocks) * 2 + 1):
-            raise ValueError("Check object's name and block are correct")
+        if (self.gene_name != msa_nuc.gene_name):
+            raise ValueError("Msa name not the same")
 
-        msas_gen = self.split()
-        msas_nuc = msa_nuc.split()
-        gen_names = set(self.get_sequence_names())
-        nuc_names = set(msa_nuc.get_sequence_names())
+        # A mapping from gen name to nuc index
+        nuc_name_index = {b.name: i for i, b in enumerate(msa_nuc.blocks)
+                          if b.type == "exon"}
+
+        # check it's one-to-one mapping
+        exon_set = set([b.name for b in self.blocks if b.type == "exon"])
+        if set(nuc_name_index.keys()) != exon_set:
+            raise ValueError(f"Cannot match blocks: "
+                             f"gen={exon_set} nuc={nuc_name_index.keys()}")
+
+        # create new msa and make sure the order of alleles
         new_msa = Genemsa(self.gene_name, self.seq_type)
-        # make sure the order
         new_msa.alleles = {name: "" for name in self.get_sequence_names()}
         new_msa.alleles.update({name: "" for name in msa_nuc.get_sequence_names()})
+
+        # allele names
+        gen_names = set(self.get_sequence_names())
+        nuc_names = set(msa_nuc.get_sequence_names())
         exclude_name = set()
 
+        # block-wise
+        msas_gen = self.split()
+        msas_nuc = msa_nuc.split()
         for i_gen in range(len(self.blocks)):
             # intron -> fill with E
-            if i_gen % 2 == 0:
+            if self.blocks[i_gen].name not in nuc_name_index:
                 for name in nuc_names - gen_names:
                     msas_gen[i_gen].append(name,
                                            "E" * self.blocks[i_gen].length)
                 new_msa += msas_gen[i_gen].remove(list(exclude_name))
             # exon -> check before merge
-            elif i_gen % 2 == 1:
-                i_nuc = i_gen // 2
+            else:
+                i_nuc = nuc_name_index[self.blocks[i_gen].name]
                 # content change or length change
                 if (msas_nuc[i_nuc].get_length() != msas_gen[i_gen].get_length()
                     or any(msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name)
