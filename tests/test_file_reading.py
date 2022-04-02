@@ -123,6 +123,12 @@ class TestMsaHLA(unittest.TestCase):
             for name in set(kir0[gene].get_sequence_names()) & set(kir1[gene].get_sequence_names()):
                 self.assertEqual(kir0[gene].get(name).replace("-", "").replace("E", ""), kir1[gene].get(name).replace("-", "").replace("E", ""))
 
+    @unittest.skipIf(not os.path.exists("pharmvar-5.1.10"), "Tested on local")
+    def test_cyp(self):
+        from pyHLAMSA import CYPmsa
+        cpy = CYPmsa(pharmvar_folder="pharmvar-5.1.10")
+        # already lots of assert in CYPmsa._read_db_gene
+
 
 if __name__ == '__main__':
     unittest.main()

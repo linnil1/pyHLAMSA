@@ -220,7 +220,6 @@ Total variantion: 71
 <A nuc alleles=4100 block=exon2(335) exon3(413)>
 ```
 
-
 ### 6. Write and export the MSA
 
 **Causion: If you run `merge_exon`, or the msa is from `filetype=['gen', 'nuc']`,
@@ -293,6 +292,20 @@ a_gen.save_msa("a_gen.fa", "a_gen.json")
 a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
 ```
 
+* load msa from other format
+
+pyHLAMSA only support reading from `MultipleSeqAlignment`,
+which is very useful object,
+can be generate by reading MSA by `Bio.AlignIO`.
+
+Checkout <https://biopython.org/wiki/AlignIO#file-formats> for format supporting.
+
+For example
+``` python
+from pyHLAMSA import Genemsa
+msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_format))
+```
+
 
 ## TODO
 * [x] Testing
@@ -304,8 +317,8 @@ a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
 * [x] merge blocks and labels
 * [x] Fix KIR when merge gen and nuc
 * [x] Use index to trace orignal position
+* [x] CYP
 * [ ] Download latest version of IMGT or IPD
-* [ ] CYP
 
 
 ## Requirement
@@ -320,6 +333,32 @@ a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
 ```
 git clone https://github.com/linnil1/pyHLAMSA
 pip3 install -e pyHLAMSA
+```
+
+
+## Appendix: CYP
+
+I still not support quiet well wih CYP data, so you should manually prepare the MSA for pyHLAMSA to read
+
+Steps:
+
+1. Download fasta from <https://www.pharmvar.org/download>
+2. unzip to `./pharmvar-5.1.10`
+3. Read it by pyHLAMSA
+``` python
+# 4. Read it
+from pyHLAMSA import CYPmsa
+cyp = CYPmsa(pharmvar_folder="./pharmvar-5.1.10")
+
+# 5. Test it
+>>> print(cyp['CYP26A1'].format_variantion_base())
+
+                       6407         6448         8142
+                          |            |            |
+ CYP26A1*1.001       GCGAGCGCGG | ATGTTCCGAA | TCGGGTGTGT
+ CYP26A1*3.001       ---------- | -----A---- | ----------
+ CYP26A1*2.001       -----A---- | ---------- | ----------
+ CYP26A1*4.001       ---------- | ---------- | -----C----
 ```
 
 
