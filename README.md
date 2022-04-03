@@ -338,8 +338,6 @@ pip3 install -e pyHLAMSA
 
 ## Appendix: CYP
 
-I still not support quiet well wih CYP data, so you should manually prepare the MSA for pyHLAMSA to read
-
 Steps:
 
 1. Download fasta from <https://www.pharmvar.org/download>
@@ -397,6 +395,8 @@ Performance issue is not my bottle-neck yet.
     Robinson J, Barker DJ, Georgiou X, Cooper MA, Flicek P, Marsh SGE
     IPD-IMGT/HLA Database
     Nucleic Acids Research (2020) 48:D948-55
+* CYP(PharmVar)
+    Pharmacogene Variation Consortium (PharmVar) at www.PharmVar.org using the following references: Gaedigk et al. 2018, CPT 103(3):399-401 (PMID 29134625); Gaedigk et al. 2020, CPT 107(1):43-46 (PMID 31758698) and Gaedigk et al. 2021, CPT 110(3):542-545 (PMID 34091888)
 * This github
 
 ## Document

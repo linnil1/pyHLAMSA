@@ -243,6 +243,8 @@ class HLAmsaEX(Familymsa):
             version (str): IMGT version you want to download
 
                 If `imgt_folder` is existed, this value will be ignored.
+
+                You can use `Latest` to get the latest version
         """
         if imgt_folder is None:
             imgt_folder = f"IMGT_v{version}"
@@ -358,6 +360,9 @@ class KIRmsa(Familymsa):
             version (str): IMGT version you want to download
 
                 If `ipd_folder` is existed, this value will be ignored.
+
+                version='Latest' to get latest version, however sometime it cannot work
+                because database may change the format, or contains bugs
         """
         # Why not version 2110 -> 2DL4,2DL5 has exon 4
         if ipd_folder is None:
@@ -484,7 +489,6 @@ class CYPmsa(Familymsa):
 
                 Not works now
         """
-        # Why not version 2110 -> 2DL4,2DL5 has exon 4
         if pharmvar_folder is None:
             pharmvar_folder = f"pharmvar-{version}"
         super().__init__(genes, filetype, db_folder=pharmvar_folder, version=version)
@@ -504,7 +508,7 @@ class CYPmsa(Familymsa):
         """
         Read `.haplotypes.fasta` and `.haplotypes.tsv`
 
-        It will ignore filetype
+        `filetype` will be ignored now
         """
         # read fasta
         ref_seqs = {}
