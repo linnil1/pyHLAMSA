@@ -162,7 +162,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
     """
     if not len(msa):
         raise ValueError("MSA is empty")
-    msf_length = len(msa._get_first()[1])
+    msf_length = len(msa.get_reference()[1])
     if msa.seq_type != "gen" and msa.seq_type != "nuc":
         raise TypeError("Check this object is gen or nuc")
     dat = copy.deepcopy(dat)

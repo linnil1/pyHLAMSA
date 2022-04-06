@@ -353,6 +353,13 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(set(range(len(self.input_allele['a1'].replace("|", "").replace("-", "")))),
                          set([i.pos for i in newmsa.index]))
 
+    def test_reference_changing(self):
+        a = self.msa.format_alignment_diff("a1")
+        self.msa.set_reference("a1")
+        b = self.msa.format_alignment_diff()
+        self.assertEqual(a, b)
+        self.msa.set_reference("a0")
+
 
 class TestMsaExonOnly(unittest.TestCase):
     """

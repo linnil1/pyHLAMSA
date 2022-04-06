@@ -63,15 +63,19 @@ class Genemsa:
 
         blocks (list of BlockInfo): list of block information
         index (list of IndexInfo): list of index(position) information
+        reference (str): The reference allele of the msa (Optional)
+
+
     """
 
-    def __init__(self, gene_name: str, seq_type="", blocks=[], index=[]):
+    def __init__(self, gene_name: str, seq_type="", blocks=[], index=[], reference=None):
         self.gene_name = gene_name
         self.seq_type = seq_type
         self.alleles = {}
         self.blocks = copy.deepcopy(blocks)  # intron exon length
         self.logger = logging.getLogger(__name__)
         self.index = copy.deepcopy(index)
+        self.reference = reference
 
     # Show the MSA attribute
     def __str__(self):
@@ -125,7 +129,8 @@ class Genemsa:
             copy_allele (bool): copy the sequences
         """
         new_msa = Genemsa(self.gene_name, self.seq_type,
-                          blocks=self.blocks, index=self.index)
+                          blocks=self.blocks, index=self.index,
+                          reference=self.reference)
         if copy_allele:
             new_msa.alleles = dict(self.alleles.items())
         return new_msa
@@ -229,7 +234,7 @@ class Genemsa:
         if not len(self.alleles):
             raise ValueError("MSA is empty")
         if not target_allele:
-            target_allele = self._get_first()[0]
+            target_allele = self.get_reference()[0]
         if target_allele not in self.alleles:
             raise ValueError(f"{target_allele} not found")
 
@@ -379,17 +384,17 @@ class Genemsa:
 
         # Extract specific region in alignment
         if isinstance(index, slice) or isinstance(index, int):
-            new_msa = Genemsa(self.gene_name)
+            new_msa = Genemsa(self.gene_name, reference=self.reference)
             new_msa.alleles = {allele: seq[index]
                                for allele, seq in self.alleles.items()}
-            new_msa.blocks = [BlockInfo(length=len(new_msa._get_first()[1]))]
+            new_msa.blocks = [BlockInfo(length=len(new_msa.get_reference()[1]))]
             new_msa.index = copy.deepcopy(self.index[index])
             return new_msa
         elif isinstance(index, tuple) or isinstance(index, list):
-            new_msa = Genemsa(self.gene_name)
+            new_msa = Genemsa(self.gene_name, reference=self.reference)
             new_msa.alleles = {allele: "".join([seq[i] for i in index])
                                for allele, seq in self.alleles.items()}
-            new_msa.blocks = [BlockInfo(length=len(new_msa._get_first()[1]))]
+            new_msa.blocks = [BlockInfo(length=len(new_msa.get_reference()[1]))]
             new_msa.index = copy.deepcopy([self.index[i] for i in index])
             return new_msa
         # Fail
@@ -426,8 +431,22 @@ class Genemsa:
             pos.append(pos[-1] + b.length)
         return pos
 
-    def _get_first(self) -> Tuple[str, str]:
-        """ Get the first record in MSA """
+    def set_reference(self, allele):
+        """ Set the reference in msa (Inplace) """
+        if allele not in self.alleles:
+            raise IndexError(f"Cannot find {allele} in msa")
+        self.reference = allele
+        return self
+
+    def get_reference(self) -> Tuple[str, str]:
+        """
+        Get the reference in MSA, if not existed, output the first one
+
+        Returns:
+          (allele_name, allele_seq)
+        """
+        if self.reference in self.alleles:
+            return (self.reference, self.alleles[self.reference])
         return next(iter(self.alleles.items()))
 
     # Block-wise operation
@@ -627,7 +646,7 @@ class Genemsa:
                              f"gen={exon_set} nuc={nuc_name_index.keys()}")
 
         # create new msa and make sure the order of alleles
-        new_msa = Genemsa(self.gene_name, self.seq_type)
+        new_msa = Genemsa(self.gene_name, self.seq_type, reference=self.reference)
         new_msa.alleles = {name: "" for name in self.get_sequence_names()}
         new_msa.alleles.update({name: "" for name in msa_nuc.get_sequence_names()})
 
@@ -707,7 +726,7 @@ class Genemsa:
         if not len(self.alleles):
             raise ValueError("MSA is empty")
         if not ref_allele:
-            ref_allele = self._get_first()[0]
+            ref_allele = self.get_reference()[0]
         if ref_allele not in self.alleles:
             raise ValueError(f"{ref_allele} not found")
         ref_seq = self.alleles[ref_allele]
@@ -1072,12 +1091,12 @@ class Genemsa:
           fname (str): The name of bamfile
           ref_allele (str): The reference allele.
               If the ref_allele is empty, the first allele will be reference.
-          save_ref (bool): The reference allele will also save in the bam file
+          save_ref (bool): The reference allele will also be saved in the bam file
         """
         if not len(self.alleles):
             raise ValueError("MSA is empty")
         if not ref_allele:
-            ref_allele = self._get_first()[0]
+            ref_allele = self.get_reference()[0]
         if ref_allele not in self.alleles:
             raise ValueError(f"{ref_allele} not found")
         if not fname:
@@ -1170,7 +1189,7 @@ class Genemsa:
         if not len(self.blocks):
             raise ValueError("MSA is empty")
         if not ref_allele:
-            ref_allele = self._get_first()[0]
+            ref_allele = self.get_reference()[0]
         if ref_allele not in self.alleles:
             raise ValueError(f"{ref_allele} not found")
 
@@ -1220,6 +1239,7 @@ class Genemsa:
             'blocks': [dataclasses.asdict(b) for b in self.blocks],
             'seq_type': self.seq_type,
             'name': self.gene_name,
+            'reference': self.reference,
         }
         return meta
 
@@ -1229,7 +1249,8 @@ class Genemsa:
         if data:
             return Genemsa(data['name'], data['seq_type'],
                            blocks=[BlockInfo(**b) for b in data['blocks']],
-                           index=[IndexInfo(**i) for i in data['index']])
+                           index=[IndexInfo(**i) for i in data['index']],
+                           reference=data.get("reference"))
         else:
             return Genemsa("")
 
@@ -1274,7 +1295,7 @@ class Genemsa:
             msa.annotations = json.load(f)
         # main
         new_msa = cls.from_MultipleSeqAlignment(msa)
-        assert len(new_msa._get_first()[1]) == new_msa.get_length()
+        assert len(new_msa.get_reference()[1]) == new_msa.get_length()
         return new_msa
 
     def save_msa(self, file_fasta, file_json):
