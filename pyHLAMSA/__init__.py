@@ -107,16 +107,18 @@ class HLAmsa(Familymsa):
 
             imgt_alignment_folder (str): Path to your IMGT-formatted MSA alignment file
 
-                You can manually download from
-                <http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/>
+                You can manually download the folder from
+                <https://github.com/ANHIG/IMGTHLA/tree/Latest/alignments>
+                or <http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/>
                 and unzip Alignments_Rel_3470.zip
 
-                Or it will automatically download the database with assigned `version` to
+                Otherwise it will automatically download the database to
                 `imgt_alignment_folder`. Default is `./alignment_v{verion}`
 
             version (str): IMGT version you want to download
 
                 If `imgt_alignment_folder` is existed, this value will be ignored.
+                Use `Latest` to get latest version.
         """
         if imgt_alignment_folder is None:
             imgt_alignment_folder = f"alignment_v{version}"
@@ -124,14 +126,17 @@ class HLAmsa(Familymsa):
                          db_folder=imgt_alignment_folder, version=version)
 
     def _download_db(self, version: str):
-        """ Download the IMGTHLA alignments folder to `db_folder` """
-        # TODO: Auto find the latest version
-        fname = f"Alignments_Rel_{version}"
-        url = "ftp://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/" + fname + ".zip"
-        self.logger.info(f"Download IMGT data from {url}")
-        self._run_shell("wget", url)
-        self._run_shell("unzip", f"{fname}.zip")
-        self._run_shell("mv", "alignments", self.db_folder)
+        """
+        Download the IMGTHLA alignments folder to `db_folder`
+
+        I get the alignments folder from git instead of
+        <http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/>
+        for better version controlling
+        """
+        self._run_shell("git", "clone", "https://github.com/ANHIG/IMGTHLA.git",
+                        "/tmp/IMGTHLA")
+        self._run_shell("git", "checkout", version, cwd="/tmp/IMGTHLA")
+        self._run_shell("mv", "/tmp/IMGTHLA/alignments", self.db_folder)
 
     def _get_name(self, search_name: str) -> Set[str]:
         """ Handy function to list names from file pattern """
