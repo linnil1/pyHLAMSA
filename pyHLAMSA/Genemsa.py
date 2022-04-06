@@ -65,9 +65,7 @@ class Genemsa:
         index (list of IndexInfo): list of index(position) information
         reference (str): The reference allele of the msa (Optional)
 
-
     """
-
     def __init__(self, gene_name: str, seq_type="", blocks=[], index=[], reference=None):
         self.gene_name = gene_name
         self.seq_type = seq_type
@@ -108,18 +106,22 @@ class Genemsa:
         return (len(self), self.get_length())
 
     def get_sequence_names(self) -> List[str]:
+        """ Same as get_allele_names """
+        return list(self.alleles.keys())
+
+    def get_allele_names(self) -> List[str]:
         """
         Get the all the allele's sequence name in MSA
 
         Example:
-           >>> a_gen.get_sequence_names()[:3]
+           >>> a_gen.get_allele_names()[:3]
            ['A*01:01:01:01', 'A*01:01:01:02N', 'A*01:01:01:03']
         """
         return list(self.alleles.keys())
 
-    def get(self, ref_allele: str) -> str:
+    def get(self, allele: str) -> str:
         """ Get the sequence by allele name """
-        return self.alleles[ref_allele]
+        return self.alleles[allele]
 
     def copy(self, copy_allele=True) -> Genemsa:
         """
@@ -540,7 +542,7 @@ class Genemsa:
             raise IndexError("Check block index is correct")
 
         # new a msa object
-        new_msa = Genemsa(self.gene_name)
+        new_msa = Genemsa(self.gene_name, reference=self.reference)
         for i in index:
             new_msa.blocks.append(copy.deepcopy(self.blocks[i]))
 
@@ -1252,7 +1254,7 @@ class Genemsa:
                            index=[IndexInfo(**i) for i in data['index']],
                            reference=data.get("reference"))
         else:
-            return Genemsa("")
+            return Genemsa("Unamed")
 
     def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
         """ Transfer this object to MultipleSeqAlignment(biopython) """

@@ -19,7 +19,7 @@ def from_alignment_file(fname: str, seq_type="") -> Genemsa:
     """ Read MSA format file `fname` .e.g. IMGT/alignments/A_gen.txt """
     # read all alleles
     alleles = read_alignment_sequence(fname)
-    new_msa = Genemsa("")
+    new_msa = Genemsa("Unnamed")
     new_msa.alleles = {name: seq.replace("|", "") for name, seq in alleles.items()}
 
     # use first sequence as reference
