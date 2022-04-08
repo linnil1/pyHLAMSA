@@ -318,7 +318,10 @@ msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_f
 * [x] Fix KIR when merge gen and nuc
 * [x] Use index to trace orignal position
 * [x] CYP
-* [ ] Download latest version of IMGT or IPD
+* [x] Set reference
+* [x] Download latest version of IMGT or IPD
+* [x] Remove seqtype
+* [ ] CDS != exon, (rename it?)
 
 
 ## Requirement

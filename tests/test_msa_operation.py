@@ -16,7 +16,7 @@ class TestMsaMainFunction(unittest.TestCase):
     # align
 
     def setUp(self):
-        self.msa = Genemsa("yourname", seq_type="gen")
+        self.msa = Genemsa("yourname")
         alleles = {
             'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
             'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
@@ -367,7 +367,7 @@ class TestMsaExonOnly(unittest.TestCase):
     """
     def test_partical_seq(self):
         # setup
-        msa = Genemsa("yourname", seq_type="gen")
+        msa = Genemsa("yourname")
         alleles = {
             'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
             'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
@@ -409,7 +409,7 @@ class TestMsaExonOnly(unittest.TestCase):
             'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
             'c2': "CAATTG|GGT--GTCGGGT|---|A|AG",
         }
-        msa = Genemsa("yourname", seq_type="gen")
+        msa = Genemsa("yourname")
         labels = [
             ["five_prime_UTR", "5UTR"],
             ["exon", "exon1"],

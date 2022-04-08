@@ -49,9 +49,6 @@ class Genemsa:
 
     Attributes:
         gene_name (str): The name of the gene
-        seq_type (str): The type of the MSA.
-
-            It can be `gen` and `nuc` or empty string if cannot determined
 
         alleles (dict of str,str): MSA data.
 
@@ -64,11 +61,9 @@ class Genemsa:
         blocks (list of BlockInfo): list of block information
         index (list of IndexInfo): list of index(position) information
         reference (str): The reference allele of the msa (Optional)
-
     """
-    def __init__(self, gene_name: str, seq_type="", blocks=[], index=[], reference=None):
+    def __init__(self, gene_name: str, blocks=[], index=[], reference=None):
         self.gene_name = gene_name
-        self.seq_type = seq_type
         self.alleles = {}
         self.blocks = copy.deepcopy(blocks)  # intron exon length
         self.logger = logging.getLogger(__name__)
@@ -78,7 +73,7 @@ class Genemsa:
     # Show the MSA attribute
     def __str__(self):
         block_info = ' '.join([f"{b.name}({b.length})" for b in self.blocks])
-        return f"<{self.gene_name} {self.seq_type} "\
+        return f"<{self.gene_name} "\
                f"alleles={len(self.alleles)} "\
                f"block={block_info}>"
 
@@ -130,7 +125,7 @@ class Genemsa:
         Args:
             copy_allele (bool): copy the sequences
         """
-        new_msa = Genemsa(self.gene_name, self.seq_type,
+        new_msa = Genemsa(self.gene_name,
                           blocks=self.blocks, index=self.index,
                           reference=self.reference)
         if copy_allele:
@@ -496,7 +491,6 @@ class Genemsa:
             if ind not in possible_exon_index:
                 raise IndexError(f"You select the block is not exon: {ind}")
         new_msa = self.select_block(exon_index)
-        new_msa.seq_type = "nuc"
         return new_msa
 
     def select_block(self, index) -> Genemsa:
@@ -631,12 +625,6 @@ class Genemsa:
             4: "EE|TTC|EE"
           ```
         """
-        # These two are not necessary
-        if not (self.seq_type == "gen" and msa_nuc.seq_type == "nuc"):
-            raise TypeError("Should merge nuc into gen")
-        if (self.gene_name != msa_nuc.gene_name):
-            raise ValueError("Msa name not the same")
-
         # A mapping from gen name to nuc index
         nuc_name_index = {b.name: i for i, b in enumerate(msa_nuc.blocks)
                           if b.type == "exon"}
@@ -648,7 +636,7 @@ class Genemsa:
                              f"gen={exon_set} nuc={nuc_name_index.keys()}")
 
         # create new msa and make sure the order of alleles
-        new_msa = Genemsa(self.gene_name, self.seq_type, reference=self.reference)
+        new_msa = Genemsa(self.gene_name, reference=self.reference)
         new_msa.alleles = {name: "" for name in self.get_sequence_names()}
         new_msa.alleles.update({name: "" for name in msa_nuc.get_sequence_names()})
 
@@ -1140,11 +1128,17 @@ class Genemsa:
         pysam.index(fname)
         return cigars
 
-    def _assume_label(self) -> List[str]:
+    def assume_label(self, seq_type="gen") -> List[str]:
         """
-        It will automatically generate the label according on `seq_type`. (Inplace)
+        It will automatically generate the block's label
+        according on `seq_type`. (Inplace)
+
+        seq_type:
+          * gen: 5UTR-exon1-intron1-exon2-...-exon9-3UTR
+          * nuc: exon1-exon2-...-exon9
+          * other: block1-block2-block3-...
         """
-        if self.seq_type == "gen":
+        if seq_type == "gen":
             assert len(self.blocks) % 2 == 1 and len(self.blocks) >= 3
             for i in range(len(self.blocks)):
                 if i % 2:
@@ -1158,7 +1152,7 @@ class Genemsa:
             self.blocks[0].name = f"5UTR"
             self.blocks[-1].type = "three_prime_UTR"
             self.blocks[-1].name = f"3UTR"
-        elif self.seq_type == "nuc":
+        elif seq_type == "nuc":
             for i in range(len(self.blocks)):
                 self.blocks[i].type = "exon"
                 self.blocks[i].name = f"exon{i+1}"
@@ -1197,7 +1191,9 @@ class Genemsa:
 
         # labels
         if not all(b.type for b in self.blocks):
-            self._assume_label()
+            self.logger.warning(
+                "You should assign block's label. (We assume seq_type='other')")
+            self.assume_label("other")
 
         # Gene
         gene_name = self.gene_name or ref_allele
@@ -1239,7 +1235,6 @@ class Genemsa:
         meta = {
             'index': [dataclasses.asdict(i) for i in self.index],
             'blocks': [dataclasses.asdict(b) for b in self.blocks],
-            'seq_type': self.seq_type,
             'name': self.gene_name,
             'reference': self.reference,
         }
@@ -1249,7 +1244,7 @@ class Genemsa:
     def meta_from_json(cls, data=None) -> Genemsa:
         """ Import meta information from json """
         if data:
-            return Genemsa(data['name'], data['seq_type'],
+            return Genemsa(data['name'],
                            blocks=[BlockInfo(**b) for b in data['blocks']],
                            index=[IndexInfo(**i) for i in data['index']],
                            reference=data.get("reference"))

@@ -46,8 +46,7 @@ class TestMsaReadFromDB(unittest.TestCase):
         # this function will run parse_alignment also
         msa = Readmsa.from_alignment_file(f"tests/A01_gen.txt")
         msa.gene_name = "A"
-        msa.seq_type = "gen"
-        msa._assume_label()
+        msa.assume_label("gen")
         self.assertEqual(len(msa.blocks), 17)
         self.assertEqual(msa.get_length(), 3834)
         self.assertEqual(len(msa), 301)
@@ -74,9 +73,8 @@ class TestMsaReadFromDB(unittest.TestCase):
         dat = Readmsa.read_dat_block("tests/hla_A01.dat")
         msa = Readmsa.from_MSF_file("tests/A01_gen.msf")
         msa.gene_name = "A"
-        msa.seq_type = "gen"
 
-        msa1 = Readmsa.apply_dat_info_on_msa(msa, dat)
+        msa1 = Readmsa.apply_dat_info_on_msa(msa, dat, seq_type="gen")
         self.assertEqual(len(msa1.blocks), 17)
         self.assertEqual(msa1.get_length(), 3890)
 

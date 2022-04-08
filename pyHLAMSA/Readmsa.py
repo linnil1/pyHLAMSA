@@ -25,10 +25,7 @@ def from_alignment_file(fname: str, seq_type="") -> Genemsa:
     # use first sequence as reference
     ref_seq = list(alleles.values())[0]
     new_msa.blocks = [BlockInfo(length=len(seq)) for seq in ref_seq.split("|")]
-
-    if seq_type:
-        new_msa.seq_type = seq_type
-        new_msa._assume_label()  # include label
+    new_msa.assume_label(seq_type)
 
     # check
     leng = new_msa.get_length()
@@ -147,7 +144,7 @@ def read_dat_block(file_dat: str) -> Dict:
     return data
 
 
-def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
+def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
     """
     Apply the dat information to MSA to cut the exon, intron position.
 
@@ -156,6 +153,8 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
 
     Args:
         dat (object): Object created from `Genemsa.read_dat`
+        seq_type (str): The type of msa.
+            If type='nuc', it will read exon position from dat
 
     Returns:
         Genemsa
@@ -163,8 +162,6 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
     if not len(msa):
         raise ValueError("MSA is empty")
     msf_length = len(msa.get_reference()[1])
-    if msa.seq_type != "gen" and msa.seq_type != "nuc":
-        raise TypeError("Check this object is gen or nuc")
     dat = copy.deepcopy(dat)
 
     # block_cord save the min and max possible position of intron and exon
@@ -190,7 +187,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict) -> Genemsa:
 
         # type is nuc i.e. no exon exist
         # remove all intron, and recalculate the position
-        if msa.seq_type == "nuc":
+        if seq_type == "nuc":
             dat_hla = []
             end = 0
             for d in filter(lambda i: "exon" in i['name'], dat[allele_name]):

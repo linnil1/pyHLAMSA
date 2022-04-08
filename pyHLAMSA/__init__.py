@@ -171,13 +171,12 @@ class HLAmsa(Familymsa):
         """
         if "gen" in filetype:
             msa_gen = Readmsa.from_alignment_file(f"{self.db_folder}/{gene}_gen.txt")
-            msa_gen.seq_type = "gen"
             msa_gen.gene_name = gene
             if gene != "P":
                 # P: special case: has even block
                 # <P gen alleles=5 block=(475) (261) (589) (276) (124) (117)
                 #                        (412) (33) (150) (48) (163) (297)>
-                msa_gen._assume_label()
+                msa_gen.assume_label("gen")
             self.logger.debug(f"Gen {msa_gen}")
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
@@ -187,9 +186,8 @@ class HLAmsa(Familymsa):
             else:
                 msa_nuc = Readmsa.from_alignment_file(f"{self.db_folder}/{gene}_nuc.txt")
 
-            msa_nuc.seq_type = "nuc"
             msa_nuc.gene_name = gene
-            msa_nuc._assume_label()
+            msa_nuc.assume_label("nuc")
             self.logger.debug(f"Nuc {msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
@@ -296,9 +294,8 @@ class HLAmsaEX(Familymsa):
 
         if "gen" in filetype:
             msa_gen = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_gen.msf")
-            msa_gen.seq_type = "gen"
             msa_gen.gene_name = gene
-            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat)
+            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
             self.logger.debug(f"{msa_gen}")
 
         if "nuc" in filetype:
@@ -308,9 +305,8 @@ class HLAmsaEX(Familymsa):
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
             else:
                 msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
-            msa_nuc.seq_type = "nuc"
             msa_nuc.gene_name = gene
-            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat)
+            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
             self.logger.debug(f"{msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
@@ -415,16 +411,14 @@ class KIRmsa(Familymsa):
 
         if "gen" in filetype:
             msa_gen = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_gen.msf")
-            msa_gen.seq_type = "gen"
             msa_gen.gene_name = gene
-            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat)
+            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
             self.logger.debug(f"Gen {msa_gen}")
 
         if "nuc" in filetype:
             msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
-            msa_nuc.seq_type = "nuc"
             msa_nuc.gene_name = gene
-            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat)
+            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
             self.logger.debug(f"Nuc {msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
@@ -452,7 +446,6 @@ class KIRmsa(Familymsa):
                 msa_nuc = (msa_nuc.select_block(list(range(0, 2)))
                            + exon3
                            + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks)))))
-                msa_nuc.seq_type = "nuc"
 
             # merge
             msa_merged = msa_gen.merge_exon(msa_nuc)
@@ -611,7 +604,7 @@ class CYPmsa(Familymsa):
             if alleles[allele_name].replace("-", "") != ref_seqs[allele_name]:
                 raise ValueError(f"{allele_name} is not same as reference")
 
-        msa = Genemsa(gene, "gen")
+        msa = Genemsa(gene)
         msa.alleles = alleles
-        msa.blocks = [BlockInfo(length=length, type="gene", name="gene")]
-        return msa.reset_index()
+        msa.blocks = [BlockInfo(length=length)]
+        return msa.assume_label("other")
