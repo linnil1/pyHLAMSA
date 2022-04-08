@@ -104,11 +104,30 @@ class TestMsaHLA(unittest.TestCase):
         hla0 = HLAmsa(genes, filetype="gen", imgt_alignment_folder="alignment_v3470", version="3470")
         hla1 = HLAmsa(genes, imgt_alignment_folder="alignment_v3470")
         hla2 = HLAmsaEX(genes, imgt_folder="IMGT_v3470", version="3470")
+
+        # test squence is correct
         for gene in genes:
             for name in set(hla0[gene].get_sequence_names()) & set(hla1[gene].get_sequence_names()):
-                self.assertEqual(hla0[gene].get(name).replace("-", "").replace("E", ""), hla1[gene].get(name).replace("-", "").replace("E", ""))
+                self.assertEqual(hla0[gene].get(name).replace("-", "").replace("E", ""),
+                                 hla1[gene].get(name).replace("-", "").replace("E", ""))
             for name in set(hla1[gene].get_sequence_names()) & set(hla2[gene].get_sequence_names()):
-                self.assertEqual(hla1[gene].get(name).replace("-", "").replace("E", ""), hla2[gene].get(name).replace("-", "").replace("E", ""))
+                self.assertEqual(hla1[gene].get(name).replace("-", "").replace("E", ""),
+                                 hla2[gene].get(name).replace("-", "").replace("E", ""))
+
+        # test block squence is correct
+        for gene in genes:
+            self.assertEqual(len(hla0[gene].blocks), len(hla1[gene].blocks))
+            self.assertEqual(len(hla0[gene].blocks), len(hla2[gene].blocks))
+            for i in range(len(hla0[gene].blocks)):
+                sub_hla0 = hla0[gene].select_block([i])
+                sub_hla1 = hla1[gene].select_block([i])
+                sub_hla2 = hla2[gene].select_block([i])
+                for name in set(hla0[gene].get_sequence_names()) & set(hla1[gene].get_sequence_names()):
+                    self.assertEqual(sub_hla0.get(name).replace("-", "").replace("E", ""),
+                                     sub_hla1.get(name).replace("-", "").replace("E", ""))
+                for name in set(hla1[gene].get_sequence_names()) & set(hla2[gene].get_sequence_names()):
+                    self.assertEqual(sub_hla1.get(name).replace("-", "").replace("E", ""),
+                                     sub_hla2.get(name).replace("-", "").replace("E", ""))
 
     @unittest.skipIf(not os.path.exists("KIR_v2100"), "Tested on local")
     def test_kir(self):

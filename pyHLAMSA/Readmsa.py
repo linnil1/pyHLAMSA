@@ -271,19 +271,19 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
             new_alleles[allele_name] = seq
 
     # New msa
-    new_msa = msa.copy()
+    new_msa = msa.copy(copy_allele=False)
+    new_msa.alleles = new_alleles
     new_msa.blocks = []
     for name, (start, end) in block_cord_list:
-        new_msa.blocks.append(BlockInfo(
-            length=end - start,
-            name=name,
-            type={
-                "3UTR": "three_prime_UTR",
-                "5UTR": "five_prime_UTR",
-                "exon": "exon",
-                "intron": "intron",
-            }.get(name),
-        ))
+        # name -> label
+        b = BlockInfo(length=end - start,
+                      name=name,
+                      type={
+                          "3UTR": "three_prime_UTR",
+                          "5UTR": "five_prime_UTR",
+                      }.get(name))
+        if b.type is None:
+            b.type = "exon" if "exon" in b.name else "intron"
+        new_msa.blocks.append(b)
     new_msa = new_msa.reset_index()
-    new_msa.alleles = new_alleles
     return new_msa

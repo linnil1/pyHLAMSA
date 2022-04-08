@@ -101,15 +101,15 @@ class Genemsa:
         return (len(self), self.get_length())
 
     def get_sequence_names(self) -> List[str]:
-        """ Same as get_allele_names """
+        """ Same as list_allele_names """
         return list(self.alleles.keys())
 
-    def get_allele_names(self) -> List[str]:
+    def list_alleles(self) -> List[str]:
         """
-        Get the all the allele's sequence name in MSA
+        List all the allele's sequence name in MSA
 
         Example:
-           >>> a_gen.get_allele_names()[:3]
+           >>> a_gen.list_alleles()[:3]
            ['A*01:01:01:01', 'A*01:01:01:02N', 'A*01:01:01:03']
         """
         return list(self.alleles.keys())
