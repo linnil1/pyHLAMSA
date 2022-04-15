@@ -2,7 +2,7 @@ import re
 import copy
 import logging
 from collections import defaultdict
-from typing import List, Tuple, Dict, Tuple
+from typing import List, Tuple, Dict, Any
 from Bio import AlignIO, SeqIO
 from Bio.Align import MultipleSeqAlignment
 from . import Genemsa, BlockInfo
@@ -107,7 +107,7 @@ def read_dat_block(file_dat: str) -> Dict:
     """
     now_allele = ""
     read_next = False
-    data = {}
+    data = {}  # type: Dict[str, List[Dict[str, Any]]]
 
     for line in open(file_dat):
         # read allele name
@@ -122,10 +122,10 @@ def read_dat_block(file_dat: str) -> Dict:
 
         # read blocks
         elif re.match(r"FT\s+((UTR)|(exon)|(intron))", line):
-            line = line.split()
-            start, end = list(map(lambda a: int(a), line[2].split("..")))
+            fields = line.split()
+            start, end = list(map(lambda a: int(a), fields[2].split("..")))
             data[now_allele].append({
-                'name': line[1],
+                'name': fields[1],
                 'start': start,
                 'end': end,
             })
@@ -167,7 +167,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
     # block_cord save the min and max possible position of intron and exon
     # first element: the maximum of the first position
     # first element: the minimum of the last position
-    block_cord = defaultdict(lambda: [msf_length, 0])
+    block_cord = defaultdict(lambda: [msf_length, 0])  # type: Dict[str, List[int]]
     # new_alleles: save the sequence
     new_alleles = {}
 
@@ -234,10 +234,10 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
                                             seq_cord[start - 1])
             block_cord[block_name][1] = max(block_cord[block_name][1],
                                             seq_cord[end - 1] + 1)
-        block_cord_list = list(sorted(block_cord.values()))
-        for i in range(1, len(block_cord_list)):
+        block_cord_sort_list = list(sorted(block_cord.values()))
+        for i in range(1, len(block_cord_sort_list)):
             # is overlap
-            if block_cord_list[i - 1][1] > block_cord_list[i][0]:
+            if block_cord_sort_list[i - 1][1] > block_cord_sort_list[i][0]:
                 logger.warning(f"Ignore {allele_name}, maybe something wrong in dat")
                 block_cord = old_cord
                 break
@@ -248,7 +248,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
     # Because the ensure two consecutive region will not overlap before,
     # we just set any value between the lower and upper bound
     # of each intron/exon position in block_cord
-    block_cord_list = []
+    block_cord_list = []  # type: List[Tuple[str, List[int]]]
     start_pos = 0
     for block_name, (start, end) in sorted(block_cord.items(), key=lambda i: i[1]):
         assert start_pos <= end
@@ -281,8 +281,8 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
                       type={
                           "3UTR": "three_prime_UTR",
                           "5UTR": "five_prime_UTR",
-                      }.get(name))
-        if b.type is None:
+                      }.get(name, ""))
+        if not b.type:
             b.type = "exon" if "exon" in b.name else "intron"
         new_msa.blocks.append(b)
     new_msa = new_msa.reset_index()

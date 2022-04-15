@@ -3,14 +3,15 @@ import os
 import logging
 import subprocess
 from glob import glob
-from typing import List, Set
+from abc import ABC
+from typing import List, Set, Dict, Any, cast
 from Bio import SeqIO
 
 from .Genemsa import Genemsa, BlockInfo, IndexInfo
 from . import Readmsa
 
 
-class Familymsa:
+class Familymsa(ABC):
     """
     A abstract class to handle Gene Family
 
@@ -49,7 +50,7 @@ class Familymsa:
             self.logger.info(f"Reading {gene_name}'s sequences")
             self.genes[gene_name] = self._read_db_gene(gene_name, filetype)
 
-    def list_genes(self):
+    def list_genes(self) -> list[str]:
         """ List all the gene's name in this family """
         return list(self.genes.keys())
 
@@ -66,7 +67,7 @@ class Familymsa:
         else:
             self.logger.info(f"{self.db_folder} exists")
 
-    def _download_db(self, version):
+    def _download_db(self, version: str):
         """ Abstract method: code for downloading your db """
         raise NotImplementedError
 
@@ -76,11 +77,11 @@ class Familymsa:
         with subprocess.Popen(args, cwd=cwd) as proc:
             proc.wait()
 
-    def _list_db_gene(self, filetype=set(["gen", "nuc"])) -> List[str]:
+    def _list_db_gene(self, filetype: Any) -> List[str]:
         """ Abstract method: code for listing gene names """
         raise NotImplementedError
 
-    def _read_db_gene(self, gene, filetype=set(["gen", "nuc"])):
+    def _read_db_gene(self, gene, filetype: Any):
         """ Abstract method: code for reading and merging function """
         raise NotImplementedError
 
@@ -520,14 +521,16 @@ class CYPmsa(Familymsa):
 
         # read tsv
         # split by '\t' and ignore header
-        table = open(glob(f"{self.db_folder}/{gene}/RefSeqGene/*.haplotypes.tsv")[0])
-        table = [i.strip().split('\t') for i in table if not i.startswith("#")][1:]
+        var_text = open(glob(f"{self.db_folder}/{gene}/RefSeqGene/*.haplotypes.tsv")[0])
+        table = [i.strip().split('\t') for i in var_text if not i.startswith("#")][1:]
 
         # Get Reference sequence
         reference_seq = None
         reference_name = None
         for i in table:
-            if i[3] == "REFERENCE" and ref_seqs.get(i[0])[0]:
+            if i[0] not in ref_seqs:
+                continue
+            if i[3] == "REFERENCE" and ref_seqs[i[0]][0]:
                 if reference_seq:
                     assert reference_seq == ref_seqs[i[0]]
                     continue
@@ -542,8 +545,9 @@ class CYPmsa(Familymsa):
             else:
                 raise ValueError(f"Not reference found in {gene}")
 
+        assert reference_name is not None
         # Fill with Reference and reference is the first one
-        alleles = {reference_name: None}
+        alleles = {reference_name: ""}
         alleles.update({
             allele_name: reference_seq
             for allele_name in set(i[0] for i in table)
@@ -554,14 +558,16 @@ class CYPmsa(Familymsa):
         # in 5.1.10, there exist two same row
         # CYP2D6*149  CYP2D6  rs59421388  NG_008376.4 8203    8203    G   A   substitution
         # CYP2D6*149  CYP2D6  rs59421388  NG_008376.4 8203    8203    G   A   substitution
-        table = list(set(map(tuple, filter(lambda i: i[3] != "REFERENCE", table))))
+        table_unique1 = filter(lambda i: i[3] != "REFERENCE", table)
+        table_unique2 = cast(tuple, map(tuple, table_unique1))  # list to tuple
+        table_unique = cast(list, map(list, set(list(table_unique2))))  # tuple to list
 
         # Reconstruct msa from VCF variant
         # VCF type: substitution and deleteion, insertion
         # Table Header: ['Haplotype Name', 'Gene', 'rsID', 'ReferenceSequence',
         #   'Variant Start', 'Variant Stop', 'Reference Allele', 'Variant Allele', 'Type']
         # Insertion will move the index, so insert from last position first
-        for i in sorted(map(list, table), key=lambda i: -int(i[4])):
+        for i in sorted(table_unique, key=lambda i: -int(i[4])):
             if i[8] == "substitution":
                 pos = int(i[4]) - 1
                 end = pos + 1
@@ -586,7 +592,7 @@ class CYPmsa(Familymsa):
             assert alleles[i[0]][pos:end] == i[6]
             alleles[i[0]] = alleles[i[0]][:pos] + i[7] + alleles[i[0]][end:]
 
-        # split allele name
+        # split allele name (alleles.key() will change)
         # e.g. rs75017182, rs56038477  DPYD    rs75017182  NG_008807.2 346167
         for allele_name in list(alleles.keys()):
             if ', ' in allele_name:
@@ -604,6 +610,7 @@ class CYPmsa(Familymsa):
             if alleles[allele_name].replace("-", "") != ref_seqs[allele_name]:
                 raise ValueError(f"{allele_name} is not same as reference")
 
+        assert length
         msa = Genemsa(gene)
         msa.alleles = alleles
         msa.blocks = [BlockInfo(length=length)]

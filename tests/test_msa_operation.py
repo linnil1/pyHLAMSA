@@ -296,10 +296,10 @@ class TestMsaMainFunction(unittest.TestCase):
         # Insert = 1
         # Delete = 2
         # Mismatch = 8
-        self.assertEqual(self.msa._calculate_cigar("AAA", "C--"), [[8, 1], [2, 2]])
-        self.assertEqual(self.msa._calculate_cigar("AAA", "--C"), [[2, 2], [8, 1]])
-        self.assertEqual(self.msa._calculate_cigar("AAA", "A-C"), [[0, 1], [2, 1], [8, 1]])
-        self.assertEqual(self.msa._calculate_cigar("A-A", "ACC"), [[0, 1], [1, 1], [8, 1]])
+        self.assertEqual(self.msa._calculate_cigar("AAA", "C--"), [(8, 1), (2, 2)])
+        self.assertEqual(self.msa._calculate_cigar("AAA", "--C"), [(2, 2), (8, 1)])
+        self.assertEqual(self.msa._calculate_cigar("AAA", "A-C"), [(0, 1), (2, 1), (8, 1)])
+        self.assertEqual(self.msa._calculate_cigar("A-A", "ACC"), [(0, 1), (1, 1), (8, 1)])
 
     def test_gff(self):
         # because all sequences has same exon intron position

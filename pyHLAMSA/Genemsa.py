@@ -4,7 +4,8 @@ import copy
 import json
 import logging
 import dataclasses
-from typing import List, Tuple, Dict, Tuple
+from typing import List, Tuple, Dict, Tuple, Iterator, Any
+from collections.abc import Iterable
 
 from Bio.Align import MultipleSeqAlignment, PairwiseAligner
 from Bio import AlignIO, SeqIO
@@ -64,7 +65,7 @@ class Genemsa:
     """
     def __init__(self, gene_name: str, blocks=[], index=[], reference=None):
         self.gene_name = gene_name
-        self.alleles = {}
+        self.alleles = {}  # type: dict[str, str]
         self.blocks = copy.deepcopy(blocks)  # intron exon length
         self.logger = logging.getLogger(__name__)
         self.index = copy.deepcopy(index)
@@ -154,7 +155,7 @@ class Genemsa:
         self.alleles[name] = seq
         return self
 
-    def remove(self, name: Optional[str | List[str]]):
+    def remove(self, name: str | Iterable[str]):
         """
         Remove a/some sequence from MSA (inplace)
         """
@@ -168,7 +169,7 @@ class Genemsa:
         # else
         raise NotImplementedError
 
-    def select_allele(self, query: Optional[str, List[str]]) -> Genemsa:
+    def select_allele(self, query: str | List[str]) -> Genemsa:
         """
         Select allele name by regex or list of name
 
@@ -314,7 +315,7 @@ class Genemsa:
 
         return new_msa
 
-    def get_variantion_base(self) -> List[str]:
+    def get_variantion_base(self) -> List[int]:
         """
         Get the base positions where variation occurs
 
@@ -643,7 +644,7 @@ class Genemsa:
         # allele names
         gen_names = set(self.get_sequence_names())
         nuc_names = set(msa_nuc.get_sequence_names())
-        exclude_name = set()
+        exclude_name = set()  # type: set[str]
 
         # block-wise
         msas_gen = self.split()
@@ -672,14 +673,14 @@ class Genemsa:
                                        msas_nuc[i_nuc].get(name).replace("-", "")
                                        != msas_gen[i_gen].get(name).replace("-", ""),
                                        gen_names)
-                    diff_name = list(diff_name)
-                    if diff_name:
+                    diff_names = list(diff_name)
+                    if diff_names:
                         self.logger.warning(
                             f"Some exon sequences in gen MSA "
                             f"is not same as in nuc MSA "
-                            f"{self.blocks[i_gen].name}: {diff_name}")
-                        new_msa.remove(diff_name)
-                        exclude_name.update(diff_name)
+                            f"{self.blocks[i_gen].name}: {diff_names}")
+                        new_msa.remove(diff_names)
+                        exclude_name.update(diff_names)
                 new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
         return new_msa.reset_index()
 
@@ -841,8 +842,8 @@ class Genemsa:
         seq_length = self.get_length()
         block_pos = self._get_block_position()[1:]  # remove first
 
-        format_lines = []
-        format_line = []
+        format_lines = []  # type: list[list[dict[str, str | int]]]
+        format_line = []  # type: list[dict[str, str | int]]
         while pos < seq_length:
             index = False  # if this base need index
 
@@ -905,7 +906,8 @@ class Genemsa:
 
         return self._apply_print_format(format_lines)
 
-    def format_alignment_from_center(self, pos: int, left=5, right=5) -> str:
+    def format_alignment_from_center(self, pos: int | Iterable[int],
+                                     left=5, right=5) -> str:
         """
         Print all alleles sequences from the center of specific position
 
@@ -929,15 +931,20 @@ class Genemsa:
           ```
         """
         if type(pos) is int:
-            pos = [pos]
+            want_pos = [pos]
+        else:
+            want_pos = list(pos)  # type: ignore
+        if not want_pos:
+            return ""
 
-        show_position_set = set(self.index[i].pos for i in pos)
+        show_position_set = set(self.index[i].pos for i in want_pos)
         msa = None
-        for p in pos:
+        for p in want_pos:
             if msa is None:
                 msa = self[p - left: p + right]
             else:
                 msa += self[p - left: p + right]
+        assert msa
         return msa.format_alignment_diff(show_position_set=show_position_set)
 
     def format_variantion_base(self) -> str:
@@ -977,9 +984,11 @@ class Genemsa:
         """
         bases = self.get_variantion_base()
         output_str = f"#Total variantion: {len(bases)}\n"
+        if not bases:
+            return output_str
 
         # merge if two variant are too close
-        merged_bases = []
+        merged_bases = []  # type: list[list[int]]
         right = 5
         for b in bases:
             if len(merged_bases) and merged_bases[-1][1] + right * 2 >= b:
@@ -996,54 +1005,64 @@ class Genemsa:
                 msa = self[b_left - 5: b_right + 5]
             else:
                 msa += self[b_left - 5: b_right + 5]
+        assert msa
         return msa.format_alignment_diff(show_position_set=show_position_set)
 
     # Functions for writing to bam file
-    def _calculate_cigar(self, a: str, b: str) -> List[Tuple[int, int]]:
+    def _calculate_cigar(self, ref: str, seq: str) -> List[Tuple[int, int]]:
         """
         Compare two sequences and output cigartuples
 
         The cigar_tuple is defined in
         https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
         """
-        # Compare two sequence
-        c = []
-        a = a.replace("E", "-")
-        b = b.replace("E", "-")
-        for i in range(len(a)):
-            if a[i] == "-" and b[i] == "-":
-                continue
-            if a[i] == b[i]:
-                c.append("M")
-            elif a[i] == "-":
-                c.append("I")
-            elif b[i] == "-":
-                c.append("D")
-            else:
-                c.append("X")
+        if len(ref) != len(seq):
+            raise ValueError("Two sequences doesn't have same length")
 
-        # Aggregate the comparsion
-        cigar = []
-        for i in c:
-            if not len(cigar):
-                cigar.append([i, 1])
-            elif cigar[-1][0] == i:
-                cigar[-1][1] += 1
+        # Compare two sequence
+        ref = ref.replace("E", "-")
+        seq = seq.replace("E", "-")
+        ops = []
+        for i in range(len(ref)):
+            if ref[i] == "-" and seq[i] == "-":
+                continue
+            if ref[i] == seq[i]:
+                ops.append("M")
+            elif ref[i] == "-":
+                ops.append("I")
+            elif seq[i] == "-":
+                ops.append("D")
             else:
-                cigar.append([i, 1])
+                ops.append("X")
+
+        # aggregate op
+        # ops: MMMIIDDD
+        # -> cigar: M3I2D3
+        op_type, count = "", 0
+        cigar = []
+        for op in ops:
+            if op != op_type:
+                if count:
+                    cigar.append((op_type, count))
+                count = 0
+            op_type = op
+            count += 1
+        if count:
+            cigar.append((op_type, count))
 
         # Rename to cigar_tuple
-        for i in cigar:
-            if i[0] == "M":
-                i[0] = 0
-            elif i[0] == "I":
-                i[0] = 1
-            elif i[0] == "D":
-                i[0] = 2
-            elif i[0] == "X":
-                i[0] = 8
+        cigar_renamed = []  # type: list[tuple[int, int]]
+        for op_type, base_num in cigar:
+            if op_type == "M":
+                cigar_renamed.append((0, base_num))
+            elif op_type == "I":
+                cigar_renamed.append((1, base_num))
+            elif op_type == "D":
+                cigar_renamed.append((2, base_num))
+            elif op_type == "X":
+                cigar_renamed.append((8, base_num))
 
-        return cigar
+        return cigar_renamed
 
     # Save function
     def to_fasta(self, gap=True) -> list[SeqRecord]:
@@ -1071,7 +1090,9 @@ class Genemsa:
         """
         SeqIO.write(self.to_fasta(gap=gap), fname, "fasta")
 
-    def save_bam(self, fname: str, ref_allele="", save_ref=False):
+    def save_bam(self, fname: str, ref_allele="",
+                 save_ref=False
+                 ) -> List[List[Tuple[int, int]]]:
         """
         Save the MSA into bam
 
@@ -1111,7 +1132,7 @@ class Genemsa:
                 a.query_name = allele
                 a.query_sequence = seq.replace("E", "").replace("-", "")
                 cigars.append(self._calculate_cigar(ref_seq, seq))
-                a.cigar = cigars[-1]
+                a.cigar = cigars[-1]  # type: ignore
 
                 # set to default
                 a.mapping_quality = 60
@@ -1124,11 +1145,11 @@ class Genemsa:
                 # a.next_reference_start = 0
                 outf.write(a)
 
-        pysam.sort("-o", fname, fname)
-        pysam.index(fname)
+        pysam.sort("-o", fname, fname)  # type: ignore
+        pysam.index(fname)  # type: ignore
         return cigars
 
-    def assume_label(self, seq_type="gen") -> List[str]:
+    def assume_label(self, seq_type="gen") -> Genemsa:
         """
         It will automatically generate the block's label
         according on `seq_type`. (Inplace)
@@ -1208,9 +1229,9 @@ class Genemsa:
         for b in self.blocks:
             # http://gmod.org/wiki/GFF3
             # gff3 format:
-            #   header: ref source type start end . strand . tags
-            #   pos: 1-base included position
-            #   type: In HLA annotations exon=CDS
+            #   1. header: ref source type start end . strand . tags
+            #   2. pos: 1-base included position
+            #   3. type: In HLA annotations exon=CDS
             records.append(
                 [ref_allele, "pyHLAMSA",
                  b.type if b.type != "exon" else "CDS",
@@ -1241,7 +1262,7 @@ class Genemsa:
         return meta
 
     @classmethod
-    def meta_from_json(cls, data=None) -> Genemsa:
+    def meta_from_json(cls, data: Dict[str, Any] = None) -> Genemsa:
         """ Import meta information from json """
         if data:
             return Genemsa(data['name'],
@@ -1277,7 +1298,7 @@ class Genemsa:
 
     # out model save and load
     @classmethod
-    def load_msa(cls, file_fasta, file_json) -> Genemsa:
+    def load_msa(cls, file_fasta: str, file_json: str) -> Genemsa:
         """
         load this object to fasta and gff
 
@@ -1295,7 +1316,7 @@ class Genemsa:
         assert len(new_msa.get_reference()[1]) == new_msa.get_length()
         return new_msa
 
-    def save_msa(self, file_fasta, file_json):
+    def save_msa(self, file_fasta: str, file_json: str):
         """ Save this object to fasta and gff """
         self.save_fasta(file_fasta, gap=True)
         with open(file_json, "w") as f:
