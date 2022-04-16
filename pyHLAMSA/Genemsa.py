@@ -217,6 +217,31 @@ class Genemsa:
                            for allele, seq in self.alleles.items()}
         return new_msa
 
+    def get_cigar(self, target_allele: str, ref_allele="") -> List[Tuple[str, int]]:
+        """
+        Get the cigar string of target_allele from ref_allele
+
+        If ref_allele not set,
+        it will automatically find the reference by get_reference
+
+        Example:
+          ```
+          ref_seq:    AATTAT
+          target_seq: AC--AT
+          cigar: [(M, 1), (X, 1), (D, 2), (M, 2)]
+          ```
+        """
+        if target_allele not in self.alleles:
+            raise KeyError(f"{target_allele} not found")
+        if not ref_allele:
+            ref_allele = self.get_reference()[0]
+        if ref_allele not in self.alleles:
+            raise KeyError(f"{ref_allele} not found")
+
+        ref_seq = self.alleles[ref_allele]
+        return self._get_cigar(self.alleles[ref_allele],
+                               self.alleles[target_allele])
+
     def align(self, seq: str, target_allele="", aligner=None) -> str:
         """
         Align the seq on msa (Experimental)
@@ -1008,14 +1033,23 @@ class Genemsa:
         assert msa
         return msa.format_alignment_diff(show_position_set=show_position_set)
 
-    # Functions for writing to bam file
-    def _calculate_cigar(self, ref: str, seq: str) -> List[Tuple[int, int]]:
+    @classmethod
+    def _cigar_to_pysam(cls, cigar: List[Tuple[str, int]]) -> List[Tuple[int, int]]:
         """
-        Compare two sequences and output cigartuples
+        Translate cigar to cigar tuple defined in
+        https://www.youtube.com/watch?v=OLltMgNgpS8
+        """
+        op_type_map = {
+            "M": 0,
+            "I": 1,
+            "D": 2,
+            "X": 8,
+        }
+        return list(map(lambda i: (op_type_map.get(i[0], 0), i[1]), cigar))
 
-        The cigar_tuple is defined in
-        https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
-        """
+    @classmethod
+    def _get_cigar(cls, ref: str, seq: str) -> List[Tuple[str, int]]:
+        """ Compare two sequences and output cigar """
         if len(ref) != len(seq):
             raise ValueError("Two sequences doesn't have same length")
 
@@ -1050,19 +1084,7 @@ class Genemsa:
         if count:
             cigar.append((op_type, count))
 
-        # Rename to cigar_tuple
-        cigar_renamed = []  # type: list[tuple[int, int]]
-        for op_type, base_num in cigar:
-            if op_type == "M":
-                cigar_renamed.append((0, base_num))
-            elif op_type == "I":
-                cigar_renamed.append((1, base_num))
-            elif op_type == "D":
-                cigar_renamed.append((2, base_num))
-            elif op_type == "X":
-                cigar_renamed.append((8, base_num))
-
-        return cigar_renamed
+        return cigar
 
     # Save function
     def to_fasta(self, gap=True) -> list[SeqRecord]:
@@ -1090,9 +1112,7 @@ class Genemsa:
         """
         SeqIO.write(self.to_fasta(gap=gap), fname, "fasta")
 
-    def save_bam(self, fname: str, ref_allele="",
-                 save_ref=False
-                 ) -> List[List[Tuple[int, int]]]:
+    def save_bam(self, fname: str, ref_allele="", save_ref=False):
         """
         Save the MSA into bam
 
@@ -1120,7 +1140,6 @@ class Genemsa:
                           'SN': ref_allele}]}
 
         # write bam file
-        cigars = []
         with pysam.AlignmentFile(fname, "wb", header=header) as outf:
             for allele, seq in self.alleles.items():
                 # skip
@@ -1131,8 +1150,8 @@ class Genemsa:
                 a = pysam.AlignedSegment()
                 a.query_name = allele
                 a.query_sequence = seq.replace("E", "").replace("-", "")
-                cigars.append(self._calculate_cigar(ref_seq, seq))
-                a.cigar = cigars[-1]  # type: ignore
+                a.cigar = self._cigar_to_pysam(  # type: ignore
+                        self._get_cigar(ref_seq, seq))
 
                 # set to default
                 a.mapping_quality = 60
@@ -1147,7 +1166,6 @@ class Genemsa:
 
         pysam.sort("-o", fname, fname)  # type: ignore
         pysam.index(fname)  # type: ignore
-        return cigars
 
     def assume_label(self, seq_type="gen") -> Genemsa:
         """

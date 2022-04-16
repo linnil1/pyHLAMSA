@@ -292,14 +292,16 @@ class TestMsaMainFunction(unittest.TestCase):
 
     def test_cigar(self):
         # I didn't not test save_bam
-        # Match = 0
-        # Insert = 1
-        # Delete = 2
-        # Mismatch = 8
-        self.assertEqual(self.msa._calculate_cigar("AAA", "C--"), [(8, 1), (2, 2)])
-        self.assertEqual(self.msa._calculate_cigar("AAA", "--C"), [(2, 2), (8, 1)])
-        self.assertEqual(self.msa._calculate_cigar("AAA", "A-C"), [(0, 1), (2, 1), (8, 1)])
-        self.assertEqual(self.msa._calculate_cigar("A-A", "ACC"), [(0, 1), (1, 1), (8, 1)])
+        self.assertEqual(self.msa._get_cigar("AAA", "C--"), [('X', 1), ('D', 2)])
+        self.assertEqual(self.msa._get_cigar("AAA", "--C"), [('D', 2), ('X', 1)])
+        self.assertEqual(self.msa._get_cigar("AAA", "A-C"), [('M', 1), ('D', 1), ('X', 1)])
+        self.assertEqual(self.msa._get_cigar("A-A", "ACC"), [('M', 1), ('I', 1), ('X', 1)])
+
+        # a1 to a0
+        # 'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
+        # 'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
+        self.assertEqual(self.msa.get_cigar("a1"),
+                [('M', 3), ('X', 1), ('M', 1), ('I', 1), ('M', 3), ('X', 1), ('M', 12)])
 
     def test_gff(self):
         # because all sequences has same exon intron position
