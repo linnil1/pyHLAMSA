@@ -11,8 +11,8 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
-      - name: Install temporary packages for document and testing mypy
-        run: pip install mkdocs-material mkdocstrings pytest pycodestyle
+      - name: Install temporary packages for document and testing
+        run: pip install mkdocs-material mkdocstrings pytest pycodestyle mypy
       - name: Install this package
         run: pip install .
       - name: Test
