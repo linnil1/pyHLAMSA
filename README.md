@@ -15,7 +15,7 @@ Still in development.
 It can automatically download and read the sequences
 
 ``` python
->>> from pyHLAMSA import HLAmsa
+>>> from pyhlamsa import HLAmsa
 
 >>> hla = HLAmsa(["A", "B"], filetype="gen",
                  imgt_alignment_folder="alignment_v3470",
@@ -31,10 +31,10 @@ It can automatically download and read the sequences
 `KIRmsa` can also read sequences of KIR
 
 ``` python
->>> from pyHLAMSA import KIRmsa
+>>> from pyhlamsa import KIRmsa
 
 # If don't specific the genes, it will read all genes.
->>> kir = KIRmsa(ipd_folder="KIR_v2110", version="2110")
+>>> kir = KIRmsa(ipd_folder="KIR_v2100", version="2100")
 
 >>> print(kir.list_genes())
 ['KIR2DL1', 'KIR2DL2', 'KIR2DL3', 'KIR2DL4', 'KIR2DL5', 'KIR2DP1', 'KIR2DS1', 'KIR2DS2', 'KIR2DS3', 'KIR2DS4', 'KIR2DS5', 'KIR3DL1', 'KIR3DL2', 'KIR3DL3', 'KIR3DP1', 'KIR3DS1']
@@ -273,12 +273,13 @@ SeqIO.write(a_gen.to_fasta(gap=False), "filename.fa", "fasta")
 
 * bam
 ``` python
-a_gen.save_bam("filename.bam")
+from pyhlamsa import msaio
+msaio.to_bam(a_gen, "filename.bam")
 ```
 
 * gff
 ``` python
-a_gen.save_gff("filename.gff")
+msaio.to_gff(a_gen, "filename.gff")
 ```
 
 After save the MSA as bam and gff, you can show the alignments on IGV
@@ -287,22 +288,21 @@ After save the MSA as bam and gff, you can show the alignments on IGV
 * save/load
 I use json and fasta to save our model
 ``` python
-from pyHLAMSA import Genemsa
-a_gen.save_msa("a_gen.fa", "a_gen.json")
-a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
+msaio.save_msa(a_gen, "a_gen.fa", "a_gen.json")
+a_gen = msaio.load_msa("a_gen.fa", "a_gen.json")
 ```
 
 * load msa from other format
 
-pyHLAMSA only support reading from `MultipleSeqAlignment`,
-which is very useful object,
-can be generate by reading MSA by `Bio.AlignIO`.
+    pyHLAMSA only support reading from `MultipleSeqAlignment`,
+    which is very useful object,
+    can be generate by reading MSA by `Bio.AlignIO`.
 
 Checkout <https://biopython.org/wiki/AlignIO#file-formats> for format supporting.
 
 For example
 ``` python
-from pyHLAMSA import Genemsa
+from pyhlamsa import Genemsa
 msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_format))
 ```
 
@@ -345,10 +345,10 @@ Steps:
 
 1. Download fasta from <https://www.pharmvar.org/download>
 2. unzip to `./pharmvar-5.1.10`
-3. Read it by pyHLAMSA
+3. Read it by pyhlamsa
 ``` python
 # 4. Read it
-from pyHLAMSA import CYPmsa
+from pyhlamsa import CYPmsa
 cyp = CYPmsa(pharmvar_folder="./pharmvar-5.1.10")
 
 # 5. Test it
@@ -373,9 +373,10 @@ mkdocs serve
 ## Test
 ```
 pip3 install -e .
-pip3 install pytest pycodestyle
+pip3 install pytest pycodestyle mypy
 pytest
-pycodestyle pyHLAMSA/*.py
+pycodestyle pyhlamsa
+mypy pyhlamsa
 ```
 
 
@@ -405,4 +406,4 @@ Performance issue is not my bottle-neck yet.
 ## Document
 See [https://linnil1.github.io/pyHLAMSA](See https://linnil1.github.io/pyHLAMSA)
 
-::: pyHLAMSA
+::: pyhlamsa

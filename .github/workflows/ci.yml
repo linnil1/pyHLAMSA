@@ -18,8 +18,8 @@ jobs:
       - name: Test
         run: pytest
       - name: Test code style
-        run: pycodestyle pyHLAMSA/*.py
+        run: pycodestyle pyhlamsa
       - name: Test type
-        run: mypy pyHLAMSA/*.py
+        run: mypy pyhlamsa
       - name: Deploy web
         run: mkdocs gh-deploy --force

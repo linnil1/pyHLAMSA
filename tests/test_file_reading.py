@@ -1,6 +1,8 @@
 import os
 import unittest
-from pyHLAMSA import Genemsa, Readmsa
+from pyhlamsa import Genemsa, msaio
+from pyhlamsa.utils import dat as datop
+
 from tempfile import NamedTemporaryFile, mkstemp
 from Bio import SeqIO, AlignIO
 
@@ -16,7 +18,7 @@ class TestMsaReadFromDB(unittest.TestCase):
         pass
 
     def test_dat(self):
-        data = Readmsa.read_dat_block("./tests/hla_A01.dat")
+        data = datop.read_dat_block("./tests/hla_A01.dat")
         self.assertEqual(data['A*01:01:01:01'], [
             {'name': 'UTR', 'start': 1, 'end': 300},
             {'name': 'exon1', 'start': 301, 'end': 373},
@@ -44,7 +46,7 @@ class TestMsaReadFromDB(unittest.TestCase):
 
     def test_msa_file(self):
         # this function will run parse_alignment also
-        msa = Readmsa.from_alignment_file(f"tests/A01_gen.txt")
+        msa = msaio.read_alignment_txt(f"tests/A01_gen.txt")
         msa.gene_name = "A"
         msa.assume_label("gen")
         self.assertEqual(len(msa.blocks), 17)
@@ -52,7 +54,7 @@ class TestMsaReadFromDB(unittest.TestCase):
         self.assertEqual(len(msa), 301)
 
     def test_msf_file(self):
-        msa = Readmsa.from_MSF_file("tests/A01_gen.msf")
+        msa = msaio.read_msf_file("tests/A01_gen.msf")
         self.assertEqual(len(msa.blocks), 1)
         self.assertEqual(msa.get_length(), 3890)
         self.assertEqual(len(msa), 301)
@@ -60,9 +62,9 @@ class TestMsaReadFromDB(unittest.TestCase):
 
     def test_same_in_two_method(self):
         # msf
-        msa = Readmsa.from_MSF_file("tests/A01_gen.msf")
+        msa = msaio.read_msf_file("tests/A01_gen.msf")
         # msa
-        msa_ali = Readmsa.from_alignment_file(f"tests/A01_gen.txt")
+        msa_ali = msaio.read_alignment_txt(f"tests/A01_gen.txt")
         for name in msa.get_sequence_names():
             self.assertEqual(msa.get(name).replace('-', ''),
                              msa_ali.get(name).replace('-', ''))
@@ -70,11 +72,11 @@ class TestMsaReadFromDB(unittest.TestCase):
 
     def test_msf_with_dat(self):
         # main test
-        dat = Readmsa.read_dat_block("tests/hla_A01.dat")
-        msa = Readmsa.from_MSF_file("tests/A01_gen.msf")
+        dat = datop.read_dat_block("tests/hla_A01.dat")
+        msa = msaio.read_msf_file("tests/A01_gen.msf")
         msa.gene_name = "A"
 
-        msa1 = Readmsa.apply_dat_info_on_msa(msa, dat, seq_type="gen")
+        msa1 = datop.apply_dat_info_on_msa(msa, dat, seq_type="gen")
         self.assertEqual(len(msa1.blocks), 17)
         self.assertEqual(msa1.get_length(), 3890)
 
@@ -88,7 +90,7 @@ class TestMsaReadFromDB(unittest.TestCase):
         self.assertTrue("A*01:11N" not in msa1.get_sequence_names())
 
         # compare result
-        msa2 = Readmsa.from_alignment_file(f"tests/A01_gen.txt")
+        msa2 = msaio.read_alignment_txt(f"tests/A01_gen.txt")
         self.assertEqual(sorted(set(msa1.get_sequence_names()) | set(["A*01:11N"])), sorted(msa2.get_sequence_names()))
         for m1, m2 in zip(msa1.split(), msa2.split()):
             for name in msa1.get_sequence_names():
@@ -99,7 +101,7 @@ class TestMsaReadFromDB(unittest.TestCase):
 class TestMsaHLA(unittest.TestCase):
     @unittest.skipIf(not os.path.exists("alignment_v3470"), "Tested on local")
     def test_hla_align(self):
-        from pyHLAMSA import HLAmsa, HLAmsaEX
+        from pyhlamsa import HLAmsa, HLAmsaEX
         genes = ["A", "B", "C"]
         hla0 = HLAmsa(genes, filetype="gen", imgt_alignment_folder="alignment_v3470", version="3470")
         hla1 = HLAmsa(genes, imgt_alignment_folder="alignment_v3470")
@@ -131,7 +133,7 @@ class TestMsaHLA(unittest.TestCase):
 
     @unittest.skipIf(not os.path.exists("KIR_v2100"), "Tested on local")
     def test_kir(self):
-        from pyHLAMSA import KIRmsa
+        from pyhlamsa import KIRmsa
         kir0 = KIRmsa(filetype=["gen"], ipd_folder="KIR_v2100", version="2100")
         kir1 = KIRmsa(ipd_folder="KIR_v2100")
         self.assertEqual(set(kir0.list_genes()), set(kir1.list_genes()))
@@ -142,7 +144,7 @@ class TestMsaHLA(unittest.TestCase):
 
     @unittest.skipIf(not os.path.exists("pharmvar-5.1.10"), "Tested on local")
     def test_cyp(self):
-        from pyHLAMSA import CYPmsa
+        from pyhlamsa import CYPmsa
         cpy = CYPmsa(pharmvar_folder="pharmvar-5.1.10")
         # already lots of assert in CYPmsa._read_db_gene
 

@@ -1,14 +1,22 @@
-from __future__ import annotations
+"""
+A collections to read HLA, CYP and KIR
+
+``` python
+from pyhlamsa import HLAmsa, KIRmsa, CYPmsa
+hla = HLAmsa("A", filetype="gen")
+```
+"""
 import os
 import logging
 import subprocess
 from glob import glob
 from abc import ABC
-from typing import List, Set, Dict, Any, cast
+from typing import List, Set, Any, cast
 from Bio import SeqIO
 
-from .Genemsa import Genemsa, BlockInfo, IndexInfo
-from . import Readmsa
+from .gene import Genemsa, BlockInfo, IndexInfo
+from .utils import dat
+from . import msaio
 
 
 class Familymsa(ABC):
@@ -146,11 +154,11 @@ class HLAmsa(Familymsa):
 
     def _list_db_gene(self, filetype=set(["gen", "nuc"])) -> List[str]:
         """ List the gene in folder """
-        DRB = set(['DRB1', 'DRB3', 'DRB4', 'DRB5'])
+        drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:
-            names = names_gen = self._get_name(f"{self.db_folder}/*_gen.txt") | DRB
+            names = names_gen = self._get_name(f"{self.db_folder}/*_gen.txt") | drb
         if "nuc" in filetype:
-            names = names_nuc = self._get_name(f"{self.db_folder}/*_nuc.txt") | DRB
+            names = names_nuc = self._get_name(f"{self.db_folder}/*_nuc.txt") | drb
         if "gen" in filetype and "nuc" in filetype:
             names = names_gen & names_nuc
             # * E exon7 is ambiguous, exon8 is gone (Also exon8 is not pseudo exon)
@@ -171,7 +179,7 @@ class HLAmsa(Familymsa):
         If both `gen` and `nuc` are given, it will merge them.
         """
         if "gen" in filetype:
-            msa_gen = Readmsa.from_alignment_file(f"{self.db_folder}/{gene}_gen.txt")
+            msa_gen = msaio.read_alignment_txt(f"{self.db_folder}/{gene}_gen.txt")
             msa_gen.gene_name = gene
             if gene != "P":
                 # P: special case: has even block
@@ -182,10 +190,10 @@ class HLAmsa(Familymsa):
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
-                msa_nuc = Readmsa.from_alignment_file(f"{self.db_folder}/DRB_nuc.txt")
+                msa_nuc = msaio.read_alignment_txt(f"{self.db_folder}/DRB_nuc.txt")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
             else:
-                msa_nuc = Readmsa.from_alignment_file(f"{self.db_folder}/{gene}_nuc.txt")
+                msa_nuc = msaio.read_alignment_txt(f"{self.db_folder}/{gene}_nuc.txt")
 
             msa_nuc.gene_name = gene
             msa_nuc.assume_label("nuc")
@@ -209,8 +217,7 @@ class HLAmsa(Familymsa):
             return msa_gen
         elif "nuc" in filetype:
             return msa_nuc
-        else:
-            return None
+        return None
 
 
 class HLAmsaEX(Familymsa):
@@ -259,7 +266,6 @@ class HLAmsaEX(Familymsa):
         """
         Download the IMGT/HLA msf and hla.dat to folder `imgt_folder`
         """
-        # TODO: Auto find the latest version
         self._run_shell("git", "clone",
                         "https://github.com/ANHIG/IMGTHLA.git", self.db_folder)
         self._run_shell("git", "checkout", version, cwd=self.db_folder)
@@ -272,12 +278,12 @@ class HLAmsaEX(Familymsa):
 
     def _list_db_gene(self, filetype) -> List[str]:
         """ List the gene in folder """
-        DRB = set(['DRB1', 'DRB3', 'DRB4', 'DRB5'])
+        drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:
-            names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf") | DRB
+            names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf") | drb
         if "nuc" in filetype:
             # HLA-E nuc doessn't have exon8
-            names = names_nuc = (self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | DRB
+            names = names_nuc = (self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | drb
                                  - set(["E"]))
         if "gen" in filetype and "nuc" in filetype:
             names = names_gen & names_nuc
@@ -291,23 +297,23 @@ class HLAmsaEX(Familymsa):
         """
         if not hasattr(self, "dat"):
             self.logger.debug(f"Reading hla.dat")
-            self.dat = Readmsa.read_dat_block(f"{self.db_folder}/hla.dat")
+            self.dat = dat.read_dat_block(f"{self.db_folder}/hla.dat")
 
         if "gen" in filetype:
-            msa_gen = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_gen.msf")
+            msa_gen = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_gen.msf")
             msa_gen.gene_name = gene
-            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
+            msa_gen = dat.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
             self.logger.debug(f"{msa_gen}")
 
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
-                msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/DRB_nuc.msf")
+                msa_nuc = msaio.read_msf_file(f"{self.db_folder}/msf/DRB_nuc.msf")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
             else:
-                msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
+                msa_nuc = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
             msa_nuc.gene_name = gene
-            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
+            msa_nuc = dat.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
             self.logger.debug(f"{msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
@@ -375,7 +381,6 @@ class KIRmsa(Familymsa):
         """
         Download the KIR to `IPDKIR`
         """
-        # TODO: Auto find the latest version
         self._run_shell("git", "clone", "https://github.com/ANHIG/IPDKIR", self.db_folder)
         self._run_shell("git", "checkout", version, cwd=self.db_folder)
 
@@ -406,20 +411,20 @@ class KIRmsa(Familymsa):
         if not hasattr(self, "dat"):
             self.logger.debug(f"Reading kir.dat")
             if os.path.exists(f"{self.db_folder}/KIR.dat"):
-                self.dat = Readmsa.read_dat_block(f"{self.db_folder}/KIR.dat")
+                self.dat = dat.read_dat_block(f"{self.db_folder}/KIR.dat")
             else:
-                self.dat = Readmsa.read_dat_block(f"{self.db_folder}/kir.dat")
+                self.dat = dat.read_dat_block(f"{self.db_folder}/kir.dat")
 
         if "gen" in filetype:
-            msa_gen = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_gen.msf")
+            msa_gen = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_gen.msf")
             msa_gen.gene_name = gene
-            msa_gen = Readmsa.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
+            msa_gen = dat.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
             self.logger.debug(f"Gen {msa_gen}")
 
         if "nuc" in filetype:
-            msa_nuc = Readmsa.from_MSF_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
+            msa_nuc = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
             msa_nuc.gene_name = gene
-            msa_nuc = Readmsa.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
+            msa_nuc = dat.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
             self.logger.debug(f"Nuc {msa_nuc}")
 
         if "gen" in filetype and "nuc" in filetype:
@@ -443,7 +448,6 @@ class KIRmsa(Familymsa):
                 for name in (set(msa_nuc.get_sequence_names())
                              - set(msa_gen.get_sequence_names())):
                     exon3.append(name, "-" * exon3.get_length())
-                msas = msa_nuc.split()
                 msa_nuc = (msa_nuc.select_block(list(range(0, 2)))
                            + exon3
                            + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks)))))
@@ -515,14 +519,14 @@ class CYPmsa(Familymsa):
                                "fasta"):
             # split allele name
             # e.g.  rs75017182, rs56038477 PV01077 NG_008807.2 PharmVar Version:5.1.10
-            for name in seq.description.replace(', ', ',').split(' ')[0].split(','):
+            for name in seq.description.replace(", ", ",").split(" ")[0].split(","):
                 ref_seqs[name.strip()] = str(seq.seq)
         self.logger.debug(f"Read sequence {ref_seqs.keys()}")
 
         # read tsv
         # split by '\t' and ignore header
         var_text = open(glob(f"{self.db_folder}/{gene}/RefSeqGene/*.haplotypes.tsv")[0])
-        table = [i.strip().split('\t') for i in var_text if not i.startswith("#")][1:]
+        table = [i.strip().split("\t") for i in var_text if not i.startswith("#")][1:]
 
         # Get Reference sequence
         reference_seq = None
@@ -574,11 +578,11 @@ class CYPmsa(Familymsa):
             elif i[8] == "deletion":
                 pos = int(i[4]) - 1
                 end = pos + len(i[6])
-                i[7] = '-' * len(i[6])
+                i[7] = "-" * len(i[6])
             elif i[8] == "insertion":
                 pos = int(i[4])
                 end = int(i[4]) + len(i[7])
-                i[6] = '-' * len(i[7])
+                i[6] = "-" * len(i[7])
                 # check the gap is already inserted by others
                 # if false: insert '-' for all alleles
                 # else: replace the '-' with insertion seq
@@ -595,7 +599,7 @@ class CYPmsa(Familymsa):
         # split allele name (alleles.key() will change)
         # e.g. rs75017182, rs56038477  DPYD    rs75017182  NG_008807.2 346167
         for allele_name in list(alleles.keys()):
-            if ', ' in allele_name:
+            if ", " in allele_name:
                 for an in allele_name.split(","):
                     alleles[an.strip()] = alleles[allele_name]
                 del alleles[allele_name]

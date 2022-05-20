@@ -1,17 +1,28 @@
+"""
+Genemsa: core object in pyhlamsa
+
+It can do many msa operation along with index (column position) and
+block(intron exon region).
+
+Basic usage:
+``` python
+from pyhlamsa import Genemsa
+```
+"""
 from __future__ import annotations
 import re
 import copy
-import json
 import logging
 import dataclasses
-from typing import List, Tuple, Dict, Tuple, Iterator, Any
+from typing import List, Dict, Tuple, Iterator, Any
 from collections.abc import Iterable
 
 from Bio.Align import MultipleSeqAlignment, PairwiseAligner
-from Bio import AlignIO, SeqIO
-from Bio.SeqRecord import SeqRecord
+from Bio import AlignIO
 from Bio.Seq import Seq
-import pysam
+from Bio.SeqRecord import SeqRecord
+from .utils import cigar
+from .utils.text import msa_to_string
 
 
 @dataclasses.dataclass
@@ -73,10 +84,13 @@ class Genemsa:
 
     # Show the MSA attribute
     def __str__(self):
-        block_info = ' '.join([f"{b.name}({b.length})" for b in self.blocks])
+        block_info = " ".join([f"{b.name}({b.length})" for b in self.blocks])
         return f"<{self.gene_name} "\
                f"alleles={len(self.alleles)} "\
                f"block={block_info}>"
+
+    def __repr__(self):
+        return self.__str__()
 
     def get_length(self) -> int:
         """ Get the length of MSA """
@@ -224,12 +238,10 @@ class Genemsa:
         If ref_allele not set,
         it will automatically find the reference by get_reference
 
-        Example:
-          ```
-          ref_seq:    AATTAT
-          target_seq: AC--AT
-          cigar: [(M, 1), (X, 1), (D, 2), (M, 2)]
-          ```
+        Return:
+          cigar(List[op_str, num]): The list of operator and number of bases
+        Exmaple:
+          cigar = [(M, 1), (X, 1), (D, 2), (M, 2)]
         """
         if target_allele not in self.alleles:
             raise KeyError(f"{target_allele} not found")
@@ -238,9 +250,8 @@ class Genemsa:
         if ref_allele not in self.alleles:
             raise KeyError(f"{ref_allele} not found")
 
-        ref_seq = self.alleles[ref_allele]
-        return self._get_cigar(self.alleles[ref_allele],
-                               self.alleles[target_allele])
+        return cigar.calculate_cigar(self.alleles[ref_allele],
+                                     self.alleles[target_allele])
 
     def align(self, seq: str, target_allele="", aligner=None) -> str:
         """
@@ -470,6 +481,8 @@ class Genemsa:
         """
         if self.reference in self.alleles:
             return (self.reference, self.alleles[self.reference])
+        if not len(self.alleles):
+            raise ValueError("MSA is empty")
         return next(iter(self.alleles.items()))
 
     # Block-wise operation
@@ -709,7 +722,136 @@ class Genemsa:
                 new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
         return new_msa.reset_index()
 
+    # type transform
+    def meta_to_json(self) -> Dict:
+        """ Extract all meta information about this msa into json """
+        meta = {
+            'index': [dataclasses.asdict(i) for i in self.index],
+            'blocks': [dataclasses.asdict(b) for b in self.blocks],
+            'name': self.gene_name,
+            'reference': self.reference,
+        }
+        return meta
+
+    @classmethod
+    def meta_from_json(cls, data: Dict[str, Any] = None) -> Genemsa:
+        """ Import meta information from json """
+        if data:
+            return Genemsa(data['name'],
+                           blocks=[BlockInfo(**b) for b in data['blocks']],
+                           index=[IndexInfo(**i) for i in data['index']],
+                           reference=data.get("reference"))
+        else:
+            return Genemsa("Unamed")
+
+    def to_records(self: Genemsa, gap=True) -> list[SeqRecord]:
+        """
+        Transfer MSA to list of SeqRecord
+
+        Args:
+            gap (bool): The sequence included gap or not
+        """
+        if gap:
+            return [SeqRecord(Seq(seq.replace("E", "-")),
+                              id=allele, description="")
+                    for allele, seq in self.alleles.items()]
+        else:
+            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")),
+                              id=allele, description="")
+                    for allele, seq in self.alleles.items()]
+
+    def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
+        """ Transfer this object to MultipleSeqAlignment(biopython) """
+        return MultipleSeqAlignment(self.to_records(gap=True),
+                                    annotations=self.meta_to_json())
+
+    @classmethod
+    def from_MultipleSeqAlignment(cls, bio_msa: MultipleSeqAlignment) -> Genemsa:
+        """
+        Transfer MultipleSeqAlignment instance(biopython) to Genemsa
+
+        See more details in [biopython](
+        https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
+        """
+        new_msa = cls.meta_from_json(bio_msa.annotations)
+        if not new_msa.blocks:
+            new_msa.blocks = [BlockInfo(length=bio_msa.get_alignment_length())]
+        if not new_msa.index:
+            new_msa = new_msa.reset_index()
+
+        for seq in bio_msa:
+            new_msa.alleles[seq.id] = str(seq.seq)
+        assert new_msa.get_length() == bio_msa.get_alignment_length()
+        return new_msa
+
+    def assume_label(self, seq_type="gen") -> Genemsa:
+        """
+        It will automatically generate the block's label
+        according on `seq_type`. (Inplace)
+
+        seq_type:
+          * gen: 5UTR-exon1-intron1-exon2-...-exon9-3UTR
+          * nuc: exon1-exon2-...-exon9
+          * other: block1-block2-block3-...
+        """
+        if seq_type == "gen":
+            assert len(self.blocks) % 2 == 1 and len(self.blocks) >= 3
+            for i in range(len(self.blocks)):
+                if i % 2:
+                    self.blocks[i].type = "exon"
+                    self.blocks[i].name = f"exon{i // 2 + 1}"
+                else:
+                    self.blocks[i].type = "intron"
+                    self.blocks[i].name = f"intron{i // 2}"
+
+            self.blocks[0].type = "five_prime_UTR"
+            self.blocks[0].name = f"5UTR"
+            self.blocks[-1].type = "three_prime_UTR"
+            self.blocks[-1].name = f"3UTR"
+        elif seq_type == "nuc":
+            for i in range(len(self.blocks)):
+                self.blocks[i].type = "exon"
+                self.blocks[i].name = f"exon{i+1}"
+        else:
+            for i in range(len(self.blocks)):
+                self.blocks[i].type = "gene_fragment"
+                self.blocks[i].name = f"block{i+1}"
+
+        # inplace to reset the index
+        self.index = self.reset_index().index
+        return self
+
     # Format function
+    def format_alignment(self, wrap=100) -> str:
+        """
+        Print the MSA
+
+        Note: The index shown on output string is 1-base absolute position.
+        If you want to print in relative position, use `.reset_index()` first.
+
+        Args:
+          wrap (int): The maximum base per line
+          show_position_set (set): The list of position(0-base) you want to indicate
+
+        Returns:
+          str: A formatted string
+
+        Examples:
+          >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
+          >>> print(a.format_alignment())
+                              3166                                  3342
+                                 |                                     |
+             A*01:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*02:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*03:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*11:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*23:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+             A*25:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
+        """
+        if not self.index or not self.alleles:
+            raise ValueError("MSA is empty")
+        return msa_to_string(self, wrap=wrap)
+
     def format_alignment_diff(self, ref_allele="", show_position_set=None) -> str:
         """
         Print the sequences of all alleles diff from `ref_allele` sequence.
@@ -739,8 +881,6 @@ class Genemsa:
              A*26:01:01:01       ---------- ------C--- T--------- ---| ------- -------
              A*29:01:01:01       ---------- ------C--- T--------- ---| ------- -------
         """
-        if not len(self.alleles):
-            raise ValueError("MSA is empty")
         if not ref_allele:
             ref_allele = self.get_reference()[0]
         if ref_allele not in self.alleles:
@@ -766,170 +906,7 @@ class Genemsa:
                     new_seq += seq[i]
             new_msa.alleles[allele] = new_seq
         new_msa.alleles[ref_allele] = new_msa.alleles[ref_allele].replace("-", ".")
-        return new_msa.format_alignment(show_position_set=show_position_set)
-
-    def _apply_print_format(self, print_format_per_lines):
-        """
-        This function only controlling the layout not logic, used by `format_alignment`
-
-        It may overlap the text if the print_format in `print_format_per_lines`
-        doesn't given enough space.
-
-        Args:
-          print_format_per_lines (list of list of dict):
-            The outer list is for each line and
-            the inner list is a list of print_format
-            Here is my print_format
-            ```
-            {
-                # print the position
-                index: True
-                # type of printable word
-                type: "base" | "allele_name" | "char"
-                # the width
-                length: 12  # for all
-                # if type=base
-                # pos = position of base
-                pos: 12
-                # if type=char
-                # it will print the word
-                word: ""  # for char
-            }
-            ```
-        """
-        output_str = ""
-        for pfl in print_format_per_lines:
-            # index line
-            index_left_space = 0
-            for pf in pfl:
-                index_left_space += pf.get('length', 1)
-                if pf.get('index'):
-                    # note: 1-base
-                    output_str += f"{self.index[pf['pos']].pos + 1:>{index_left_space}}"
-                    index_left_space = 0
-            output_str += "\n"
-
-            # indicator line
-            index_left_space = 0
-            for pf in pfl:
-                index_left_space += pf.get('length', 1)
-                if pf.get('index'):
-                    output_str += f"{'|':>{index_left_space}}"
-                    index_left_space = 0
-            output_str += "\n"
-
-            # allele line
-            for name, seq in self.alleles.items():
-                for pf in pfl:
-                    if pf['type'] == 'char':
-                        output_str += pf['word']
-                    elif pf['type'] == 'allele_name':
-                        output_str += f"{name:<{pf['length']}}"
-                    elif pf['type'] == 'base':
-                        output_str += seq[pf['pos']]
-                output_str += "\n"
-
-            # separate each line
-            output_str += "\n\n"
-        return output_str
-
-    def format_alignment(self, wrap=100, show_position_set=None) -> str:
-        """
-        Print the MSA
-
-        Note: The index shown on output string is 1-base absolute position.
-        If you want to print in relative position, use `.reset_index()` first.
-
-        Args:
-          wrap (int): The maximum base per line
-          show_position_set (set): The list of position(0-base) you want to indicate
-
-        Returns:
-          str: A formatted string
-
-        Examples:
-          >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
-          >>> print(a.format_alignment())
-                              3166                                  3342
-                                 |                                     |
-             A*01:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
-             A*02:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
-             A*03:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
-             A*11:01:01:01       ATAGAAAAGG AGGGAGTTAC ACTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
-             A*23:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
-             A*25:01:01:01       ATAGAAAAGG AGGGAGCTAC TCTCAGGCTG CAA| GCAGTGA CAGTGCCCAG
-        """
-        if not self.blocks or not self.alleles:
-            raise ValueError("MSA is empty")
-
-        pos = 0
-        last_index = -1
-        seq_length = self.get_length()
-        block_pos = self._get_block_position()[1:]  # remove first
-
-        format_lines = []  # type: list[list[dict[str, str | int]]]
-        format_line = []  # type: list[dict[str, str | int]]
-        while pos < seq_length:
-            index = False  # if this base need index
-
-            # init a line
-            if not format_line:
-                format_line.append({'type': 'char', 'word': " "})
-                format_line.append({'type': 'allele_name', 'length': 18})
-                format_line.append({'type': 'char', 'word': " "})
-                line_length = 20
-                last_index_pos = 0
-                num_base_in_line = 0
-                index = True
-
-            # block indicator
-            if pos == block_pos[0]:
-                block_pos.pop(0)
-                format_line.append({'type': 'char', 'word': "|"})
-                index = True
-
-            # not consecutive position: show the index
-            if self.index[pos].pos != last_index + 1:
-                format_line.append({'type': 'char', 'word': " "})
-                line_length += 1
-                index = True
-            last_index = self.index[pos].pos
-
-            # force to show
-            if show_position_set is not None:
-                index = self.index[pos].pos in show_position_set
-
-            # space to avoid index overlapping
-            # pos is 0-base
-            while (index
-                   and last_index_pos + len(str(self.index[pos].pos + 1)) > line_length):
-                format_line.append({'type': 'char', 'word': " "})
-                line_length += 1
-
-            # base
-            format_line.append({'type': 'base', 'pos': pos, 'index': index})
-            pos += 1
-            line_length += 1
-            num_base_in_line += 1
-            if index:
-                last_index_pos = line_length
-
-            # break the line
-            if (num_base_in_line >= wrap
-                    or (line_length > 120 and num_base_in_line % 10 == 0)):
-                format_lines.append(format_line)
-                format_line = []
-                continue
-
-            # split 10 bases in a line
-            if num_base_in_line % 10 == 0:
-                format_line.append({'type': 'char', 'word': " "})
-                line_length += 1
-
-        if format_line:
-            format_lines.append(format_line)
-
-        return self._apply_print_format(format_lines)
+        return msa_to_string(new_msa, show_position_set=show_position_set)
 
     def format_alignment_from_center(self, pos: int | Iterable[int],
                                      left=5, right=5) -> str:
@@ -1031,311 +1008,4 @@ class Genemsa:
             else:
                 msa += self[b_left - 5: b_right + 5]
         assert msa
-        return msa.format_alignment_diff(show_position_set=show_position_set)
-
-    @classmethod
-    def _cigar_to_pysam(cls, cigar: List[Tuple[str, int]]) -> List[Tuple[int, int]]:
-        """
-        Translate cigar to cigar tuple defined in
-        https://www.youtube.com/watch?v=OLltMgNgpS8
-        """
-        op_type_map = {
-            "M": 0,
-            "I": 1,
-            "D": 2,
-            "X": 8,
-        }
-        return list(map(lambda i: (op_type_map.get(i[0], 0), i[1]), cigar))
-
-    @classmethod
-    def _get_cigar(cls, ref: str, seq: str) -> List[Tuple[str, int]]:
-        """ Compare two sequences and output cigar """
-        if len(ref) != len(seq):
-            raise ValueError("Two sequences doesn't have same length")
-
-        # Compare two sequence
-        ref = ref.replace("E", "-")
-        seq = seq.replace("E", "-")
-        ops = []
-        for i in range(len(ref)):
-            if ref[i] == "-" and seq[i] == "-":
-                continue
-            if ref[i] == seq[i]:
-                ops.append("M")
-            elif ref[i] == "-":
-                ops.append("I")
-            elif seq[i] == "-":
-                ops.append("D")
-            else:
-                ops.append("X")
-
-        # aggregate op
-        # ops: MMMIIDDD
-        # -> cigar: M3I2D3
-        op_type, count = "", 0
-        cigar = []
-        for op in ops:
-            if op != op_type:
-                if count:
-                    cigar.append((op_type, count))
-                count = 0
-            op_type = op
-            count += 1
-        if count:
-            cigar.append((op_type, count))
-
-        return cigar
-
-    # Save function
-    def to_fasta(self, gap=True) -> list[SeqRecord]:
-        """
-        Transfer MSA to list of SeqRecord
-
-        Args:
-            gap (bool): The sequence included gap or not
-        """
-        if gap:
-            return [SeqRecord(Seq(seq.replace("E", "-")),
-                              id=allele, description="")
-                    for allele, seq in self.alleles.items()]
-        else:
-            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")),
-                              id=allele, description="")
-                    for allele, seq in self.alleles.items()]
-
-    def save_fasta(self, fname: str, gap=True):
-        """
-        Save the MSA into fasta
-
-        Args:
-            gap (bool): The sequence included gap or not
-        """
-        SeqIO.write(self.to_fasta(gap=gap), fname, "fasta")
-
-    def save_bam(self, fname: str, ref_allele="", save_ref=False):
-        """
-        Save the MSA into bam
-
-        All alleles will seen as reads aligned on `ref_allele`
-
-        Args:
-          fname (str): The name of bamfile
-          ref_allele (str): The reference allele.
-              If the ref_allele is empty, the first allele will be reference.
-          save_ref (bool): The reference allele will also be saved in the bam file
-        """
-        if not len(self.alleles):
-            raise ValueError("MSA is empty")
-        if not ref_allele:
-            ref_allele = self.get_reference()[0]
-        if ref_allele not in self.alleles:
-            raise ValueError(f"{ref_allele} not found")
-        if not fname:
-            raise ValueError("filename is required")
-
-        # setup reference and header
-        ref_seq = self.alleles[ref_allele]
-        header = {'HD': {'VN': "1.0"},
-                  'SQ': [{'LN': len(ref_seq.replace("-", "").replace("E", "")),
-                          'SN': ref_allele}]}
-
-        # write bam file
-        with pysam.AlignmentFile(fname, "wb", header=header) as outf:
-            for allele, seq in self.alleles.items():
-                # skip
-                if not save_ref and allele == ref_allele:
-                    continue
-
-                # init bam record
-                a = pysam.AlignedSegment()
-                a.query_name = allele
-                a.query_sequence = seq.replace("E", "").replace("-", "")
-                a.cigar = self._cigar_to_pysam(  # type: ignore
-                        self._get_cigar(ref_seq, seq))
-
-                # set to default
-                a.mapping_quality = 60
-                a.reference_id = 0
-                a.reference_start = 0
-                # a.template_length = 0
-                # a.query_qualities = [30] * len(a.query_sequence)
-                # a.flag = 0
-                # a.next_reference_id = 0
-                # a.next_reference_start = 0
-                outf.write(a)
-
-        pysam.sort("-o", fname, fname)  # type: ignore
-        pysam.index(fname)  # type: ignore
-
-    def assume_label(self, seq_type="gen") -> Genemsa:
-        """
-        It will automatically generate the block's label
-        according on `seq_type`. (Inplace)
-
-        seq_type:
-          * gen: 5UTR-exon1-intron1-exon2-...-exon9-3UTR
-          * nuc: exon1-exon2-...-exon9
-          * other: block1-block2-block3-...
-        """
-        if seq_type == "gen":
-            assert len(self.blocks) % 2 == 1 and len(self.blocks) >= 3
-            for i in range(len(self.blocks)):
-                if i % 2:
-                    self.blocks[i].type = "exon"
-                    self.blocks[i].name = f"exon{i // 2 + 1}"
-                else:
-                    self.blocks[i].type = "intron"
-                    self.blocks[i].name = f"intron{i // 2}"
-
-            self.blocks[0].type = "five_prime_UTR"
-            self.blocks[0].name = f"5UTR"
-            self.blocks[-1].type = "three_prime_UTR"
-            self.blocks[-1].name = f"3UTR"
-        elif seq_type == "nuc":
-            for i in range(len(self.blocks)):
-                self.blocks[i].type = "exon"
-                self.blocks[i].name = f"exon{i+1}"
-        else:
-            for i in range(len(self.blocks)):
-                self.blocks[i].type = "gene_fragment"
-                self.blocks[i].name = f"block{i+1}"
-
-        # inplace to reset the index
-        self.index = self.reset_index().index
-        return self
-
-    def save_gff(self, fname: str, strand="+", ref_allele="", igv_show_label=False):
-        """
-        Save to GFF3 format
-
-        Args:
-          fname (str): The file name of gff3
-          strand (str): Must be "+" or "-".
-
-              If the strand is "-", it will add `strand` in GFF file,
-              if you want to reverse the sequence, please use `reverse_complement` first.
-
-          ref_allele (str): The name of allele (Must be the same in save_bam)
-          igv_show_label (bool): If it's false, it will generate proper GFF3.
-              Set it for True as default for easiler label reading in IGV.
-
-        """
-        # TODO: should I save strand == '-' in model?
-        if not len(self.blocks):
-            raise ValueError("MSA is empty")
-        if not ref_allele:
-            ref_allele = self.get_reference()[0]
-        if ref_allele not in self.alleles:
-            raise ValueError(f"{ref_allele} not found")
-
-        # labels
-        if not all(b.type for b in self.blocks):
-            self.logger.warning(
-                "You should assign block's label. (We assume seq_type='other')")
-            self.assume_label("other")
-
-        # Gene
-        gene_name = self.gene_name or ref_allele
-        records = [[
-            self.gene_name or ref_allele, "pyHLAMSA", "gene",
-            str(1), str(self.get_length()), ".", strand, ".",
-            f"ID={gene_name};Name={gene_name}"
-        ]]
-
-        # Blocks
-        pos = 0
-        for b in self.blocks:
-            # http://gmod.org/wiki/GFF3
-            # gff3 format:
-            #   1. header: ref source type start end . strand . tags
-            #   2. pos: 1-base included position
-            #   3. type: In HLA annotations exon=CDS
-            records.append(
-                [ref_allele, "pyHLAMSA",
-                 b.type if b.type != "exon" else "CDS",
-                 str(pos + 1), str(pos + b.length), ".", strand, ".",
-                 f"ID={b.name}_{ref_allele}"]
-            )
-            # To show the label of all block in IGV
-            # I break the relation (Remove parent attribute)
-            if not igv_show_label:
-                records[-1][-1] += f";Parent={gene_name}"
-            pos += b.length
-
-        # save
-        with open(fname, "w") as f:
-            f.write("##gff-version 3\n")
-            f.write("\n".join(["\t".join(record) for record in records]))
-        return None
-
-    # type transform
-    def meta_to_json(self) -> Dict:
-        """ Extract all meta information about this msa into json """
-        meta = {
-            'index': [dataclasses.asdict(i) for i in self.index],
-            'blocks': [dataclasses.asdict(b) for b in self.blocks],
-            'name': self.gene_name,
-            'reference': self.reference,
-        }
-        return meta
-
-    @classmethod
-    def meta_from_json(cls, data: Dict[str, Any] = None) -> Genemsa:
-        """ Import meta information from json """
-        if data:
-            return Genemsa(data['name'],
-                           blocks=[BlockInfo(**b) for b in data['blocks']],
-                           index=[IndexInfo(**i) for i in data['index']],
-                           reference=data.get("reference"))
-        else:
-            return Genemsa("Unamed")
-
-    def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
-        """ Transfer this object to MultipleSeqAlignment(biopython) """
-        return MultipleSeqAlignment(self.to_fasta(gap=True),
-                                    annotations=self.meta_to_json())
-
-    @classmethod
-    def from_MultipleSeqAlignment(cls, bio_msa: MultipleSeqAlignment) -> Genemsa:
-        """
-        Transfer MultipleSeqAlignment instance(biopython) to Genemsa
-
-        See more details in [biopython](
-        https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
-        """
-        new_msa = cls.meta_from_json(bio_msa.annotations)
-        if not new_msa.blocks:
-            new_msa.blocks = [BlockInfo(length=bio_msa.get_alignment_length())]
-        if not new_msa.index:
-            new_msa = new_msa.reset_index()
-
-        for seq in bio_msa:
-            new_msa.alleles[seq.id] = str(seq.seq)
-        assert new_msa.get_length() == bio_msa.get_alignment_length()
-        return new_msa
-
-    # out model save and load
-    @classmethod
-    def load_msa(cls, file_fasta: str, file_json: str) -> Genemsa:
-        """
-        load this object to fasta and gff
-
-        Example:
-          >>> from pyHLAMSA import Genemsa
-          >>> a_gen.save_msa("a_gen.fa", "a_gen.json")
-          >>> a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
-        """
-        # read
-        msa = AlignIO.read(file_fasta, "fasta")
-        with open(file_json) as f:
-            msa.annotations = json.load(f)
-        # main
-        new_msa = cls.from_MultipleSeqAlignment(msa)
-        assert len(new_msa.get_reference()[1]) == new_msa.get_length()
-        return new_msa
-
-    def save_msa(self, file_fasta: str, file_json: str):
-        """ Save this object to fasta and gff """
-        self.save_fasta(file_fasta, gap=True)
-        with open(file_json, "w") as f:
-            json.dump(self.meta_to_json(), f)
+        return output_str + msa.format_alignment_diff(show_position_set=show_position_set)

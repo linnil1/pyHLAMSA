@@ -13,7 +13,7 @@ plugins:
           show_signature_annotations: True
           show_if_no_docstring: True
     watch:
-      - pyHLAMSA
+      - pyhlamsa
 markdown_extensions:
   - pymdownx.highlight
   - pymdownx.inlinehilite

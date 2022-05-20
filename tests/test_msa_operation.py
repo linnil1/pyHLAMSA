@@ -1,5 +1,6 @@
 import unittest
-from pyHLAMSA import Genemsa, BlockInfo
+from pyhlamsa import Genemsa, BlockInfo, msaio
+from pyhlamsa.utils import cigar
 from tempfile import NamedTemporaryFile, mkstemp
 from Bio import SeqIO, AlignIO
 
@@ -74,7 +75,7 @@ class TestMsaMainFunction(unittest.TestCase):
         seq = self.msa.get_consensus(include_gap=False)
         self.assertTrue(len(seq), self.msa.get_length())
         for i, bases in enumerate(zip(*alleles.values())):
-            if not all(b == '-' for b in bases):
+            if not all(b == "-" for b in bases):
                 self.assertTrue(bases.count(seq[i]) >= 0.5)
             else:
                 self.assertTrue(seq[i] == "A")  # all gap => A, very special case
@@ -92,7 +93,7 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # save fasta with gap
         n = 0
-        self.msa.save_fasta(fname, gap=True)
+        msaio.to_fasta(self.msa, fname, gap=True)
         for seq in SeqIO.parse(fname, "fasta"):
             n += 1
             self.assertTrue(seq.id in self.input_allele)
@@ -110,7 +111,7 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # no gap
         n = 0
-        self.msa.save_fasta(fname, gap=False)
+        msaio.to_fasta(self.msa, fname, gap=False)
         for seq in SeqIO.parse(fname, "fasta"):
             n += 1
             self.assertTrue(seq.id in self.input_allele)
@@ -120,8 +121,8 @@ class TestMsaMainFunction(unittest.TestCase):
     def test_load_save_msa(self):
         fname1 = mkstemp()[1]
         fname2 = mkstemp()[1]
-        self.msa.save_msa(fname1, fname2)
-        newmsa = Genemsa.load_msa(fname1, fname2)
+        msaio.save_msa(self.msa, fname1, fname2)
+        newmsa = msaio.load_msa(fname1, fname2)
 
         # check for same msa
         self.assertEqual(len(newmsa), len(self.input_allele))
@@ -292,16 +293,16 @@ class TestMsaMainFunction(unittest.TestCase):
 
     def test_cigar(self):
         # I didn't not test save_bam
-        self.assertEqual(self.msa._get_cigar("AAA", "C--"), [('X', 1), ('D', 2)])
-        self.assertEqual(self.msa._get_cigar("AAA", "--C"), [('D', 2), ('X', 1)])
-        self.assertEqual(self.msa._get_cigar("AAA", "A-C"), [('M', 1), ('D', 1), ('X', 1)])
-        self.assertEqual(self.msa._get_cigar("A-A", "ACC"), [('M', 1), ('I', 1), ('X', 1)])
+        self.assertEqual(cigar.calculate_cigar("AAA", "C--"), [("X", 1), ("D", 2)])
+        self.assertEqual(cigar.calculate_cigar("AAA", "--C"), [("D", 2), ("X", 1)])
+        self.assertEqual(cigar.calculate_cigar("AAA", "A-C"), [("M", 1), ("D", 1), ("X", 1)])
+        self.assertEqual(cigar.calculate_cigar("A-A", "ACC"), [("M", 1), ("I", 1), ("X", 1)])
 
         # a1 to a0
         # 'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
         # 'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
         self.assertEqual(self.msa.get_cigar("a1"),
-                [('M', 3), ('X', 1), ('M', 1), ('I', 1), ('M', 3), ('X', 1), ('M', 12)])
+                [("M", 3), ("X", 1), ("M", 1), ("I", 1), ("M", 3), ("X", 1), ("M", 12)])
 
     def test_gff(self):
         # because all sequences has same exon intron position

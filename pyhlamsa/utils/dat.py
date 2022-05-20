@@ -1,96 +1,16 @@
+"""
+Utility to reading .dat file and merge dat info into Genemsa
+"""
 import re
 import copy
 import logging
 from collections import defaultdict
-from typing import List, Tuple, Dict, Any
-from Bio import AlignIO, SeqIO
-from Bio.Align import MultipleSeqAlignment
-from . import Genemsa, BlockInfo
+from typing import Dict, List, Tuple, Any
+
+from pyhlamsa import Genemsa, BlockInfo
+
 
 logger = logging.getLogger(__name__)
-
-
-def from_MSF_file(file_msf: str) -> Genemsa:
-    """ Read .msf file """
-    return Genemsa.from_MultipleSeqAlignment(AlignIO.read(file_msf, "msf"))
-
-
-def from_alignment_file(fname: str, seq_type="") -> Genemsa:
-    """ Read MSA format file `fname` .e.g. IMGT/alignments/A_gen.txt """
-    # read all alleles
-    alleles = read_alignment_sequence(fname)
-    new_msa = Genemsa("Unnamed")
-    new_msa.alleles = {name: seq.replace("|", "") for name, seq in alleles.items()}
-
-    # use first sequence as reference
-    ref_seq = list(alleles.values())[0]
-    new_msa.blocks = [BlockInfo(length=len(seq)) for seq in ref_seq.split("|")]
-    new_msa.assume_label(seq_type)
-
-    # check
-    leng = new_msa.get_length()
-    for name in new_msa.get_sequence_names():
-        assert len(new_msa.get(name)) == leng
-    return new_msa
-
-
-def read_alignment_sequence(fname: str) -> Dict[str, str]:
-    """
-    Read MSA format file `fname`
-
-    Returns:
-        alleles (dict of str,str): The dictionary that map allele name to sequence
-    """
-    # parse aligments
-    alleles = {}
-    ref_allele = ""
-    for line in open(fname):
-        line = line.strip()
-        if not re.match(r"^\w+\*", line):
-            continue
-
-        match = re.findall(r"^(.*?) +(.*)", line)
-        # assert match
-        # emtpy seq (B_nuc.txt)
-        if not match:
-            continue
-        allele, seq = match[0]
-
-        if allele not in alleles:
-            if not ref_allele:
-                ref_allele = allele
-            alleles[allele] = ""
-
-        alleles[allele] += seq
-
-    # check sequences and replace
-    rm_allele = []
-    for allele in alleles:
-        alleles[allele] = alleles[allele].replace(" ", "").replace("*", ".")
-        if allele == ref_allele:
-            alleles[allele] = alleles[allele].replace(".", "-")
-            continue
-        ref_seq = alleles[ref_allele]
-        if len(alleles[allele]) != len(ref_seq):
-            rm_allele.append(allele)
-            continue
-        # assert len(alleles[allele]) == len(ref_seq)
-
-        seq = list(alleles[allele])
-        for i in range(len(seq)):
-            if seq[i] == "-":
-                seq[i] = ref_seq[i]
-
-            if seq[i] == "|":
-                assert seq[i] == ref_seq[i]
-            else:
-                assert seq[i] in "ATCG."
-        alleles[allele] = "".join(seq).replace(".", "-")
-
-    for allele in rm_allele:
-        logger.warning(f"{allele} violate msa length in {fname}. Removed")
-        del alleles[allele]
-    return alleles
 
 
 def read_dat_block(file_dat: str) -> Dict:
@@ -109,34 +29,35 @@ def read_dat_block(file_dat: str) -> Dict:
     read_next = False
     data = {}  # type: Dict[str, List[Dict[str, Any]]]
 
-    for line in open(file_dat):
-        # read allele name
-        if "/allele=" in line:
-            now_allele = line.split('"')[1]
-            now_allele = now_allele.replace("HLA-", "")
-            # no duplicated allele_name
-            assert now_allele not in data
-            data[now_allele] = []
-        elif not line.startswith("FT"):
-            continue
+    with open(file_dat) as f_dat:
+        for line in f_dat:
+            # read allele name
+            if "/allele=" in line:
+                now_allele = line.split('"')[1]
+                now_allele = now_allele.replace("HLA-", "")
+                # no duplicated allele_name
+                assert now_allele not in data
+                data[now_allele] = []
+            elif not line.startswith("FT"):
+                continue
 
-        # read blocks
-        elif re.match(r"FT\s+((UTR)|(exon)|(intron))", line):
-            fields = line.split()
-            start, end = list(map(lambda a: int(a), fields[2].split("..")))
-            data[now_allele].append({
-                'name': fields[1],
-                'start': start,
-                'end': end,
-            })
+            # read blocks
+            elif re.match(r"FT\s+((UTR)|(exon)|(intron))", line):
+                fields = line.split()
+                start, end = list(map(int, fields[2].split("..")))
+                data[now_allele].append({
+                    'name': fields[1],
+                    'start': start,
+                    'end': end,
+                })
 
-        # read block name .e.g. exon1 exon2
-        elif "/number=" in line:
-            data[now_allele][-1]['name'] += line.split('"')[1]
-        elif "/pseudo" in line:
-            data[now_allele][-1]['pseudo'] = True
-        else:
-            continue
+            # read block name .e.g. exon1 exon2
+            elif "/number=" in line:
+                data[now_allele][-1]['name'] += line.split('"')[1]
+            elif "/pseudo" in line:
+                data[now_allele][-1]['pseudo'] = True
+            else:
+                continue
 
     # make sure the order start and end position in dat are correct
     for allele in data:
@@ -227,8 +148,9 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
         # Calculate the intron/exon position after insert this allele
         # If the intron/exon overlap -> ignore this allele, restore the position
         old_cord = copy.deepcopy(block_cord)
-        for d in dat[allele_name]:
-            block_name, start, end = d['name'], d['start'], d['end']
+        for block_info in dat[allele_name]:
+            block_name, start, end = \
+                    block_info['name'], block_info['start'], block_info['end']
             # calculate the position
             block_cord[block_name][0] = min(block_cord[block_name][0],
                                             seq_cord[start - 1])
