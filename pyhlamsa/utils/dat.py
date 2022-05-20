@@ -7,7 +7,7 @@ import logging
 from collections import defaultdict
 from typing import Dict, List, Tuple, Any
 
-from pyhlamsa import Genemsa, BlockInfo
+from ..gene import Genemsa, BlockInfo
 
 
 logger = logging.getLogger(__name__)

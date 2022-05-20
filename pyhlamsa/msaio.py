@@ -249,15 +249,14 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=
     return None
 
 
-# load/save Genemsa
 def load_msa(file_fasta: str, file_json: str) -> Genemsa:
     """
     load Genemsa from fasta and json
 
     Example:
-      >>> from pyHLAMSA import Genemsa
-      >>> a_gen.save_msa("a_gen.fa", "a_gen.json")
-      >>> a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
+      >>> from pyhlamsa import msaio
+      >>> msaio.save_msa(a_gen, "a_gen.fa", "a_gen.json")
+      >>> a_gen = msaio.load_msa("a_gen.fa", "a_gen.json")
     """
     # read
     msa = AlignIO.read(file_fasta, "fasta")

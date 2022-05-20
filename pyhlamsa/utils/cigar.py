@@ -22,14 +22,14 @@ def calculate_cigar(ref: str, seq: str) -> List[Tuple[str, int]]:
     ref = ref.replace("E", "-")
     seq = seq.replace("E", "-")
     ops = []
-    for i in range(len(ref)):
-        if ref[i] == "-" and seq[i] == "-":
+    for a, b in zip(ref, seq):
+        if a == "-" and b == "-":
             continue
-        if ref[i] == seq[i]:
+        if a == b:
             ops.append("M")
-        elif ref[i] == "-":
+        elif a == "-":
             ops.append("I")
-        elif seq[i] == "-":
+        elif b == "-":
             ops.append("D")
         else:
             ops.append("X")
