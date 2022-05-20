@@ -5,7 +5,7 @@ All string formatting code are written in this file
 """
 import dataclasses
 from collections.abc import Iterator
-from typing import List, Iterable, TypeVar
+from typing import List, Iterable, TypeVar, Union
 
 from .base import IndexInfo
 from .column_operation import GenemsaColumnOp
@@ -67,14 +67,14 @@ def _apply_column_format_oneline(self: GenemsaType, columns_format: List[_Column
 
 def _generate_column_format(index: List[IndexInfo],
                             show_position_set=None,
-                            wrap=100) -> Iterator[List[_Column]]:
+                            wrap=100) -> Iterator:
     """ Determine the column by the index information (and block) """
     # init
     pos = 0  # current sequence position
     last_pos = -1  # last position
     last_block_name = ""  # block name of last position
     seq_length = len(index)
-    column_format = []  # type: list[_Column]
+    column_format = []  # type: List[_Column]
     while pos < seq_length:
         show_index = False  # if this base need index
 
@@ -232,7 +232,7 @@ class GenemsaTextOp(GenemsaColumnOp):
         new_msa.alleles[ref_allele] = new_msa.alleles[ref_allele].replace("-", ".")
         return msa_to_string(new_msa, show_position_set=show_position_set)
 
-    def format_alignment_from_center(self, pos: int | Iterable[int],
+    def format_alignment_from_center(self, pos: Union[int, Iterable[int]],
                                      left=5, right=5) -> str:
         """
         Print all alleles sequences from the center of specific position
@@ -314,7 +314,7 @@ class GenemsaTextOp(GenemsaColumnOp):
             return output_str
 
         # merge if two variant are too close
-        merged_bases = []  # type: list[list[int]]
+        merged_bases = []  # type: List[List[int]]
         right = 5
         for b in bases:
             if merged_bases and merged_bases[-1][1] + right * 2 >= b:

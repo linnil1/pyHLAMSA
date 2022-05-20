@@ -2,7 +2,7 @@
 Define the basic class of Genemsa,
 including GenemsaBase, BlockInfo, IndexInfo
 """
-from typing import Tuple, List, TypeVar, Optional
+from typing import Tuple, List, Dict, TypeVar, Optional
 import copy
 import logging
 import dataclasses
@@ -65,7 +65,7 @@ class GenemsaBase:
                  index: Optional[List[IndexInfo]] = None,
                  reference=None):
         self.gene_name = gene_name
-        self.alleles = {}  # type: dict[str, str]
+        self.alleles = {}  # type: Dict[str, str]
         self.blocks = copy.deepcopy(blocks or [])  # intron exon length
         self.index = copy.deepcopy(index or [])
         self.logger = logging.getLogger(__name__)

@@ -1,6 +1,6 @@
 import re
 import copy
-from typing import List, TypeVar, Iterable, Tuple
+from typing import List, TypeVar, Iterable, Tuple, Union
 from Bio.Seq import Seq
 
 from ..utils import cigar
@@ -38,7 +38,7 @@ class GenemsaAlleleOp(GenemsaBlockOp):
         self.alleles[name] = seq
         return self
 
-    def remove(self: GenemsaType, name: str | Iterable[str]) -> GenemsaType:
+    def remove(self: GenemsaType, name: Union[str, Iterable[str]]) -> GenemsaType:
         """
         Remove a/some sequence from MSA (inplace)
         """
@@ -51,7 +51,7 @@ class GenemsaAlleleOp(GenemsaBlockOp):
         # else
         raise NotImplementedError
 
-    def select_allele(self: GenemsaType, query: str | List[str]) -> GenemsaType:
+    def select_allele(self: GenemsaType, query: Union[str, List[str]]) -> GenemsaType:
         """
         Select allele name by regex or list of name
 

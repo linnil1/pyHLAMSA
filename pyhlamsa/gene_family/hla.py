@@ -127,4 +127,4 @@ class HLAmsa(Familymsa):
             return msa_gen
         elif "nuc" in filetype:
             return msa_nuc
-        return None
+        raise ValueError("gen or nuc are not exist in filetype")

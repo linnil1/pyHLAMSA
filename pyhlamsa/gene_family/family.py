@@ -47,7 +47,7 @@ class Familymsa(ABC):
             self.logger.info(f"Reading {gene_name}'s sequences")
             self.genes[gene_name] = self._read_db_gene(gene_name, filetype)
 
-    def list_genes(self) -> list[str]:
+    def list_genes(self) -> List[str]:
         """ List all the gene's name in this family """
         return list(self.genes.keys())
 

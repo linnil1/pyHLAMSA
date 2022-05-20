@@ -1,4 +1,4 @@
-from typing import Dict, Any, TypeVar, Type
+from typing import Dict, Any, TypeVar, Type, List
 import dataclasses
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -42,7 +42,7 @@ class GenemsaConverter(GenemsaColumnOp):
                            reference=data.get("reference"))
         return Genemsa("Unamed")
 
-    def to_records(self: GenemsaType, gap=True) -> list[SeqRecord]:
+    def to_records(self: GenemsaType, gap=True) -> List[SeqRecord]:
         """
         Transfer MSA to list of SeqRecord
 

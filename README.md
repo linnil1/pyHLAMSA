@@ -321,6 +321,8 @@ msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_f
 * [x] Set reference
 * [x] Download latest version of IMGT or IPD
 * [x] Remove seqtype
+* [x] Split code
+* [ ] Add command line usage
 * [ ] CDS != exon, (rename it?)
 
 
