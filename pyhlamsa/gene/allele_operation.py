@@ -95,7 +95,7 @@ class GenemsaAlleleOp(GenemsaBlockOp):
         Return:
           cigar(List[op_str, num]): The list of operator and number of bases
         Exmaple:
-          cigar = [(M, 1), (X, 1), (D, 2), (M, 2)]
+          `cigar = [(M, 1), (X, 1), (D, 2), (M, 2)]`
         """
         if target_allele not in self.alleles:
             raise KeyError(f"{target_allele} not found")
@@ -108,7 +108,7 @@ class GenemsaAlleleOp(GenemsaBlockOp):
                                      self.alleles[target_allele])
 
     def extend(self: GenemsaType, msa: GenemsaType) -> GenemsaType:
-        """ Merge MSA into this instance (inplace) """
+        """ Add MSA's alleles into this MSA (inplace) """
         if self.get_block_length() != msa.get_block_length():
             raise ValueError("Length is different")
         leng = self.get_length()

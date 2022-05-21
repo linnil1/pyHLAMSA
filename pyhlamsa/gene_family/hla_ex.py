@@ -14,14 +14,15 @@ class HLAmsaEX(Familymsa):
     I think this one is more reliable
 
     Attributes:
-        genes (dict): The dictionary use gene_name as key and msa object as value
+      genes (dict[str, Genemsa]):
+        The dictionary use gene_name as key and msa object as value
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
                  imgt_folder=None, version="3470"):
         """
         Args:
-            genes (str or list of str): A list of genes you want to read.
+            genes (str | list[str]): A list of genes you want to read.
 
                 Leave Empty if you want read all gene in HLA
 

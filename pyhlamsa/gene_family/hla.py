@@ -10,7 +10,8 @@ class HLAmsa(Familymsa):
 
 
     Attributes:
-        genes (dict): The dictionary use gene_name as key and msa object as value
+      genes (dict[str, Genemsa]):
+        The dictionary use gene_name as key and msa object as value
     """
     def __init__(self, genes=[], filetype=["gen", "nuc"],
                  imgt_alignment_folder=None, version="3470"):

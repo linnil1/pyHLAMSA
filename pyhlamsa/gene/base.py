@@ -44,26 +44,27 @@ class IndexInfo:
 class GenemsaBase:
     """
     The basic definition of MSA
-
-    Attributes:
-        gene_name (str): The name of the gene
-
-        alleles (dict of str,str): MSA data.
-
-            Allele name as the key and the sequence string as the value.
-
-            The sequence has basic bases, "A", "T", "C", "G", "-" for gap,
-            "E" stands for error (Mostly because some sequence has exon part only,
-            so I fill the intron with E.
-
-        blocks (list of BlockInfo): list of block information
-        index (list of IndexInfo): list of index(position) information
-        reference (str): The reference allele of the msa (Optional)
     """
     def __init__(self, gene_name: str,
                  blocks: Optional[List[BlockInfo]] = None,
                  index: Optional[List[IndexInfo]] = None,
                  reference=None):
+        """
+        Attributes:
+            gene_name (str): The name of the gene
+
+            alleles (dict of str,str): MSA data.
+
+                Allele name as the key and the sequence string as the value.
+
+                The sequence has basic bases, "A", "T", "C", "G", "-" for gap,
+                "E" stands for error (Mostly because some sequence has exon part only,
+                so I fill the intron with E.
+
+            blocks (list of BlockInfo): list of block information
+            index (list of IndexInfo): list of index(position) information
+            reference (str): The reference allele of the msa (Optional)
+        """
         self.gene_name = gene_name
         self.alleles = {}  # type: Dict[str, str]
         self.blocks = copy.deepcopy(blocks or [])  # intron exon length
@@ -126,7 +127,7 @@ class GenemsaBase:
             new_msa.alleles = dict(self.alleles.items())
         return new_msa
 
-    def set_reference(self, allele):
+    def set_reference(self: GenemsaType, allele: str) -> GenemsaType:
         """ Set the reference in msa (Inplace) """
         if allele not in self.alleles:
             raise IndexError(f"Cannot find {allele} in msa")

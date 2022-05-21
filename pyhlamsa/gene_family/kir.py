@@ -11,7 +11,7 @@ class KIRmsa(Familymsa):
     A KIR interface that read MSA from MSF and KIR.dat
 
     Attributes:
-        genes (dict of str, Genemsa): The msa object for each gene
+        genes (dict[str, Genemsa]): The msa object for each gene
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],

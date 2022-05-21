@@ -1,14 +1,13 @@
 import os
 import logging
 import subprocess
-from abc import ABC
 from typing import Any, List
 
 from ..gene import Genemsa, BlockInfo
 from .. import msaio
 
 
-class Familymsa(ABC):
+class Familymsa:
     """
     A abstract class to handle Gene Family
 
@@ -19,7 +18,8 @@ class Familymsa(ABC):
     * Read db to Genemsa
 
     Attributes:
-      genes (dict): The dictionary use gene_name as key and msa object as value
+      genes (dict[str, Genemsa]):
+        The dictionary use gene_name as key and msa object as value
     """
 
     def __init__(self, genes=[], filetype=["gen", "nuc"],
@@ -54,6 +54,14 @@ class Familymsa(ABC):
     def __getitem__(self, index: str) -> Genemsa:
         """ Get specific gene's msa """
         return self.genes[index]
+
+    def __iter__(self):
+        """ Iter gene name like iter(dict) """
+        return iter(self.genes)
+
+    def items(self):
+        """ list gene name and msa like dict.items() """
+        return self.genes.items()
 
     def _download(self, version: str):
         """ Check before running download """

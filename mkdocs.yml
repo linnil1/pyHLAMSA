@@ -1,16 +1,26 @@
 site_name: pyHLAMSA
 repo_url: https://github.com/linnil1/pyHLAMSA
-theme: material
+theme:
+  name: material
+  features:
+    - toc.integrate
+
+extra_css:
+- css/mkdocstrings.css
+
 plugins:
 - search
 - mkdocstrings:
     handlers:
       python:
         selection:
-          # filters: [".*"]
           docstring_style: google
+          inherited_members: True
         rendering:
+          show_source: True
+          merge_init_into_class: True
           show_signature_annotations: True
+          separate_signature: True
           show_if_no_docstring: True
     watch:
       - pyhlamsa

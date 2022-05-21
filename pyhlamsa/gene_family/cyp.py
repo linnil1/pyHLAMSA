@@ -11,14 +11,14 @@ class CYPmsa(Familymsa):
     A CYP interface that read MSA from fasta and haplotypes.tsv
 
     Attributes:
-        genes (dict of str, Genemsa): The msa object for each gene
+        genes (dict[str, Genemsa]): The msa object for each gene
     """
 
     def __init__(self, genes=[], filetype=[],
                  pharmvar_folder=None, version="5.1.10"):
         """
         Args:
-            genes (str or list of str): A list of genes you want to read.
+            genes (str | list[str]): A list of genes you want to read.
 
                 Leave Empty if you want read all gene in HLA
 

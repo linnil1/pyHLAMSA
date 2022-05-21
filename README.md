@@ -52,10 +52,12 @@ This main features give us a chance to use genomic MSA and nucleotide MSA at the
 The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` after merged.
 
 ``` python
+# merge gen and nuc sequences when loading
 >>> hla = HLAmsa(["A"], filetype=["gen", "nuc"],
                  imgt_alignment_folder="alignment_v3470")
 >>> print(hla["A"])
 <A gen alleles=7349 block=5UTR(301) exon1(80) intron1(130) exon2(351) intron2(273) exon3(436) intron3(666) exon4(361) intron4(119) exon5(117) intron5(444) exon6(33) intron6(143) exon7(48) intron7(170) exon8(5) 3UTR(302)>
+
 
 # or manually
 >>> a_gen = HLAmsa("A", filetype="gen", 
@@ -112,6 +114,7 @@ The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` aft
  A*01:01:01:09      ACCGAGCGAA CCTGGGGACC CTGCGCGGCT ACTACAACCA GAGCGAGGAC G| GTTCTCACA CC-ATCCAGA TAATGTATGG CTGCGACG-- ----------
  A*01:01:01:10      ACCGAGCGAA CCTGGGGACC CTGCGCGGCT ACTACAACCA GAGCGAGGAC G| GTTCTCACA CC-ATCCAGA TAATGTATGG CTGCGACG-- ----------
 
+
 # using regex to select
 # "|" indicate the border of block, in this case, it's the border of exon2 and exon3
 >>> exon23_1field = exon23.select_allele(r"A\*.*:01:01:01$")
@@ -136,6 +139,7 @@ The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` aft
  A*69:01:01:01      ------T-G- ---------- ---------- ---------- --------C- -| --------- --.G------ GG-------- --------.. ..........
  A*74:01:01:01      ------T-G- ---------- ---------- ---------- --------C- -| --------- --.------- -G-------- --------.. ..........
  A*80:01:01:01      ---------- ---------- ---------- ---------- ---------- -| --------- --.------- ---------- --------.. ..........
+
 
 # show only variantiation
 >>> print(exon23_1field.format_variantion_base())
@@ -169,9 +173,11 @@ Total variantion: 71
 >>> print(exon23.calculate_frequency()[:10])
 [[2, 3, 0, 4095, 0], [2, 1, 4097, 0, 0], [0, 4098, 2, 0, 0], [0, 3, 4095, 2, 0], [0, 911, 3188, 0, 1], [0, 1, 4097, 1, 1], [0, 0, 1, 0, 4099], [4097, 0, 0, 2, 1], [4, 3, 4090, 3, 0], [1, 4097, 1, 1, 0]]
 
+
 # Get consensus(The largest one in frequency) among the msa
 >>> exon23.get_consensus(include_gap=True)
 'GCTCCC-ACTCCATGAGGTATTTCTTCACATCCGTGTCCCGGCCCGGCCGCGGGGA----GCCCCGCTTCATCGCCGTGGGC-----------------------TACGTGGACG-ACACG-CAGTTCGTGCGGTTCGACAGCGACGCCGCGAGCCAGAGGATGGAGCCG--------------------CGGGCGCCGTGGATA-GAGCAGGAGGGGCCGGAGTATTGGGACCAGGAGACACGGA-------------A-TGTGAAGGCCCACTCACAGACTGACCGAGTGGACCTGGGGACCCTGCGCGGCTACTACAACCAGAGCGAGGCCGGTTCTCACACC-ATCCAGATGATGTATGGCTGCGACG--------------TGGGG-TCGGACGGGCGCTTCCTCCGCGGGTACCAGCA---GGACGCCTACGACGGCAAGGATTAC---ATCGCCCTGAAC------------------------GAGGACCTGCGCTCTTGGACCGCGGCGGAC--------ATGGCGGCTCAGATCACCAAGCGC-AAGT----GGGAGG--CGGCCC-ATGT------------------------------------------GGCGG-AGCAGTTGAGAGCCTACCTGGAGGGCACG--------TGCGTG----GAGTGGCTCCG--CAGATA-CCTGGAGAACGGGAAGGAGACGCTGCAGC-----------------GCACGG'
+
 
 # Add sequence into MSA
 # include_gap=False in get_consensus will ignore the frequency of gap. i.e. choose one of ATCG
@@ -179,6 +185,7 @@ Total variantion: 71
 >>> consensus_seq = a_merged.get_consensus(include_gap=False)
 >>> a_merged.append("A*consensus", consensus_seq)
 >>> a_merged.fill_imcomplete("A*consensus")
+
 
 # Shrink: remove gap if all bases in the column are gap
 >>> print(exon23_10.shrink().format_alignment_diff())
@@ -194,6 +201,7 @@ Total variantion: 71
  A*01:01:01:08      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
  A*01:01:01:09      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
  A*01:01:01:10      ---------- ---------- ---------- ---------- ---------- ---------- ----------| ---------- ---------- ----------
+
 
 # select specific column 
 >>> a_gen[12:100]
@@ -215,6 +223,7 @@ Total variantion: 71
  A*01:01:01:11      GG
  A*01:01:01:12      GG
 
+
 # concat
 >>> print(a_gen.select_exon([2]) + a_gen.select_exon([3]))
 <A nuc alleles=4100 block=exon2(335) exon3(413)>
@@ -229,68 +238,69 @@ You can fill it by consensus_seq shown before.
 
 
 * IMGT alignment format
-
-``` python
-print(a_gen.format_alignment_diff(), file=open("filename.txt", "w"))
-```
+    ``` python
+    print(a_gen.format_alignment_diff(), file=open("filename.txt", "w"))
+    ```
 
 * MultipleSeqAlignment
 
-Transfer to [MultipleSeqAlignment](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
+    Transfer to [MultipleSeqAlignment](https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
 
-``` python
->>> print(a_gen.to_MultipleSeqAlignment())
-Alignment with 4100 rows and 3866 columns
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:01
---------------------------------------------...--- A*01:01:01:02N
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:03
---------------------------------------------...--- A*01:01:01:04
---------------------------------------------...AAA A*01:01:01:05
---------------------------------------------...--- A*01:01:01:06
---------------------------------------------...AAA A*01:01:01:07
---------------------------------------------...--- A*01:01:01:08
---------------------------------------------...AAA A*01:01:01:09
---------------------------------------------...--- A*01:01:01:10
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:11
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:12
---------------------------------------------...AAA A*01:01:01:13
---------------------------------------------...AAA A*01:01:01:14
---------------------------------------------...--- A*01:01:01:15
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:16
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:17
-CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:18
-...
---------------------------------------------...--- A*80:07
-```
+    ``` python
+    >>> print(a_gen.to_MultipleSeqAlignment())
+    Alignment with 4100 rows and 3866 columns
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:01
+    --------------------------------------------...--- A*01:01:01:02N
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:03
+    --------------------------------------------...--- A*01:01:01:04
+    --------------------------------------------...AAA A*01:01:01:05
+    --------------------------------------------...--- A*01:01:01:06
+    --------------------------------------------...AAA A*01:01:01:07
+    --------------------------------------------...--- A*01:01:01:08
+    --------------------------------------------...AAA A*01:01:01:09
+    --------------------------------------------...--- A*01:01:01:10
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:11
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:12
+    --------------------------------------------...AAA A*01:01:01:13
+    --------------------------------------------...AAA A*01:01:01:14
+    --------------------------------------------...--- A*01:01:01:15
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:16
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...--- A*01:01:01:17
+    CAGGAGCAGAGGGGTCAGGGCGAAGTCCCAGGGCCCCAGGCGTG...AAA A*01:01:01:18
+    ...
+    --------------------------------------------...--- A*80:07
+    ```
 
 * list of SeqRecord
-``` python
-# Save as MSA
-SeqIO.write(a_gen.to_fasta(gap=True), "filename.msa.fa", "fasta")
-# Save as no-gapped sequences
-SeqIO.write(a_gen.to_fasta(gap=False), "filename.fa", "fasta")
-```
+    ``` python
+    # Save as MSA
+    SeqIO.write(a_gen.to_fasta(gap=True), "filename.msa.fa", "fasta")
+    # Save as no-gapped sequences
+    SeqIO.write(a_gen.to_fasta(gap=False), "filename.fa", "fasta")
+    ```
 
 * bam
-``` python
-from pyhlamsa import msaio
-msaio.to_bam(a_gen, "filename.bam")
-```
+    ``` python
+    from pyhlamsa import msaio
+    msaio.to_bam(a_gen, "filename.bam")
+    ```
 
 * gff
-``` python
-msaio.to_gff(a_gen, "filename.gff")
-```
+    ``` python
+    msaio.to_gff(a_gen, "filename.gff")
+    ```
 
-After save the MSA as bam and gff, you can show the alignments on IGV
-![msa_igv_example](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
+    After save the MSA as bam and gff, you can show the alignments on IGV
+    ![msa_igv_example](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
 
 * save/load
-I use json and fasta to save our model
-``` python
-msaio.save_msa(a_gen, "a_gen.fa", "a_gen.json")
-a_gen = msaio.load_msa("a_gen.fa", "a_gen.json")
-```
+
+    Save our model in fasta and json, where json contains block, index information
+
+    ``` python
+    msaio.save_msa(a_gen, "a_gen.fa", "a_gen.json")
+    a_gen = msaio.load_msa("a_gen.fa", "a_gen.json")
+    ```
 
 * load msa from other format
 
@@ -298,13 +308,13 @@ a_gen = msaio.load_msa("a_gen.fa", "a_gen.json")
     which is very useful object,
     can be generate by reading MSA by `Bio.AlignIO`.
 
-Checkout <https://biopython.org/wiki/AlignIO#file-formats> for format supporting.
+    Checkout <https://biopython.org/wiki/AlignIO#file-formats> for format supporting.
 
-For example
-``` python
-from pyhlamsa import Genemsa
-msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_format))
-```
+    For example
+    ``` python
+    from pyhlamsa import Genemsa
+    msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_format))
+    ```
 
 
 ## TODO
@@ -335,7 +345,7 @@ msa = Genemsa.from_MultipleSeqAlignment(AlignIO.read(your_data_path, your_data_f
 
 
 ## Installation
-```
+``` bash
 git clone https://github.com/linnil1/pyHLAMSA
 pip3 install -e pyHLAMSA
 ```
@@ -366,14 +376,14 @@ cyp = CYPmsa(pharmvar_folder="./pharmvar-5.1.10")
 
 
 ## Setup Document
-```
+``` bash
 pip3 install mkdocs mkdocs-material mkdocstrings
 mkdocs serve
 ```
 
 
 ## Test
-```
+``` bash
 pip3 install -e .
 pip3 install pytest pycodestyle mypy
 pytest
@@ -408,4 +418,12 @@ Performance issue is not my bottle-neck yet.
 ## Document
 See [https://linnil1.github.io/pyHLAMSA](See https://linnil1.github.io/pyHLAMSA)
 
+::: pyhlamsa.gene.genemsa
 ::: pyhlamsa
+    selection:
+      members:
+        - msaio
+::: pyhlamsa.gene_family.hla
+::: pyhlamsa.gene_family.hla_ex
+::: pyhlamsa.gene_family.kir
+::: pyhlamsa.gene_family.cyp

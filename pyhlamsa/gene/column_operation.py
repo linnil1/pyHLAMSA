@@ -20,7 +20,7 @@ class GenemsaColumnOp(GenemsaBlockOp):
         Calculate ATCG and gap frequency of each bp in MSA
 
         Returns:
-          frequency (list of list of int):
+          frequency (list[list[int]]):
             Each items contains the number of ATCG and gap.
         """
         freqs = []
@@ -44,6 +44,15 @@ class GenemsaColumnOp(GenemsaBlockOp):
             If include_gap=False and all the base on that position is gap
             (not shrinked before),
             it will warning and fill with A.
+
+        Example:
+        ```
+        a0                 CCATT-GGT--GTCGGGTTTCCAG
+        a1                 CCACTGGGT--ATCGGGTTTCCAG
+        c2                 CAATTGGGT--GTCGGGT---AAG
+        consensus          CCATTGGGT--GTCGGGTTTCCAG
+        consensus(no-gap)  CCATTGGGTAAGTCGGGTTTCCAG
+        ```
         """
         freqs = self.calculate_frequency()
         if not include_gap:
@@ -57,7 +66,7 @@ class GenemsaColumnOp(GenemsaBlockOp):
         return "".join(seq)
 
     def shrink(self: GenemsaType) -> GenemsaType:
-        """ Remove empty base """
+        """ Remove empty base if all bases in that column is gap """
         # index to delete
         freqs = self.calculate_frequency()
         masks = [f[4] != sum(f) for f in freqs]
@@ -171,6 +180,21 @@ class GenemsaColumnOp(GenemsaBlockOp):
 
         Each position information will be counted from 0 and
         the label and name will copy from its block information
+
+        Example:
+        ``` python
+        >>> print(a.format_alignment_diff())
+                           101 103 105 107 109 111 113 115 117 119
+                             |   |   |   |   |   |   |   |   |   |
+         A*01:01:01:01       G   G   T   C   C   A   C   C   G   A
+         A*01:01:01:02N      -   -   -   -   -   -   -   -   -   -
+
+        >>> print(a.reset_index().format_alignment_diff())
+                            1
+                            |
+         A*01:01:01:01      GGTCCACCGA
+         A*01:01:01:02N     ----------
+        ```
         """
         new_msa = self.copy()
         start = 0
