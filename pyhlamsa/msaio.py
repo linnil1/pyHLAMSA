@@ -135,7 +135,7 @@ def to_fasta(self: Genemsa, fname: str, gap=True):
     SeqIO.write(self.to_records(gap=gap), fname, "fasta")
 
 
-def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=False):
+def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
     """
     Save the MSA into bam
 

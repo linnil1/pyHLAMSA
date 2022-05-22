@@ -28,7 +28,6 @@ class Genemsa(GenemsaAlleleOp,
     from pyhlamsa import Genemsa
     ```
     """
-    # Sequence-type operation(gen, nuc)
     def select_complete(self) -> Genemsa:
         """ Select non exon-only sequences (No `E` in the sequence)"""
         new_msa = self.copy(copy_allele=False)

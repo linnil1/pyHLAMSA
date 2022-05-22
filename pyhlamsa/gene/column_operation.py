@@ -14,7 +14,6 @@ class GenemsaColumnOp(GenemsaBlockOp):
     provided some column-wise and index-wise operation
     """
 
-    # base-wise operation (column)
     def calculate_frequency(self) -> List[List[int]]:
         """
         Calculate ATCG and gap frequency of each bp in MSA

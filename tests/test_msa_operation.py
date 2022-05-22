@@ -302,7 +302,7 @@ class TestMsaMainFunction(unittest.TestCase):
         # 'a0': "CCATT-|GGT--GTCGGGT|TTC|C|AG",
         # 'a1': "CCACTG|GGT--ATCGGGT|TTC|C|AG",
         self.assertEqual(self.msa.get_cigar("a1"),
-                [("M", 3), ("X", 1), ("M", 1), ("I", 1), ("M", 3), ("X", 1), ("M", 12)])
+                         [("M", 3), ("X", 1), ("M", 1), ("I", 1), ("M", 3), ("X", 1), ("M", 12)])
 
     def test_gff(self):
         # because all sequences has same exon intron position
@@ -324,7 +324,6 @@ class TestMsaMainFunction(unittest.TestCase):
         for i in s[1:]:
             newmsa += i
         self.assertEqual(newmsa.blocks, self.msa.blocks)
-
 
     def test_index(self):
         # length

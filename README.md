@@ -274,9 +274,16 @@ You can fill it by consensus_seq shown before.
 * list of SeqRecord
     ``` python
     # Save as MSA
-    SeqIO.write(a_gen.to_fasta(gap=True), "filename.msa.fa", "fasta")
+    SeqIO.write(a_gen.to_records(gap=True), "filename.msa.fa", "fasta")
     # Save as no-gapped sequences
-    SeqIO.write(a_gen.to_fasta(gap=False), "filename.fa", "fasta")
+    SeqIO.write(a_gen.to_records(gap=False), "filename.fa", "fasta")
+    ```
+
+* fasta
+    ``` python
+    from pyhlamsa import msaio
+    msaio.to_fasta(a_gen, "filename.msa.fa", gap=True)
+    msaio.to_fasta(a_gen, "filename.fa", gap=False)
     ```
 
 * bam
@@ -292,6 +299,11 @@ You can fill it by consensus_seq shown before.
 
     After save the MSA as bam and gff, you can show the alignments on IGV
     ![msa_igv_example](https://raw.githubusercontent.com/linnil1/pyHLAMSA/main/HLA_msa.png)
+
+* vcf
+    ``` python
+    msaio.to_vcf(a_gen, "filename.vcf")
+    ```
 
 * save/load
 
@@ -332,6 +344,7 @@ You can fill it by consensus_seq shown before.
 * [x] Download latest version of IMGT or IPD
 * [x] Remove seqtype
 * [x] Split code
+* [x] save to VCF
 * [ ] Add command line usage
 * [ ] CDS != exon, (rename it?)
 

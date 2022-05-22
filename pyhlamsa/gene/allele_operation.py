@@ -17,6 +17,11 @@ class GenemsaAlleleOp(GenemsaBlockOp):
         """ Get the sequence by allele name """
         return self.alleles[allele]
 
+    def sort(self: GenemsaType) -> GenemsaType:
+        """ Sort the sequences """
+        self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[1]))
+        return self
+
     def sort_name(self: GenemsaType) -> GenemsaType:
         """ Sort the sequences by name """
         self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[0]))
@@ -36,6 +41,20 @@ class GenemsaAlleleOp(GenemsaBlockOp):
             raise ValueError(f"{name} already exist")
 
         self.alleles[name] = seq
+        return self
+
+    def extend(self: GenemsaType, msa: GenemsaType) -> GenemsaType:
+        """ Add MSA's alleles into this MSA (inplace) """
+        if self.get_block_length() != msa.get_block_length():
+            raise ValueError("Length is different")
+        leng = self.get_length()
+
+        for name, seq in msa.alleles.items():
+            if name in self.alleles:
+                raise ValueError(f"{name} already exist")
+            if len(seq) != leng:
+                raise ValueError(f"Length is different, caused by {name}")
+        self.alleles.update(msa.alleles)
         return self
 
     def remove(self: GenemsaType, name: Union[str, Iterable[str]]) -> GenemsaType:
@@ -70,12 +89,6 @@ class GenemsaAlleleOp(GenemsaBlockOp):
             new_msa.alleles = {name: self.alleles[name] for name in query}
         return new_msa
 
-    # sequence-level (row-level but consider bases)
-    def sort(self: GenemsaType) -> GenemsaType:
-        """ Sort the sequences """
-        self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[1]))
-        return self
-
     def reverse_complement(self: GenemsaType) -> GenemsaType:
         """ Reverse the sequences """
         new_msa = self.copy(copy_allele=False)
@@ -106,17 +119,3 @@ class GenemsaAlleleOp(GenemsaBlockOp):
 
         return cigar.calculate_cigar(self.alleles[ref_allele],
                                      self.alleles[target_allele])
-
-    def extend(self: GenemsaType, msa: GenemsaType) -> GenemsaType:
-        """ Add MSA's alleles into this MSA (inplace) """
-        if self.get_block_length() != msa.get_block_length():
-            raise ValueError("Length is different")
-        leng = self.get_length()
-
-        for name, seq in msa.alleles.items():
-            if name in self.alleles:
-                raise ValueError(f"{name} already exist")
-            if len(seq) != leng:
-                raise ValueError(f"Length is different, caused by {name}")
-        self.alleles.update(msa.alleles)
-        return self
