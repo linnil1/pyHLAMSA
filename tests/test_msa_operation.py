@@ -1,6 +1,6 @@
 import unittest
 from pyhlamsa import Genemsa, BlockInfo, msaio
-from pyhlamsa.utils import cigar
+from pyhlamsa.utils import cigar, vcf
 from tempfile import NamedTemporaryFile, mkstemp
 from Bio import SeqIO, AlignIO
 
@@ -362,6 +362,47 @@ class TestMsaMainFunction(unittest.TestCase):
         b = self.msa.format_alignment_diff()
         self.assertEqual(a, b)
         self.msa.set_reference("a0")
+
+    def test_vcf(self):
+        a = "CCAT--GGT--GTCGGGTTTCCAG"
+        b = "CCATTAGGT--GTC-GAT-GGCAG"
+        variants = vcf.extract_variants(a, b)
+        self.assertEqual(len(variants), 6)
+        self.assertEqual(variants[0].pos, 4)
+        self.assertEqual(variants[0].ref, "T")
+        self.assertEqual(variants[0].alt, "TTA")
+        self.assertEqual(variants[1].pos, 10)
+        self.assertEqual(variants[1].ref, "CG")
+        self.assertEqual(variants[1].alt, "C")
+        self.assertEqual(variants[2].pos, 13)
+        self.assertEqual(variants[2].ref, "G")
+        self.assertEqual(variants[2].alt, "A")
+        self.assertEqual(variants[3].pos, 14)
+        self.assertEqual(variants[4].pos, 16)
+        self.assertEqual(variants[5].pos, 17)
+
+    def test_vcf_extreme(self):
+        a = "--AT--GG--T"
+        b = "CCATTA--AAT"
+        variants = vcf.extract_variants(a, b)
+        self.assertEqual(len(variants), 4)
+        self.assertEqual(variants[0].pos, 1)
+        self.assertEqual(variants[0].ref, "A")
+        self.assertEqual(variants[0].alt, "CCA")
+        self.assertEqual(variants[1].pos, 2)
+        self.assertEqual(variants[1].ref, "T")
+        self.assertEqual(variants[1].alt, "TTA")
+        self.assertEqual(variants[2].pos, 2)
+        self.assertEqual(variants[2].ref, "TGG")
+        self.assertEqual(variants[2].alt, "TTA")
+        self.assertEqual(variants[3].pos, 2)
+        self.assertEqual(variants[3].ref, "TGG")
+        self.assertEqual(variants[3].alt, "TTAAA")
+
+    def test_save_vcf(self):
+        # it's hard to test this and
+        # I've already test the core function extract_variants already
+        pass
 
 
 class TestMsaExonOnly(unittest.TestCase):

@@ -14,14 +14,20 @@ from __future__ import annotations
 import re
 import json
 import logging
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 from Bio import AlignIO, SeqIO
 import pysam
 
 from .gene import Genemsa, BlockInfo
+from .utils import vcf
 
 
 logger = logging.getLogger(__name__)
+
+
+def _table_to_string(data: List[List[Any]]) -> str:
+    """ Turn table into tab separted string """
+    return "\n".join('\t'.join(map(str, items)) for items in data)
 
 
 def read_alignment_txt(fname: str, seq_type="") -> Genemsa:
@@ -245,7 +251,7 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=
     # save
     with open(fname, "w") as f_gff:
         f_gff.write("##gff-version 3\n")
-        f_gff.write("\n".join(["\t".join(record) for record in records]))
+        f_gff.write(_table_to_string(records))
     return None
 
 
@@ -273,3 +279,41 @@ def save_msa(self: Genemsa, file_fasta: str, file_json: str):
     to_fasta(self, file_fasta, gap=True)
     with open(file_json, "w") as f:
         json.dump(self.meta_to_json(), f)
+
+
+def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True):
+    """
+    Save Genemsa into vcf format
+
+    Note that vcf discard the per-base alignment
+    when many snps/indels mixed together in that position
+
+    Args:
+      ref_allele (str):
+        The name of reference allele.
+        I recommend the reference allele contains no gaps.
+      save_ref (bool): The reference allele will also be saved in the vcf file
+    """
+    if not len(self.blocks):
+        raise ValueError("MSA is empty")
+    if not ref_allele:
+        ref_allele = self.get_reference()[0]
+    if ref_allele not in self.alleles:
+        raise ValueError(f"{ref_allele} not found")
+    ref_seq = self.get(ref_allele)
+
+    # extract all variants from all alleles
+    allele_variants = {}
+    for allele in self.list_alleles():
+        if not save_ref and allele == ref_allele:
+            continue
+        variants = vcf.extract_variants(ref_seq, self.get(allele))
+        for v in variants:
+            v.chrom = ref_allele
+        allele_variants[allele] = variants
+
+    # write
+    with open(file_vcf, "w") as f_vcf:
+        f_vcf.write(vcf.get_vcf_header(ref_allele, ref_seq))
+        f_vcf.write("\n")
+        f_vcf.write(_table_to_string(vcf.variants_to_table(allele_variants)))
