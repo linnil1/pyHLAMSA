@@ -18,7 +18,6 @@ It can automatically download and read the sequences
 >>> from pyhlamsa import HLAmsa
 
 >>> hla = HLAmsa(["A", "B"], filetype="gen",
-                 imgt_alignment_folder="alignment_v3470",
                  version="3470")
 
 >>> print(hla.list_genes())

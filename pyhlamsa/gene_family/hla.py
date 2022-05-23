@@ -1,7 +1,7 @@
 from glob import glob
 from typing import List, Set
 
-from .family import Familymsa, Genemsa, msaio
+from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
 
 
 class HLAmsa(Familymsa):
@@ -13,15 +13,16 @@ class HLAmsa(Familymsa):
       genes (dict[str, Genemsa]):
         The dictionary use gene_name as key and msa object as value
     """
-    def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 imgt_alignment_folder=None, version="3470"):
+    def __init__(self, genes: GeneSet = None,
+                 filetype: TypeSet = ["gen", "nuc"],
+                 imgt_alignment_folder="", version="3470"):
         """
         Args:
-            genes (str or list of str): A list of genes you want to read.
+            genes (str | list[str]): A list of genes you want to read.
 
-                Leave Empty if you want read all gene in HLA
+                Set None if you want read all gene in HLA
 
-            filetype (str or list of str): A list of filetype.
+            filetype (str | list[str] | Set[str]): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
 
@@ -40,7 +41,7 @@ class HLAmsa(Familymsa):
                 If `imgt_alignment_folder` is existed, this value will be ignored.
                 Use `Latest` to get latest version.
         """
-        if imgt_alignment_folder is None:
+        if not imgt_alignment_folder:
             imgt_alignment_folder = f"alignment_v{version}"
         super().__init__(genes, filetype,
                          db_folder=imgt_alignment_folder, version=version)
@@ -63,7 +64,7 @@ class HLAmsa(Familymsa):
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def _list_db_gene(self, filetype=set(["gen", "nuc"])) -> List[str]:
+    def _list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ List the gene in folder """
         drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:
@@ -83,7 +84,7 @@ class HLAmsa(Familymsa):
                 names = names - set(["E"])
         return list(sorted(names))[10:]
 
-    def _read_db_gene(self, gene: str, filetype=set(["gen", "nuc"])) -> Genemsa:
+    def _read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """
         Read `{gene}_{filetype}.txt`.
 

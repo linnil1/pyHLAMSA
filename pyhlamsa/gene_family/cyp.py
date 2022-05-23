@@ -3,7 +3,7 @@ from glob import glob
 from typing import List, cast
 from Bio import SeqIO
 
-from .family import Familymsa, Genemsa, BlockInfo
+from .family import Familymsa, TypeSet, GeneSet, Genemsa, BlockInfo
 
 
 class CYPmsa(Familymsa):
@@ -14,13 +14,14 @@ class CYPmsa(Familymsa):
         genes (dict[str, Genemsa]): The msa object for each gene
     """
 
-    def __init__(self, genes=[], filetype=[],
-                 pharmvar_folder=None, version="5.1.10"):
+    def __init__(self, genes: GeneSet = None,
+                 filetype: TypeSet = [],
+                 pharmvar_folder="", version="5.1.10"):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
 
-                Leave Empty if you want read all gene in HLA
+                Set None if you want read all gene in HLA
 
             filetype: Ignore
 
@@ -33,22 +34,22 @@ class CYPmsa(Familymsa):
 
                 Not works now
         """
-        if pharmvar_folder is None:
+        if not pharmvar_folder:
             pharmvar_folder = f"pharmvar-{version}"
         super().__init__(genes, filetype, db_folder=pharmvar_folder, version=version)
 
-    def _download_db(self, version):
+    def _download_db(self, version=""):
         """
         Download the CYP from https://www.pharmvar.org/download
         """
         raise ValueError("You should download CYP genes from "
                          "https://www.pharmvar.org/download")
 
-    def _list_db_gene(self, filetype) -> List[str]:
+    def _list_db_gene(self, filetype: TypeSet = []) -> List[str]:
         """ List the gene in folder """
         return sorted(os.listdir(self.db_folder))
 
-    def _read_db_gene(self, gene: str, filetype: List[str]) -> Genemsa:
+    def _read_db_gene(self, gene: str, filetype: TypeSet = []) -> Genemsa:
         """
         Read `.haplotypes.fasta` and `.haplotypes.tsv`
 

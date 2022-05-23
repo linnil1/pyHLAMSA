@@ -2,7 +2,7 @@ import os
 from glob import glob
 from typing import List, Set
 
-from .family import Familymsa, Genemsa, msaio
+from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
 from ..utils import dat
 
 
@@ -14,15 +14,16 @@ class KIRmsa(Familymsa):
         genes (dict[str, Genemsa]): The msa object for each gene
     """
 
-    def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 ipd_folder=None, version="2100"):
+    def __init__(self, genes: GeneSet = None,
+                 filetype: TypeSet = ["gen", "nuc"],
+                 ipd_folder="", version="2100"):
         """
         Args:
-            genes (str or list of str): A list of genes you want to read.
+            genes (str | list[str]): A list of genes you want to read.
 
-                Leave Empty if you want read all gene in HLA
+                Set None if you want read all gene in HLA
 
-            filetype (str or list of str): A list of filetype.
+            filetype (str | list[str] | Set[str]): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
 
@@ -42,7 +43,7 @@ class KIRmsa(Familymsa):
                 because database may change the format, or contains bugs
         """
         # Why not version 2110 -> 2DL4,2DL5 has exon 4
-        if ipd_folder is None:
+        if not ipd_folder:
             ipd_folder = f"KIR_v{version}"
         super().__init__(genes, filetype, db_folder=ipd_folder, version=version)
 
@@ -58,7 +59,7 @@ class KIRmsa(Familymsa):
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def _list_db_gene(self, filetype) -> List[str]:
+    def _list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ List the gene in folder """
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf")
@@ -69,7 +70,7 @@ class KIRmsa(Familymsa):
             names = names_gen & names_nuc
         return sorted(names)
 
-    def _read_db_gene(self, gene: str, filetype: List[str]) -> Genemsa:
+    def _read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """
         Read `{gene}_{filetype}.txt`.
 

@@ -1,10 +1,14 @@
 import os
 import logging
 import subprocess
-from typing import Any, List
+from typing import Any, List, Union, Set, Iterable
 
 from ..gene import Genemsa, BlockInfo
 from .. import msaio
+
+
+GeneSet = Union[str, Iterable[str], None]
+TypeSet = Union[str, Iterable[str]]
 
 
 class Familymsa:
@@ -22,8 +26,9 @@ class Familymsa:
         The dictionary use gene_name as key and msa object as value
     """
 
-    def __init__(self, genes=[], filetype=["gen", "nuc"],
-                 db_folder="alignments", version="latest"):
+    def __init__(self, genes: GeneSet = None,
+                 filetype: TypeSet = ["gen", "nuc"],
+                 db_folder="dbpath", version="latest"):
         self.logger = logging.getLogger(__name__)
         self.db_folder = db_folder
         self.genes = {}
@@ -32,15 +37,12 @@ class Familymsa:
         self._download(version)
 
         if genes is None:
-            return
+            genes = self._list_db_gene(filetype)
         if isinstance(genes, str):
             genes = [genes]
         if isinstance(filetype, str):
             filetype = [filetype]
-
         filetype = set(filetype)
-        if not genes:  # if empty -> read all
-            genes = self._list_db_gene(filetype)
 
         # main
         for gene_name in genes:
@@ -82,10 +84,10 @@ class Familymsa:
         with subprocess.Popen(args, cwd=cwd) as proc:
             proc.wait()
 
-    def _list_db_gene(self, filetype: Any) -> List[str]:
+    def _list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ Abstract method: code for listing gene names """
         raise NotImplementedError
 
-    def _read_db_gene(self, gene, filetype: Any) -> Genemsa:
+    def _read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """ Abstract method: code for reading and merging function """
         raise NotImplementedError
