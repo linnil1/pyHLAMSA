@@ -11,12 +11,14 @@ from pyhlamsa import msaio
 ```
 """
 from __future__ import annotations
+import os
 import re
 import json
 import logging
 from typing import List, Tuple, Dict, Any
 from Bio import AlignIO, SeqIO
 import pysam
+from pysam import bcftools
 
 from .gene import Genemsa, BlockInfo
 from .utils import vcf
@@ -281,12 +283,19 @@ def save_msa(self: Genemsa, file_fasta: str, file_json: str):
         json.dump(self.meta_to_json(), f)
 
 
-def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True):
+def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_text=False):
     """
     Save Genemsa into vcf format
 
-    Note that vcf discard the per-base alignment
-    when many snps/indels mixed together in that position
+    It will save msa into sorted and normalized vcf file (xxx.vcf.gz)
+    along with vcf's index (xxx.vcf.gz.tbi)
+    and the reference sequences in fasta (xxx.vcf.ref.fa).
+    (You can still output plain vcf without any manipulation by set plain_text=True)
+
+    Note that vcf-format discard the per-base alignment especially
+    when there are many snps/indels mixed together in that position.
+    Also, after vcf is normalized, the msa may not be the same MSA alignment as before.
+    (But sequences are still the same)
 
     Args:
       ref_allele (str):
@@ -312,8 +321,31 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True):
             v.chrom = ref_allele
         allele_variants[allele] = variants
 
-    # write
-    with open(file_vcf, "w") as f_vcf:
+    # remove suffix
+    if file_vcf.endswith(".vcf.gz"):
+        basename = file_vcf[:-7]
+    elif file_vcf.endswith(".vcf"):
+        basename = file_vcf[:-4]
+    else:
+        basename = file_vcf
+
+    # to vcf
+    with open(f"{basename}.tmp.vcf", "w") as f_vcf:
         f_vcf.write(vcf.get_vcf_header(ref_allele, ref_seq))
         f_vcf.write("\n")
         f_vcf.write(_table_to_string(vcf.variants_to_table(allele_variants)))
+    if plain_text:
+        os.rename(f"{basename}.tmp.vcf", f"{basename}.vcf")
+        return
+
+    # sort, normalize and index
+    to_fasta(self.select_allele([ref_allele]), f"{basename}.vcf.ref.fa", gap=False)
+    with open(f"{basename}.tmp.norm.vcf.gz", "wb") as f_vcf:
+        f_vcf.write(bcftools.norm("-f", f"{basename}.vcf.ref.fa",  # type: ignore
+                                  f"{basename}.tmp.vcf", "-O", "z"))
+    with open(f"{basename}.vcf.gz", "wb") as f_vcf:
+        f_vcf.write(bcftools.sort(f"{basename}.tmp.norm.vcf.gz",  # type: ignore
+                                  "-O", "z"))
+    bcftools.index(f"{basename}.vcf.gz", "-t", "-f")  # type: ignore
+    os.remove(f"{basename}.tmp.vcf")
+    os.remove(f"{basename}.tmp.norm.vcf.gz")

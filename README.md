@@ -301,7 +301,7 @@ You can fill it by consensus_seq shown before.
 
 * vcf
     ``` python
-    msaio.to_vcf(a_gen, "filename.vcf")
+    msaio.to_vcf(a_gen, "filename.vcf.gz")
     ```
 
 * save/load
