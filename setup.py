@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setuptools.setup(
     name="pyhlamsa",
-    version="0.5.4",
+    version="0.5.5",
     author="linnil1",
     author_email="linnil1.886@gmail.com",
     description="A small and simple utility to read IMGT HLA data",
@@ -13,6 +13,9 @@ setuptools.setup(
     long_description_content_type="text/markdown",
     url="https://github.com/linnil1/pyHLAMSA",
     packages=setuptools.find_packages(),
+    entry_points = {
+        'console_scripts': ['pyhlamsa = pyhlamsa.command:main'],
+    },
     install_requires=[
         "biopython",
         "pysam"

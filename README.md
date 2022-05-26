@@ -6,6 +6,27 @@ Implemented with some useful functions shown below.
 
 Still in development.
 
+
+## Run in command line
+
+You can simply use this package by command line.
+
+If you want to use more powerful function, try the APIs written in below sections.
+
+``` bash
+git clone https://github.com/linnil1/pyHLAMSA
+pip3 install -e pyHLAMSA
+# show help
+pyhlamsa -h
+# download kir
+pyhlamsa download --family kir --db-folder tmpdir/tmp_kir_db --version 2100  tmpdir/kir --include-genes KIR2DL1 KIR2DL2
+# view the msa
+pyhlamsa view tmpdir/kir.KIR2DL1 --position 3-100 --include-alleles KIR2DL1*consensus KIR2DL1*063
+# save the intron1+exon1 region to kir1.*
+pyhlamsa view tmpdir/kir.KIR2DL1 --region intron1 exon1 --name tmpdir/kir1 --save --bam --gff --vcf --fasta-gapless --fasta-msa
+```
+
+
 ## Features
 
 ### 1. Read sequences from database in one line
@@ -344,7 +365,7 @@ You can fill it by consensus_seq shown before.
 * [x] Remove seqtype
 * [x] Split code
 * [x] save to VCF
-* [ ] Add command line usage
+* [x] Add command line usage
 * [ ] CDS != exon, (rename it?)
 
 

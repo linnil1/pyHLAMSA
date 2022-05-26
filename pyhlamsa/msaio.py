@@ -127,14 +127,19 @@ def _cigar_to_pysam(cigar: List[Tuple[str, int]]) -> List[Tuple[int, int]]:
     return list(map(lambda i: (op_type_map.get(i[0], 0), i[1]), cigar))
 
 
-def to_fasta(self: Genemsa, fname: str, gap=True):
+def to_fasta(self: Genemsa, fname: str, gap=True, ref_only=False):
     """
     Save the MSA into fasta
 
     Args:
         gap (bool): The sequence included gap or not
+        ref_only (bool): Save reference sequence only
     """
-    SeqIO.write(self.to_records(gap=gap), fname, "fasta")
+    if ref_only:
+        msa = self.select_allele([self.get_reference()[0]])
+    else:
+        msa = self
+    SeqIO.write(msa.to_records(gap=gap), fname, "fasta")
 
 
 def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
@@ -289,7 +294,6 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_tex
 
     It will save msa into sorted and normalized vcf file (xxx.vcf.gz)
     along with vcf's index (xxx.vcf.gz.tbi)
-    and the reference sequences in fasta (xxx.vcf.ref.fa).
     (You can still output plain vcf without any manipulation by set plain_text=True)
 
     Note that vcf-format discard the per-base alignment especially
@@ -302,6 +306,7 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_tex
         The name of reference allele.
         I recommend the reference allele contains no gaps.
       save_ref (bool): The reference allele will also be saved in the vcf file
+      plain_text (bool): Disable sort vcf and index vcf
     """
     if not len(self.blocks):
         raise ValueError("MSA is empty")
@@ -339,13 +344,14 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_tex
         return
 
     # sort, normalize and index
-    to_fasta(self.select_allele([ref_allele]), f"{basename}.vcf.ref.fa", gap=False)
+    to_fasta(self.select_allele([ref_allele]), f"{basename}.tmp.fa", gap=False)
     with open(f"{basename}.tmp.norm.vcf.gz", "wb") as f_vcf:
-        f_vcf.write(bcftools.norm("-f", f"{basename}.vcf.ref.fa",  # type: ignore
+        f_vcf.write(bcftools.norm("-f", f"{basename}.tmp.fa",  # type: ignore
                                   f"{basename}.tmp.vcf", "-O", "z"))
     with open(f"{basename}.vcf.gz", "wb") as f_vcf:
         f_vcf.write(bcftools.sort(f"{basename}.tmp.norm.vcf.gz",  # type: ignore
                                   "-O", "z"))
     bcftools.index(f"{basename}.vcf.gz", "-t", "-f")  # type: ignore
+    os.remove(f"{basename}.tmp.fa")
     os.remove(f"{basename}.tmp.vcf")
     os.remove(f"{basename}.tmp.norm.vcf.gz")
