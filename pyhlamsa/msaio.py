@@ -333,25 +333,27 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_tex
         basename = file_vcf[:-4]
     else:
         basename = file_vcf
+    tmpname = f"{basename}.tmp"
 
     # to vcf
-    with open(f"{basename}.tmp.vcf", "w") as f_vcf:
+    with open(f"{tmpname}.vcf", "w") as f_vcf:
         f_vcf.write(vcf.get_vcf_header(ref_allele, ref_seq))
         f_vcf.write("\n")
         f_vcf.write(_table_to_string(vcf.variants_to_table(allele_variants)))
     if plain_text:
-        os.rename(f"{basename}.tmp.vcf", f"{basename}.vcf")
+        os.rename(f"{tmpname}.vcf", f"{basename}.vcf")
         return
 
     # sort, normalize and index
-    to_fasta(self.select_allele([ref_allele]), f"{basename}.tmp.fa", gap=False)
-    with open(f"{basename}.tmp.norm.vcf.gz", "wb") as f_vcf:
-        f_vcf.write(bcftools.norm("-f", f"{basename}.tmp.fa",  # type: ignore
-                                  f"{basename}.tmp.vcf", "-O", "z"))
+    to_fasta(self.select_allele([ref_allele]), f"{tmpname}.fa", gap=False)
+    with open(f"{tmpname}.norm.vcf.gz", "wb") as f_vcf:
+        f_vcf.write(bcftools.norm("-f", f"{tmpname}.fa",  # type: ignore
+                                  f"{tmpname}.vcf", "-O", "z"))
     with open(f"{basename}.vcf.gz", "wb") as f_vcf:
-        f_vcf.write(bcftools.sort(f"{basename}.tmp.norm.vcf.gz",  # type: ignore
+        f_vcf.write(bcftools.sort(f"{tmpname}.norm.vcf.gz",  # type: ignore
                                   "-O", "z"))
     bcftools.index(f"{basename}.vcf.gz", "-t", "-f")  # type: ignore
-    os.remove(f"{basename}.tmp.fa")
-    os.remove(f"{basename}.tmp.vcf")
-    os.remove(f"{basename}.tmp.norm.vcf.gz")
+    os.remove(f"{tmpname}.fa")
+    os.remove(f"{tmpname}.fa.fai")
+    os.remove(f"{tmpname}.vcf")
+    os.remove(f"{tmpname}.norm.vcf.gz")

@@ -5,6 +5,8 @@ from datetime import datetime
 from typing import List, Dict, Any
 from collections import defaultdict
 from dataclasses import dataclass, field
+import pysam
+from Bio import SeqIO
 
 from . import cigar
 
@@ -39,7 +41,7 @@ def extract_variants(ref_seq: str, tar_seq: str) -> List[VcfVariant]:
 
     # remove when both sequences are gap
     bases = [i for i in zip(ref_seq, tar_seq) if not (i[0] == "-" and i[1] == "-")]
-    ref_seq, tar_seq = map(''.join, zip(*bases))
+    ref_seq, tar_seq = map("".join, zip(*bases))
 
     # extract variant via cigar
     cigar_list = cigar.calculate_cigar(ref_seq, tar_seq)
@@ -129,8 +131,61 @@ def variants_to_table(allele_variants: Dict[str, List[VcfVariant]]) -> List[List
     # each record
     for variant, alleles in variant_alleles.items():
         table.append([
-            variant.chrom, variant.pos, '.', variant.ref, variant.alt,  # type: ignore
-            '.', '.', '.',
-            'GT', *('1' if name in alleles else '0' for name in alleles_name)
+            variant.chrom, variant.pos, ".", variant.ref, variant.alt,  # type: ignore
+            ".", ".", ".",
+            "GT", *("1" if name in alleles else "0" for name in alleles_name)
         ])
     return table
+
+
+def read_vcf(file_vcf: str, file_fasta: str) -> Dict[str, Dict[str, str]]:
+    """
+    An experiment function to read vcf file into msa
+
+    Only implemented:
+
+    * haploid
+    * single-allele
+    * '.' not in GT
+    * no-insertion
+    """
+    vcf = pysam.VariantFile(file_vcf)
+
+    # create mutliple msa (dict type)
+    # chrom_msa = {chrom_name: { allele_name: sequencs }}
+    seqs = {seq.id: str(seq.seq) for seq in SeqIO.parse(file_fasta, "fasta")}
+    chrom_msa = {str(name): {str(name): seqs[name]} for name in vcf.header.contigs}
+    for sample_name in vcf.header.samples:
+        for ref, seq_dict in chrom_msa.items():
+            seq_dict[str(sample_name)] = seq_dict[ref]
+
+    # modify msa by variant
+    for record in vcf.fetch():
+        # not implement mutliple alts with GT
+        assert record.ref
+        assert record.alts
+        assert len(record.alts) == 1
+        ref = record.ref
+        alt = record.alts[0]
+        # not implement insertion
+        assert len(ref) >= len(alt)
+
+        for allele_name, sample in record.samples.items():
+            allele_name = str(allele_name)
+            # only implement haploid
+            assert "GT" in sample
+            assert len(sample["GT"]) == 1
+            gt = str(sample["GT"][0])
+            assert gt in "01"
+            if gt == "1":
+                sample_seq = chrom_msa[record.chrom][allele_name]
+                pos = record.pos - 1
+                # must be True if vcf is correct
+                assert sample_seq[pos:pos + len(ref)] == ref
+                sample_seq = \
+                    sample_seq[:pos] \
+                    + alt + "-" * (len(ref) - len(alt)) \
+                    + sample_seq[pos + len(ref):]
+                chrom_msa[record.chrom][allele_name] = sample_seq
+
+    return chrom_msa

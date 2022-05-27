@@ -1,7 +1,7 @@
 import unittest
 from pyhlamsa import Genemsa, BlockInfo, msaio
 from pyhlamsa.utils import cigar, vcf
-from tempfile import NamedTemporaryFile, mkstemp
+from tempfile import NamedTemporaryFile, mkstemp, TemporaryDirectory
 from Bio import SeqIO, AlignIO
 
 
@@ -398,10 +398,23 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(variants[3].ref, "TGG")
         self.assertEqual(variants[3].alt, "TTAAA")
 
-    def test_save_vcf(self):
-        # it's hard to test this and
-        # I've already test the core function extract_variants already
-        pass
+    def test_vcf_read_write(self):
+        """ Sequences reading from vcf are the same as writing """
+        msa = self.msa.shrink()
+        msa = msa.append("consensus", msa.get_consensus(include_gap=False))
+        msa = msa.set_reference("consensus")
+
+        with TemporaryDirectory() as tmp_dir:
+            file_fasta = tmp_dir + "/testing.fa"
+            file_vcf = tmp_dir + "/testing.vcf"
+            msaio.to_fasta(msa, file_fasta, gap=False, ref_only=True)
+            msaio.to_vcf(msa, file_vcf)  # run it but not test
+            msaio.to_vcf(msa, file_vcf, plain_text=True)
+            chrom_dict = vcf.read_vcf(file_vcf, file_fasta)
+
+        self.assertTrue("consensus" in chrom_dict)
+        for name, seq in chrom_dict["consensus"].items():
+            self.assertEqual(msa.get(name).replace('-', ''), seq.replace('-', ''))
 
 
 class TestMsaExonOnly(unittest.TestCase):
