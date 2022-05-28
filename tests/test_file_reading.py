@@ -3,7 +3,7 @@ import unittest
 from pyhlamsa import Genemsa, msaio
 from pyhlamsa.utils import dat as datop
 
-from tempfile import NamedTemporaryFile, mkstemp
+from tempfile import TemporaryDirectory
 from Bio import SeqIO, AlignIO
 
 
@@ -147,6 +147,46 @@ class TestMsaHLA(unittest.TestCase):
         from pyhlamsa import CYPmsa
         cpy = CYPmsa(pharmvar_folder="pharmvar-5.1.10")
         # already lots of assert in CYPmsa._read_db_gene
+
+    @unittest.skipIf(not os.path.exists("KIR_v2100"), "Tested on local")
+    def test_vcf_by_bcftools(self):
+        from pyhlamsa import KIRmsa
+        from pyhlamsa.utils import vcf
+        kir = KIRmsa(filetype=["gen"], ipd_folder="KIR_v2100", version="2100")
+        for gene, msa in kir.items():
+            print(gene)
+            msa = msa.shrink()
+            msa.append(f"{gene}*BACKBONE", msa.get_consensus())
+            msa.set_reference(f"{gene}*BACKBONE")
+
+            with TemporaryDirectory() as tmp_dir:
+                name = tmp_dir + "/test"
+                msaio.to_fasta(msa, f"{name}.{gene}.ref.fa", gap=False, ref_only=True)
+                msaio.to_vcf(msa,  f"{name}.{gene}.vcf", plain_text=True)
+                with open(f"{name}.run_bcftools.sh", "w") as f:
+                    print(f"bcftools sort {name}.{gene}.vcf -o {name}.{gene}.vcf.gz", file=f)
+                    print(f"bcftools index -t                  {name}.{gene}.vcf.gz", file=f)
+                    for allele in msa.list_alleles():
+                        print(f"bcftools consensus -f {name}.{gene}.ref.fa {name}.{gene}.vcf.gz --sample {allele} > \"{name}.{gene}.{allele}.fa\"", file=f)
+                print(f"docker run -it --rm -v {tmp_dir}:{tmp_dir} quay.io/biocontainers/bcftools:1.13--h3a49de5_0 bash {name}.run_bcftools.sh")
+                os.system(f"docker run -it --rm -v {tmp_dir}:{tmp_dir} quay.io/biocontainers/bcftools:1.13--h3a49de5_0 bash {name}.run_bcftools.sh")
+                seqs_vcf_read = vcf.read_vcf(f"{name}.{gene}.vcf", f"{name}.{gene}.ref.fa")[f"{gene}*BACKBONE"]
+                seqs_bcftools = {allele: str(list(SeqIO.parse(f"{name}.{gene}.{allele}.fa", "fasta"))[0].seq) for allele in msa.list_alleles()}
+
+            for allele in msa.list_alleles():
+                print(allele)
+                seq_a = msa.get(allele)
+                seq_b = seqs_bcftools[allele]
+                seq_c = seqs_vcf_read[allele]
+                seq_a = seq_a.replace('-', '')
+                seq_b = seq_b.replace('-', '')
+                seq_c = seq_c.replace('-', '')
+                for i, (a,b,c) in enumerate(zip(seq_a, seq_b, seq_c)):
+                    if a != b or a != c:
+                        print(i, a, b, c)
+                        self.assertTrue(False)
+                self.assertEqual(seq_a, seq_b)
+                self.assertEqual(seq_a, seq_c)
 
 
 if __name__ == '__main__':
