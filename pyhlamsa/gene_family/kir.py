@@ -59,7 +59,7 @@ class KIRmsa(Familymsa):
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def _list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ List the gene in folder """
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf")
@@ -70,13 +70,11 @@ class KIRmsa(Familymsa):
             names = names_gen & names_nuc
         return sorted(names)
 
-    def _read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
+    def read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """
-        Read `{gene}_{filetype}.txt`.
+        Read `{gene}_{filetype}.msf and kir.dat`.
 
         If both `gen` and `nuc` are given, it will merge them.
-
-        The alignment data is stored in `self.genes[gene]` in `Genemsa` instance
         """
         if not hasattr(self, "dat"):
             self.logger.debug(f"Reading kir.dat")

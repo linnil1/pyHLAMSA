@@ -37,7 +37,7 @@ class Familymsa:
         self._download(version)
 
         if genes is None:
-            genes = self._list_db_gene(filetype)
+            genes = self.list_db_gene(filetype)
         if isinstance(genes, str):
             genes = [genes]
         if isinstance(filetype, str):
@@ -47,7 +47,7 @@ class Familymsa:
         # main
         for gene_name in genes:
             self.logger.info(f"Reading {gene_name}'s sequences")
-            self.genes[gene_name] = self._read_db_gene(gene_name, filetype)
+            self.genes[gene_name] = self.read_db_gene(gene_name, filetype)
 
     def list_genes(self) -> List[str]:
         """ List all the gene's name in this family """
@@ -84,10 +84,10 @@ class Familymsa:
         with subprocess.Popen(args, cwd=cwd) as proc:
             proc.wait()
 
-    def _list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ Abstract method: code for listing gene names """
         raise NotImplementedError
 
-    def _read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
+    def read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """ Abstract method: code for reading and merging function """
         raise NotImplementedError

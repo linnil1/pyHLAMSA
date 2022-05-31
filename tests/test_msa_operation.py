@@ -384,19 +384,14 @@ class TestMsaMainFunction(unittest.TestCase):
         a = "--AT--GG--T"
         b = "CCATTA--AAT"
         variants = vcf.extract_variants(a, b)
-        self.assertEqual(len(variants), 4)
+        print(variants)
+        self.assertEqual(len(variants), 2)
         self.assertEqual(variants[0].pos, 1)
         self.assertEqual(variants[0].ref, "A")
         self.assertEqual(variants[0].alt, "CCA")
         self.assertEqual(variants[1].pos, 2)
-        self.assertEqual(variants[1].ref, "T")
-        self.assertEqual(variants[1].alt, "TTA")
-        self.assertEqual(variants[2].pos, 2)
-        self.assertEqual(variants[2].ref, "TGG")
-        self.assertEqual(variants[2].alt, "TTA")
-        self.assertEqual(variants[3].pos, 2)
-        self.assertEqual(variants[3].ref, "TGG")
-        self.assertEqual(variants[3].alt, "TTAAA")
+        self.assertEqual(variants[1].ref, "TGG")
+        self.assertEqual(variants[1].alt, "TTAAA")
 
     def test_vcf_read_write(self):
         """ Sequences reading from vcf are the same as writing """

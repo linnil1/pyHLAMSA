@@ -64,7 +64,7 @@ class HLAmsaEX(Familymsa):
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def _list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ List the gene in folder """
         drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:
@@ -77,9 +77,9 @@ class HLAmsaEX(Familymsa):
             names = names_gen & names_nuc
         return sorted(names)
 
-    def _read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
+    def read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """
-        Read `msf/{gene}_{filetype}.msf`.
+        Read `msf/{gene}_{filetype}.msf` and hla.dat.
 
         If both `gen` and `nuc` are given, it will merge them.
         """

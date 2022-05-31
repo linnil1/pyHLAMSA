@@ -45,13 +45,13 @@ class CYPmsa(Familymsa):
         raise ValueError("You should download CYP genes from "
                          "https://www.pharmvar.org/download")
 
-    def _list_db_gene(self, filetype: TypeSet = []) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet = []) -> List[str]:
         """ List the gene in folder """
         return sorted(os.listdir(self.db_folder))
 
-    def _read_db_gene(self, gene: str, filetype: TypeSet = []) -> Genemsa:
+    def read_db_gene(self, gene: str, filetype: TypeSet = []) -> Genemsa:
         """
-        Read `.haplotypes.fasta` and `.haplotypes.tsv`
+        Read `{gene}/{gene}.haplotypes.fasta` and `{gene}/{gene}.haplotypes.tsv`
 
         `filetype` will be ignored now
         """
