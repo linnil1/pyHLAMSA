@@ -410,7 +410,7 @@ cyp = CYPmsa(pharmvar_folder="./pharmvar-5.1.10")
 
 ## Setup Document
 ``` bash
-pip3 install mkdocs mkdocs-material mkdocstrings
+pip3 install mkdocs-material mkdocstrings[python]
 mkdocs serve
 ```
 

@@ -13,10 +13,9 @@ plugins:
 - mkdocstrings:
     handlers:
       python:
-        selection:
+        options:
           docstring_style: google
           inherited_members: True
-        rendering:
           show_source: True
           merge_init_into_class: True
           show_signature_annotations: True
