@@ -230,9 +230,9 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=
     # Gene
     gene_name = self.gene_name or ref_allele
     records = [[
-        self.gene_name or ref_allele, "pyHLAMSA", "gene",
+        ref_allele, "pyHLAMSA", "gene",
         str(1), str(self.get_length()), ".", strand, ".",
-        f"ID={gene_name};Name={gene_name}"
+        f"ID={ref_allele};Name={ref_allele}"
     ]]
 
     # Blocks
@@ -252,7 +252,7 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=
         # To show the label of all block in IGV
         # I break the relation (Remove parent attribute)
         if not igv_show_label:
-            records[-1][-1] += f";Parent={gene_name}"
+            records[-1][-1] += f";Parent={ref_allele}"
         pos += b.length
 
     # save
