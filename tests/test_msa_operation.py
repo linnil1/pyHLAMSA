@@ -47,13 +47,13 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # after shrink
         # original msa not chanaged
-        self.assertEqual(self.msa.get_block_length(), list(map(len, seq.split("|"))))
+        self.assertEqual([b.length for b in self.msa.blocks], list(map(len, seq.split("|"))))
         self.assertEqual(self.msa.get_length(), len(seq.replace("|", "")))
         # newmsa
         #    CCATT-|GGT--GTCGGGT|TTC|CAG
         # -> CCATT-|GGTGTCGGGT|TTC|CAG
         self.assertEqual(newmsa.get_length(), len(seq.replace("|", "").replace("-", "")))
-        self.assertEqual(newmsa.get_block_length(), list(map(len, seq.replace("-", "").split("|"))))
+        self.assertEqual([b.length for b in newmsa.blocks], list(map(len, seq.replace("-", "").split("|"))))
 
         # shrink c2 only: 0-length blocks because of gap
         c2_seq = self.input_allele['c2']
@@ -239,8 +239,6 @@ class TestMsaMainFunction(unittest.TestCase):
         with self.assertRaises(IndexError):
             self.msa.select_exon([chunk_num // 2 + 1])
         with self.assertRaises(IndexError):
-            self.msa.select_block([-2])
-        with self.assertRaises(IndexError):
             self.msa.select_block([chunk_num])
 
         # chunk vs exon
@@ -410,6 +408,16 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertTrue("consensus" in chrom_dict)
         for name, seq in chrom_dict["consensus"].items():
             self.assertEqual(msa.get(name).replace('-', ''), seq.replace('-', ''))
+
+    def test_blocks_position(self):
+        pos = [0]
+        for i in self.input_allele['a1'].split("|"):
+            pos.append(pos[-1] + len(i))
+        for i in range(len(pos) - 1):
+            self.assertEqual((pos[i], pos[i + 1]), self.msa.get_block_interval(i))
+            self.assertEqual(self.msa.get_block_interval(i), self.msa.get_block_interval(self.msa.blocks[i]))
+            self.assertEqual(self.msa.get_block_interval(i), self.msa.get_block_interval(self.msa.blocks[i].name))
+            self.assertEqual(pos[i], self.msa.get_block_position(i))
 
 
 class TestMsaExonOnly(unittest.TestCase):

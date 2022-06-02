@@ -72,9 +72,9 @@ class GenemsaColumnOp(GenemsaBlockOp):
         new_msa = self.copy(copy_allele=False)
 
         # recalcuate blocks
-        gen_pos = self._get_block_position()
         for i in range(len(self.blocks)):
-            new_msa.blocks[i].length = sum(masks[gen_pos[i]:gen_pos[i + 1]])
+            start, end = self.get_block_interval(i)
+            new_msa.blocks[i].length = sum(masks[start: end])
         assert sum(masks) == new_msa.get_length()
         new_msa.index = [new_msa.index[i] for i in range(len(masks)) if masks[i]]
 

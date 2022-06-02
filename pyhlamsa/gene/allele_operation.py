@@ -45,7 +45,7 @@ class GenemsaAlleleOp(GenemsaBlockOp):
 
     def extend(self: GenemsaType, msa: GenemsaType) -> GenemsaType:
         """ Add MSA's alleles into this MSA (inplace) """
-        if self.get_block_length() != msa.get_block_length():
+        if [b.length for b in self.blocks] != [b.length for b in msa.blocks]:
             raise ValueError("Length is different")
         leng = self.get_length()
 
