@@ -410,9 +410,11 @@ cyp = CYPmsa(pharmvar_folder="./pharmvar-5.1.10")
 
 ## Setup Document
 ``` bash
-pip3 install mkdocs-material mkdocstrings[python]
+pip3 install mkdocs-material mkdocstrings[python-lagacy]==0.18
 mkdocs serve
 ```
+
+I use python-lagacy 0.18 because `inherited_members` is not support now
 
 
 ## Test

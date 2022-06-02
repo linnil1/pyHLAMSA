@@ -197,7 +197,41 @@ def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
     pysam.index(fname)  # type: ignore
 
 
-def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=False):
+def _allele_to_gff_list(msa: Genemsa, allele: str,
+                        strand="+", igv_show_label=False) -> List[Any]:
+    # remove gap
+    self = msa.select_allele([allele]).shrink()
+
+    # Gene
+    records = [[
+        allele, "pyHLAMSA", "gene",
+        1, self.get_length(), ".", strand, ".",
+        f"ID={allele};Name={allele}"
+    ]]
+
+    # Blocks
+    pos = 0
+    for b in self.blocks:
+        # http://gmod.org/wiki/GFF3
+        # gff3 format:
+        #   1. header: ref source type start end . strand . tags
+        #   2. pos: 1-base included position
+        #   3. type: In HLA annotations exon=CDS
+        records.append([
+            allele, "pyHLAMSA", b.type if b.type != "exon" else "CDS",
+            pos + 1, pos + b.length, ".", strand, ".",
+            f"ID={b.name}_{allele}"
+        ])
+        # To show the label of all block in IGV
+        # I break the relation (Remove parent attribute)
+        if not igv_show_label:
+            records[-1][-1] += f";Parent={allele}"
+        pos += b.length
+    return records
+
+
+def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="",
+           igv_show_label=False, save_all=False):
     """
     Save to GFF3 format
 
@@ -211,7 +245,9 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=
       ref_allele (str): The name of allele (Must be the same in save_bam)
       igv_show_label (bool): If it's false, it will generate proper GFF3.
           Set it for True as default for easiler label reading in IGV.
-
+      save_all (bool):
+          Set it True if you want to create gff records for all alleles in msa
+          Note that this is not very fast.
     """
     # TODO: should I save strand == '-' in model?
     if not len(self.blocks):
@@ -227,33 +263,21 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="", igv_show_label=
             "You should assign block's label. (We assume seq_type='other')")
         self.assume_label("other")
 
-    # Gene
-    gene_name = self.gene_name or ref_allele
-    records = [[
-        ref_allele, "pyHLAMSA", "gene",
-        str(1), str(self.get_length()), ".", strand, ".",
-        f"ID={ref_allele};Name={ref_allele}"
-    ]]
+    if "-" in self.get(ref_allele):
+        self.logger.warning(
+            "Found gap in reference. "
+            "Note this progam calculate the gff positions by gapless sequence")
 
-    # Blocks
-    pos = 0
-    for b in self.blocks:
-        # http://gmod.org/wiki/GFF3
-        # gff3 format:
-        #   1. header: ref source type start end . strand . tags
-        #   2. pos: 1-base included position
-        #   3. type: In HLA annotations exon=CDS
-        records.append(
-            [ref_allele, "pyHLAMSA",
-             b.type if b.type != "exon" else "CDS",
-             str(pos + 1), str(pos + b.length), ".", strand, ".",
-             f"ID={b.name}_{ref_allele}"]
-        )
-        # To show the label of all block in IGV
-        # I break the relation (Remove parent attribute)
-        if not igv_show_label:
-            records[-1][-1] += f";Parent={ref_allele}"
-        pos += b.length
+    if save_all:
+        alleles = self.list_alleles()
+    else:
+        alleles = [ref_allele]
+
+    records = []
+    for allele in alleles:
+        self.logger.debug(f"{allele} to gff")
+        records.extend(_allele_to_gff_list(self, allele, strand=strand,
+                                           igv_show_label=igv_show_label))
 
     # save
     with open(fname, "w") as f_gff:

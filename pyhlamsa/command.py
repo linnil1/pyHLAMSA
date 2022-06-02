@@ -1,6 +1,10 @@
 """ Command line code """
+import logging
 import argparse
 from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, msaio, Genemsa
+
+logger = logging.getLogger()
+logging.basicConfig(level=logging.INFO)
 
 
 def add_parser():
@@ -8,6 +12,9 @@ def add_parser():
     parser = argparse.ArgumentParser(
             prog="pyHLAMSA",
             description="Read hla/cyp/kir, do somthing and save to fasta/bam/vcf")
+    parser.add_argument("--debug", action="store_true",
+                        help="Debug Output")
+
     subparser = parser.add_subparsers(title="subcommand",
                                       dest="subcommand")
     # download command
@@ -44,6 +51,8 @@ def add_parser():
                              help="Prefix name of .json and .fa")
     parser_view.add_argument("--name", default=None, required=False,
                              help="Prefix name of output format")
+    parser_view.add_argument("--no-show", action="store_true",
+                             help="Don't show the segment of MSA to stdout")
     parser_view.add_argument("--save", action="store_true",
                              help="Save to .json and fa")
     parser_view.add_argument("--region", nargs="+",
@@ -89,7 +98,7 @@ def download_command(args):
         msa.set_reference(f"{gene_name}{args.consensus_name}")
         msaio.save_msa(msa, f"{args.name}.{gene_name}.fa",
                             f"{args.name}.{gene_name}.json")
-        print(f"Save to {args.name}.{gene_name}.*")
+        logger.info(f"Save to {args.name}.{gene_name}.*")
 
 
 def extract_msa(args) -> Genemsa:
@@ -123,35 +132,37 @@ def write_to_files(args, msa: Genemsa):
     save_ref_seq = False
     if args.save:
         msaio.save_msa(msa, f"{args.name}.fa", f"{args.name}.json")
-        print(f"Save to {args.name}.fa {args.name}.json")
+        logger.info(f"Save to {args.name}.fa {args.name}.json")
     if args.bam:
         save_ref_seq = True
         msaio.to_bam(msa, f"{args.name}.bam")
-        print(f"Save to {args.name}.bam")
+        logger.info(f"Save to {args.name}.bam")
     if args.gff:
         save_ref_seq = True
         msaio.to_gff(msa, f"{args.name}.gff")
-        print(f"Save to {args.name}.gff")
+        logger.info(f"Save to {args.name}.gff")
     if args.fasta_gapless:
         msaio.to_fasta(msa, f"{args.name}.fa", gap=False)
-        print(f"Save to {args.name}.fa")
+        logger.info(f"Save to {args.name}.fa")
     if args.fasta_msa:
         msaio.to_fasta(msa, f"{args.name}.msa.fa", gap=True)
-        print(f"Save to {args.name}.msa.fa")
+        logger.info(f"Save to {args.name}.msa.fa")
     if args.vcf:
         save_ref_seq = True
         msaio.to_vcf(msa, f"{args.name}.vcf.gz")
-        print(f"Save to {args.name}.vcf.gz")
+        logger.info(f"Save to {args.name}.vcf.gz")
     if save_ref_seq:
         msaio.to_fasta(msa, f"{args.name}.ref.fa", gap=False, ref_only=True)
-        print(f"Save to {args.name}.ref.fa")
+        logger.info(f"Save to {args.name}.ref.fa")
 
 
 def main():
     """ Main function for command line """
     parser = add_parser()
     args = parser.parse_args()
-    # print(args)
+    logger.debug(args)
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
 
     # download databse
     if args.subcommand == "download":
@@ -159,7 +170,8 @@ def main():
     # read msa and transfer to fasta/bam/vcf/gff
     elif args.subcommand == "view":
         msa = extract_msa(args)
-        print(msa.format_alignment_diff())
+        if not args.no_show:
+            print(msa.format_alignment_diff())
         write_to_files(args, msa)
 
     if not args.subcommand:
