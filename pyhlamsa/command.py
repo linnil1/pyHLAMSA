@@ -53,6 +53,8 @@ def add_parser():
                              help="Prefix name of output format")
     parser_view.add_argument("--no-show", action="store_true",
                              help="Don't show the segment of MSA to stdout")
+    parser_view.add_argument("--show-diff", action="store_true",
+                             help="Only show the base has variantion in MSA")
     parser_view.add_argument("--save", action="store_true",
                              help="Save to .json and fa")
     parser_view.add_argument("--region", nargs="+",
@@ -142,8 +144,8 @@ def write_to_files(args, msa: Genemsa):
         msaio.to_gff(msa, f"{args.name}.gff")
         logger.info(f"Save to {args.name}.gff")
     if args.fasta_gapless:
-        msaio.to_fasta(msa, f"{args.name}.fa", gap=False)
-        logger.info(f"Save to {args.name}.fa")
+        msaio.to_fasta(msa, f"{args.name}.nogap.fa", gap=False)
+        logger.info(f"Save to {args.name}.nogap.fa")
     if args.fasta_msa:
         msaio.to_fasta(msa, f"{args.name}.msa.fa", gap=True)
         logger.info(f"Save to {args.name}.msa.fa")
@@ -156,11 +158,8 @@ def write_to_files(args, msa: Genemsa):
         logger.info(f"Save to {args.name}.ref.fa")
 
 
-def main():
-    """ Main function for command line """
-    parser = add_parser()
-    args = parser.parse_args()
-    logger.debug(args)
+def run_command(args):
+    """ Run command by args """
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
 
@@ -171,8 +170,19 @@ def main():
     elif args.subcommand == "view":
         msa = extract_msa(args)
         if not args.no_show:
-            print(msa.format_alignment_diff())
+            if args.show_diff:
+                print(msa.format_variantion_base())
+            else:
+                print(msa.format_alignment_diff())
         write_to_files(args, msa)
 
-    if not args.subcommand:
+
+def main():
+    """ Main function for command line """
+    parser = add_parser()
+    args = parser.parse_args()
+    logger.debug(args)
+    if args.subcommand:
+        run_command(args)
+    else:
         print(parser.print_help())

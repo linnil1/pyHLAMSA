@@ -189,5 +189,54 @@ class TestMsaHLA(unittest.TestCase):
                 self.assertEqual(seq_a, seq_c)
 
 
+class TestCommand(unittest.TestCase):
+    def setUp(self):
+        if not os.path.exists("KIR_v2100"):
+            self.skipTest('Tested in local')
+        from pyhlamsa import command
+        self.parser = command.add_parser()
+        self.dir = TemporaryDirectory()
+        self.tmp_dir = self.dir.name
+        # cmd = f"""download --family kir --db-folder KIR_v2100
+        cmd = f"""download --family kir --db-folder {self.tmp_dir}/kirdb
+                           --version 2100 {self.tmp_dir}/kir
+                           --include-genes KIR2DL1 KIR2DL2"""
+        cmd = list(filter(None, cmd.replace("\n", " ").split(" ")))
+        args = self.parser.parse_args(cmd)
+        command.run_command(args)
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir.KIR2DL1.fa"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir.KIR2DL1.json"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir.KIR2DL2.fa"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir.KIR2DL2.json"))
+
+    def test_view(self):
+        """ view the msa """
+        cmd = f"""view {self.tmp_dir}/kir.KIR2DL1
+                      --position 3-100
+                      --include-alleles KIR2DL1*consensus KIR2DL1*063"""
+        cmd = list(filter(None, cmd.replace("\n", " ").split(" ")))
+        args = self.parser.parse_args(cmd)
+        from pyhlamsa import command
+        command.run_command(args)
+
+    def test_save(self):
+        """ save the intron1+exon1 region to kir1.* """
+        cmd = f"""view {self.tmp_dir}/kir.KIR2DL2
+                      --region intron1 exon1
+                      --name {self.tmp_dir}/kir1
+                      --save --bam --gff --vcf --fasta-gapless --fasta-msa"""
+        cmd = list(filter(None, cmd.replace("\n", " ").split(" ")))
+        args = self.parser.parse_args(cmd)
+        from pyhlamsa import command
+        command.run_command(args)
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.fa"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.json"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.gff"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.bam"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.vcf.gz"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.nogap.fa"))
+        self.assertTrue(os.path.exists(f"{self.tmp_dir}/kir1.msa.fa"))
+
+
 if __name__ == '__main__':
     unittest.main()
