@@ -4,18 +4,34 @@ from typing import List, TypeVar, Iterable, Tuple, Union
 from Bio.Seq import Seq
 
 from ..utils import cigar
-from .block_operation import GenemsaBlockOp
+from .base import GenemsaBase
 
 GenemsaType = TypeVar("GenemsaType", bound="GenemsaAlleleOp")
 
 
-class GenemsaAlleleOp(GenemsaBlockOp):
+class GenemsaAlleleOp(GenemsaBase):
     """
     This class provided method for allele-wise (row-wise) operation
     """
     def get(self, allele: str) -> str:
         """ Get the sequence by allele name """
         return self.alleles[allele]
+
+    def get_allele_or_error(self, allele="") -> Tuple[str, str]:
+        """
+        Get the sequence by allele name
+
+        Args:
+          allele (str): Allele name. If not provided, reference allele are used
+
+        Returns:
+          allele_name (str) and its sequence (str):
+        """
+        if not allele:
+            allele = self.get_reference()[0]
+        if allele not in self.alleles:
+            raise ValueError(f"{allele} not found")
+        return allele, self.alleles[allele]
 
     def sort(self: GenemsaType) -> GenemsaType:
         """ Sort the sequences """
@@ -112,10 +128,6 @@ class GenemsaAlleleOp(GenemsaBlockOp):
         """
         if target_allele not in self.alleles:
             raise KeyError(f"{target_allele} not found")
-        if not ref_allele:
-            ref_allele = self.get_reference()[0]
-        if ref_allele not in self.alleles:
-            raise KeyError(f"{ref_allele} not found")
-
+        ref_allele, _ = self.get_allele_or_error(ref_allele)
         return cigar.calculate_cigar(self.alleles[ref_allele],
                                      self.alleles[target_allele])

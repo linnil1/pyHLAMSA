@@ -154,17 +154,9 @@ def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
           If the ref_allele is empty, the first allele will be reference.
       save_ref (bool): The reference allele will also be saved in the bam file
     """
-    if not len(self.alleles):
-        raise ValueError("MSA is empty")
-    if not ref_allele:
-        ref_allele = self.get_reference()[0]
-    if ref_allele not in self.alleles:
-        raise ValueError(f"{ref_allele} not found")
-    if not fname:
-        raise ValueError("filename is required")
+    ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
 
     # setup reference and header
-    ref_seq = self.alleles[ref_allele]
     header = {'HD': {'VN': "1.0"},
               'SQ': [{'LN': len(ref_seq.replace("-", "").replace("E", "")),
                       'SN': ref_allele}]}
@@ -250,12 +242,7 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="",
           Note that this is not very fast.
     """
     # TODO: should I save strand == '-' in model?
-    if not len(self.blocks):
-        raise ValueError("MSA is empty")
-    if not ref_allele:
-        ref_allele = self.get_reference()[0]
-    if ref_allele not in self.alleles:
-        raise ValueError(f"{ref_allele} not found")
+    ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
 
     # labels
     if not all(b.type for b in self.blocks):
@@ -263,7 +250,7 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="",
             "You should assign block's label. (We assume seq_type='other')")
         self.assume_label("other")
 
-    if "-" in self.get(ref_allele):
+    if "-" in ref_seq:
         self.logger.warning(
             "Found gap in reference. "
             "Note this progam calculate the gff positions by gapless sequence")
@@ -332,13 +319,7 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_tex
       save_ref (bool): The reference allele will also be saved in the vcf file
       plain_text (bool): Disable sort vcf and index vcf
     """
-    if not len(self.blocks):
-        raise ValueError("MSA is empty")
-    if not ref_allele:
-        ref_allele = self.get_reference()[0]
-    if ref_allele not in self.alleles:
-        raise ValueError(f"{ref_allele} not found")
-    ref_seq = self.get(ref_allele)
+    ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
 
     # extract all variants from all alleles
     allele_variants = {}

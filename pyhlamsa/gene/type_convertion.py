@@ -16,7 +16,7 @@ class GenemsaConverter(GenemsaColumnOp):
     This class is to convert msa into another format and convert them back
 
     Support format:
-    * dict
+    * dict(json)
     * SeqRecord
     * MultipleSeqAlignment
     """
