@@ -151,6 +151,10 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
         for block_info in dat[allele_name]:
             block_name, start, end = \
                     block_info['name'], block_info['start'], block_info['end']
+            # Skip if there is no that block e.g. no 3UTR
+            # {'name': '3UTR', 'start': 6501, 'end': 6500}
+            if start - 1 >= len(seq_cord):
+                continue
             # calculate the position
             block_cord[block_name][0] = min(block_cord[block_name][0],
                                             seq_cord[start - 1])

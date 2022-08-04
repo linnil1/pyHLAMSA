@@ -36,7 +36,7 @@ class KIRmsa(Familymsa):
                 Or it will automatically download the database with assigned `version` to
                 `ipd_folder`. Default is `./kIR_v{verion}`
 
-            version (str): IMGT version you want to download
+            version (str): IMGT version you want to download (2110 for version 2.11.0)
 
                 If `ipd_folder` is existed, this value will be ignored.
 

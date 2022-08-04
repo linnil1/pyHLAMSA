@@ -123,6 +123,15 @@ class CYPmsa(Familymsa):
                 end = pos + len(i[6])
                 i[7] = "-" * len(i[6])
             elif i[8] == "insertion":
+                # hard coded bugs
+                if i[0].startswith("CYP2A6*31"):
+                    # CYP2A6*31.001   4530    4552    CCCCTTCCTGAGACCCTTAACCC -   deletion
+                    # CYP2A6*31.001   4530    4531    -   AATCCATATGTGGAATCTG insertion
+                    continue
+                if i[0].startswith("CYP2A6*27"):
+                    # CYP2A6*27.001   7183    7184    -   A   insertion
+                    continue
+
                 pos = int(i[4])
                 end = int(i[4]) + len(i[7])
                 i[6] = "-" * len(i[7])

@@ -41,7 +41,7 @@ class HLAmsaEX(Familymsa):
                 Or it will automatically download the database with assigned `version` to
                 `imgt_folder`. Default is `./IMGT_v{verion}`
 
-            version (str): IMGT version you want to download
+            version (str): IMGT version you want to download (e.g. 3470 for 3.47.0)
 
                 If `imgt_folder` is existed, this value will be ignored.
 
@@ -77,11 +77,10 @@ class HLAmsaEX(Familymsa):
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf") | drb
         if "nuc" in filetype:
-            # HLA-E nuc doessn't have exon8
-            names = names_nuc = (self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | drb
-                                 - set(["E"]))
+            names = names_nuc = self._get_name(f"{self.db_folder}/msf/*_nuc.msf") | drb
         if "gen" in filetype and "nuc" in filetype:
-            names = names_gen & names_nuc
+            # HLA-E nuc has 7 bases differences from exon7 and exon8
+            names = (names_gen & names_nuc) - set("E")
         return sorted(names)
 
     def read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
@@ -117,7 +116,7 @@ class HLAmsaEX(Familymsa):
                              - set(msa_nuc.get_sequence_names()))
             if diff_name:
                 self.logger.warning(
-                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+                    f"Remove alleles existed in gen but not in nuc: {diff_name}")
             msa_gen = msa_gen.remove(diff_name)
 
             # merge

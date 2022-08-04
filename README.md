@@ -428,9 +428,9 @@ mypy pyhlamsa
 
 ### Tested Version
 
-* CYP: 5.1.0
-* HLA: 3.47.0
-* KIR: 2.10.0
+* CYP: 5.2.2
+* HLA: 3.49.0
+* KIR: 2.10.0 (The DB in 2.11.0 contains bugs in KIR2DL4/5)
 
 
 ## Some QAs

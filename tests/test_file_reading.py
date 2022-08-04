@@ -99,13 +99,13 @@ class TestMsaReadFromDB(unittest.TestCase):
 
 
 class TestMsaHLA(unittest.TestCase):
-    @unittest.skipIf(not os.path.exists("alignment_v3470"), "Tested on local")
+    @unittest.skipIf(not os.path.exists("IMGT_v3490"), "Tested on local")
     def test_hla_align(self):
         from pyhlamsa import HLAmsa, HLAmsaEX
         genes = ["A", "B", "C"]
-        hla0 = HLAmsa(genes, filetype="gen", imgt_alignment_folder="alignment_v3470", version="3470")
-        hla1 = HLAmsa(genes, imgt_alignment_folder="alignment_v3470")
-        hla2 = HLAmsaEX(genes, imgt_folder="IMGT_v3470", version="3470")
+        hla0 = HLAmsa(genes, filetype="gen", imgt_alignment_folder="alignment_v3490", version="3490")
+        hla1 = HLAmsa(genes, imgt_alignment_folder="alignment_v3490")
+        hla2 = HLAmsaEX(genes, imgt_folder="IMGT_v3490", version="3490")
 
         # test squence is correct
         for gene in genes:
@@ -142,10 +142,10 @@ class TestMsaHLA(unittest.TestCase):
             for name in set(kir0[gene].get_sequence_names()) & set(kir1[gene].get_sequence_names()):
                 self.assertEqual(kir0[gene].get(name).replace("-", "").replace("E", ""), kir1[gene].get(name).replace("-", "").replace("E", ""))
 
-    @unittest.skipIf(not os.path.exists("pharmvar-5.1.10"), "Tested on local")
+    @unittest.skipIf(not os.path.exists("pharmvar-5.2.2"), "Tested on local")
     def test_cyp(self):
         from pyhlamsa import CYPmsa
-        cpy = CYPmsa(pharmvar_folder="pharmvar-5.1.10")
+        cpy = CYPmsa(pharmvar_folder="pharmvar-5.2.2")
         # already lots of assert in CYPmsa._read_db_gene
 
     @unittest.skipIf(not os.path.exists("KIR_v2100"), "Tested on local")

@@ -7,8 +7,12 @@ from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
 
 class HLAmsa(Familymsa):
     """
-    A HLA interface
+    A HLA interface.
 
+    This module read the HLA MSA from alignments/*.txt files,
+    which use `|` to separate the intron/exon/UTR regions, but
+    the labels are assumed with the order:
+    `5UTR exon1 intron1 exon2 ... exonN 3UTR`
 
     Attributes:
       genes (dict[str, Genemsa]):
@@ -38,7 +42,7 @@ class HLAmsa(Familymsa):
                 Otherwise it will automatically download the database to
                 `imgt_alignment_folder`. Default is `./alignment_v{verion}`
 
-            version (str): IMGT version you want to download
+            version (str): IMGT version you want to download (e.g. 3470 for 3.47.0)
 
                 If `imgt_alignment_folder` is existed, this value will be ignored.
                 Use `Latest` to get latest version.
@@ -84,7 +88,7 @@ class HLAmsa(Familymsa):
             #        exon4(276) exon5(117) exon6(33) exon7(41)>
             if "gen" in filetype and "nuc" in filetype:
                 names = names - set(["E"])
-        return list(sorted(names))[10:]
+        return list(sorted(names))
 
     def read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
         """
