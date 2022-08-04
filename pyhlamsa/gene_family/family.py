@@ -81,8 +81,7 @@ class Familymsa:
     def _run_shell(self, *args, cwd=None):
         """ Run shell code """
         self.logger.debug("Run " + " ".join(args))
-        with subprocess.Popen(args, cwd=cwd) as proc:
-            proc.wait()
+        subprocess.run(args, cwd=cwd, check=True)
 
     def list_db_gene(self, filetype: TypeSet) -> List[str]:
         """ Abstract method: code for listing gene names """

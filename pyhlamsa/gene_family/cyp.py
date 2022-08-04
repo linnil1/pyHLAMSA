@@ -16,7 +16,8 @@ class CYPmsa(Familymsa):
 
     def __init__(self, genes: GeneSet = None,
                  filetype: TypeSet = [],
-                 pharmvar_folder="", version="5.1.10"):
+                 pharmvar_folder: str = "",
+                 version: str = "5.2.2"):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.

@@ -14,8 +14,7 @@ You can simply use this package by command line.
 If you want to use more powerful function, try the APIs written in below sections.
 
 ``` bash
-git clone https://github.com/linnil1/pyHLAMSA
-pip3 install -e pyHLAMSA
+pip3 install -e git+https://github.com/linnil1/pyHLAMSA
 # show help
 pyhlamsa -h
 # download kir
@@ -427,7 +426,14 @@ mypy pyhlamsa
 ```
 
 
-## Some QA
+### Tested Version
+
+* CYP: 5.1.0
+* HLA: 3.47.0
+* KIR: 2.10.0
+
+
+## Some QAs
 > Why not inherit Bio.AlignIO.MultipleSeqAlignment?
 
 The class does't support lot of functions than I expected.
@@ -439,9 +445,9 @@ And it's tidious to overwrite most of the functions to maintain our blocks infor
 Performance issue is not my bottle-neck yet.
 
 
-## Citation
-* IGV
-    James T. Robinson, Helga Thorvaldsdóttir, Wendy Winckler, Mitchell Guttman, Eric S. Lander, Gad Getz, Jill P. Mesirov. Integrative Genomics Viewer. Nature Biotechnology 29, 24–26 (2011)
+## Citations
+* HLA
+    Robinson J, Barker DJ, Georgiou X, Cooper MA, Flicek P, Marsh SGE: IPD-IMGT/HLA Database. Nucleic Acids Research (2020), 48:D948-55
 * IMGT
     Robinson J, Barker DJ, Georgiou X, Cooper MA, Flicek P, Marsh SGE
     IPD-IMGT/HLA Database

@@ -28,7 +28,7 @@ def add_parser():
     parser_download.add_argument("--seq-type", choices=["gen", "nuc", "merged"],
                                  default="gen",
                                  help="The sequence type for parsing")
-    parser_download.add_argument("--version", default="latest",
+    parser_download.add_argument("--version", default="Latest",
                                  help="Version of database")
     parser_download.add_argument("--db-folder", default="",
                                  help="Folder of database "

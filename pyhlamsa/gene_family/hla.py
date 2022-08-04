@@ -1,5 +1,6 @@
 from glob import glob
 from typing import List, Set
+from tempfile import TemporaryDirectory
 
 from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
 
@@ -15,7 +16,8 @@ class HLAmsa(Familymsa):
     """
     def __init__(self, genes: GeneSet = None,
                  filetype: TypeSet = ["gen", "nuc"],
-                 imgt_alignment_folder="", version="3470"):
+                 imgt_alignment_folder: str = "",
+                 version: str = "Latest"):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
@@ -46,7 +48,7 @@ class HLAmsa(Familymsa):
         super().__init__(genes, filetype,
                          db_folder=imgt_alignment_folder, version=version)
 
-    def _download_db(self, version: str):
+    def _download_db(self, version: str = "Latest"):
         """
         Download the IMGTHLA alignments folder to `db_folder`
 
@@ -54,10 +56,10 @@ class HLAmsa(Familymsa):
         <http://ftp.ebi.ac.uk/pub/databases/ipd/imgt/hla/>
         for better version controlling
         """
-        self._run_shell("git", "clone", "https://github.com/ANHIG/IMGTHLA.git",
-                        "/tmp/IMGTHLA")
-        self._run_shell("git", "checkout", version, cwd="/tmp/IMGTHLA")
-        self._run_shell("mv", "/tmp/IMGTHLA/alignments", self.db_folder)
+        with TemporaryDirectory() as tmp_dir:
+            self._run_shell("git", "clone", "--branch", version, "--single-branch",
+                            "https://github.com/ANHIG/IMGTHLA.git", tmp_dir)
+            self._run_shell("mv", tmp_dir + "/alignments", self.db_folder)
 
     def _get_name(self, search_name: str) -> Set[str]:
         """ Handy function to list names from file pattern """

@@ -1,6 +1,7 @@
 import os
 from glob import glob
 from typing import List, Set
+import subprocess
 
 from .family import Familymsa, Genemsa, BlockInfo, msaio, GeneSet, TypeSet
 from ..utils import dat
@@ -20,7 +21,8 @@ class HLAmsaEX(Familymsa):
 
     def __init__(self, genes: GeneSet = None,
                  filetype: TypeSet = ["gen", "nuc"],
-                 imgt_folder="", version="3470"):
+                 imgt_folder: str = "",
+                 version: str = "Latest"):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
@@ -50,13 +52,18 @@ class HLAmsaEX(Familymsa):
         super().__init__(genes, filetype,
                          db_folder=imgt_folder, version=version)
 
-    def _download_db(self, download=True, version="3430"):
+    def _download_db(self, version: str = "Latest"):
         """
         Download the IMGT/HLA msf and hla.dat to folder `imgt_folder`
         """
-        self._run_shell("git", "clone",
+        try:
+            self._run_shell("git", "lfs")
+        except subprocess.CalledProcessError:
+            self.logger.error(f"git lfs not installed (Try apt install git-lfs)")
+            exit()
+
+        self._run_shell("git", "clone", "--branch", version, "--single-branch",
                         "https://github.com/ANHIG/IMGTHLA.git", self.db_folder)
-        self._run_shell("git", "checkout", version, cwd=self.db_folder)
         self._run_shell("git", "lfs", "pull", cwd=self.db_folder)
 
     def _get_name(self, search_name: str) -> Set[str]:

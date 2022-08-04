@@ -16,7 +16,8 @@ class KIRmsa(Familymsa):
 
     def __init__(self, genes: GeneSet = None,
                  filetype: TypeSet = ["gen", "nuc"],
-                 ipd_folder="", version="2100"):
+                 ipd_folder: str = "",
+                 version: str = "Latest"):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
@@ -41,18 +42,19 @@ class KIRmsa(Familymsa):
 
                 version='Latest' to get latest version, however sometime it cannot work
                 because database may change the format, or contains bugs
+                (e.g. 2.11.0 https://github.com/ANHIG/IPDKIR/issues/44)
         """
         # Why not version 2110 -> 2DL4,2DL5 has exon 4
         if not ipd_folder:
             ipd_folder = f"KIR_v{version}"
         super().__init__(genes, filetype, db_folder=ipd_folder, version=version)
 
-    def _download_db(self, version="2100"):
+    def _download_db(self, version: str = "Latest"):
         """
         Download the KIR to `IPDKIR`
         """
-        self._run_shell("git", "clone", "https://github.com/ANHIG/IPDKIR", self.db_folder)
-        self._run_shell("git", "checkout", version, cwd=self.db_folder)
+        self._run_shell("git", "clone", "--branch", version, "--single-branch",
+                        "https://github.com/ANHIG/IPDKIR", self.db_folder)
 
     def _get_name(self, search_name: str) -> Set[str]:
         """ Extract name from file pattern """
