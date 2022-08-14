@@ -1,6 +1,7 @@
 import re
 import copy
 from typing import List, TypeVar, Iterable, Tuple, Union
+from collections.abc import Iterable
 from Bio.Seq import Seq
 
 from ..utils import cigar
@@ -86,7 +87,7 @@ class GenemsaAlleleOp(GenemsaBase):
         # else
         raise NotImplementedError
 
-    def select_allele(self: GenemsaType, query: Union[str, List[str]]) -> GenemsaType:
+    def select_allele(self: GenemsaType, query: Union[str, Iterable[str]]) -> GenemsaType:
         """
         Select allele name by regex or list of name
 
@@ -101,7 +102,7 @@ class GenemsaAlleleOp(GenemsaBase):
             new_msa.alleles = {allele: seq
                                for allele, seq in self.alleles.items()
                                if re.match(query, allele)}
-        elif isinstance(query, list):
+        elif isinstance(query, Iterable):
             new_msa.alleles = {name: self.alleles[name] for name in query}
         return new_msa
 

@@ -2,10 +2,12 @@
 Define the basic class of Genemsa,
 including GenemsaBase, BlockInfo, IndexInfo
 """
-from typing import Tuple, List, Dict, TypeVar, Optional
+
 import copy
 import logging
 import dataclasses
+from typing import Tuple, List, Dict, TypeVar, Optional
+from collections.abc import Iterable
 
 
 GenemsaType = TypeVar("GenemsaType", bound="GenemsaBase")
@@ -46,8 +48,8 @@ class GenemsaBase:
     The basic definition of MSA
     """
     def __init__(self, gene_name: str,
-                 blocks: Optional[List[BlockInfo]] = None,
-                 index: Optional[List[IndexInfo]] = None,
+                 blocks: Optional[Iterable[BlockInfo]] = None,
+                 index: Optional[Iterable[IndexInfo]] = None,
                  reference=None):
         """
         Attributes:
@@ -67,8 +69,8 @@ class GenemsaBase:
         """
         self.gene_name = gene_name
         self.alleles = {}  # type: Dict[str, str]
-        self.blocks = copy.deepcopy(blocks or [])  # intron exon length
-        self.index = copy.deepcopy(index or [])
+        self.blocks = copy.deepcopy(list(blocks or []))  # intron exon length
+        self.index = copy.deepcopy(list(index or []))
         self.logger = logging.getLogger(__name__)
         self.reference = reference
 

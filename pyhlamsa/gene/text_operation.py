@@ -4,7 +4,7 @@ This module is to convert msa into string
 All string formatting code are written in this file
 """
 import dataclasses
-from collections.abc import Iterator
+from collections.abc import Iterator, Iterable, Sequence
 from typing import List, Iterable, TypeVar, Union
 
 from .base import IndexInfo
@@ -24,18 +24,21 @@ class _Column:
     pos: int = -1        # pos = position of base (for type=base)
 
 
-def _apply_column_format_oneline(self: GenemsaType, columns_format: List[_Column]) -> str:
+def _apply_column_format_oneline(self: GenemsaType,
+                                 columns_format: Iterable[_Column]) -> str:
     """
-    This function only controlling the layout not logic
+    This function only control the layout not logic
 
     It will print the msa with the format defined in columns_format
 
     It may overlap the text if the length of `_Column` doesn't given enough space.
     """
     output_str = ""
+    columns_format_list = list(columns_format)
+
     # index line
     index_left_space = 0
-    for column in columns_format:
+    for column in columns_format_list:
         index_left_space += column.length
         if column.index:
             # note: 1-base
@@ -45,7 +48,7 @@ def _apply_column_format_oneline(self: GenemsaType, columns_format: List[_Column
 
     # indicator line
     index_left_space = 0
-    for column in columns_format:
+    for column in columns_format_list:
         index_left_space += column.length
         if column.index:
             output_str += f"{'|':>{index_left_space}}"
@@ -54,7 +57,7 @@ def _apply_column_format_oneline(self: GenemsaType, columns_format: List[_Column
 
     # allele line
     for name, seq in self.alleles.items():
-        for column in columns_format:
+        for column in columns_format_list:
             if column.type == "char":
                 output_str += column.word
             elif column.type == "allele_name":
@@ -65,7 +68,7 @@ def _apply_column_format_oneline(self: GenemsaType, columns_format: List[_Column
     return output_str
 
 
-def _generate_column_format(index: List[IndexInfo],
+def _generate_column_format(index: Sequence[IndexInfo],
                             show_position_set=None,
                             wrap=100) -> Iterator:
     """ Determine the column by the index information (and block) """

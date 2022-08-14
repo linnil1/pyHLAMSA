@@ -1,4 +1,5 @@
 from typing import List, TypeVar, Optional, Any, Union, Tuple
+from collections.abc import Iterable
 
 from .base import GenemsaBase, BlockInfo
 
@@ -51,7 +52,7 @@ class GenemsaBlockOp(GenemsaBase):
         return sum(self.blocks[i].length for i in range(index))
 
     def select_exon(self: GenemsaType,
-                    exon_index: Optional[List[BlockInput]] = None) -> GenemsaType:
+                    exon_index: Optional[Iterable[BlockInput]] = None) -> GenemsaType:
         """
         Extract the exon by index.
 
@@ -98,7 +99,7 @@ class GenemsaBlockOp(GenemsaBase):
                 raise IndexError(f"{block} is not exon: input={i}")
         return self.select_block(exon_list)
 
-    def select_block(self: GenemsaType, index: List[BlockInput]) -> GenemsaType:
+    def select_block(self: GenemsaType, index: Iterable[BlockInput]) -> GenemsaType:
         """
         Extract blocks by index
 
