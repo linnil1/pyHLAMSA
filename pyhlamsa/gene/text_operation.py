@@ -5,7 +5,7 @@ All string formatting code are written in this file
 """
 import dataclasses
 from collections.abc import Iterator, Iterable, Sequence
-from typing import List, Iterable, TypeVar, Union
+from typing import TypeVar, Union
 
 from .base import IndexInfo
 from .column_operation import GenemsaColumnOp
@@ -77,7 +77,7 @@ def _generate_column_format(index: Sequence[IndexInfo],
     last_pos = -1  # last position
     last_block_name = ""  # block name of last position
     seq_length = len(index)
-    column_format = []  # type: List[_Column]
+    column_format: list[_Column] = []
     while pos < seq_length:
         show_index = False  # if this base need index
 
@@ -317,7 +317,7 @@ class GenemsaTextOp(GenemsaColumnOp):
             return output_str
 
         # merge if two variant are too close
-        merged_bases = []  # type: List[List[int]]
+        merged_bases: list[list[int]] = []
         right = 5
         for b in bases:
             if merged_bases and merged_bases[-1][1] + right * 2 >= b:

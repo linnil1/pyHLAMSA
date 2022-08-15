@@ -1,10 +1,9 @@
 """
 Utility for cigar calculation
 """
-from typing import List, Tuple
 
 
-def calculate_cigar(ref: str, seq: str) -> List[Tuple[str, int]]:
+def calculate_cigar(ref: str, seq: str) -> list[tuple[str, int]]:
     """
     Compare two sequences and output cigar
 

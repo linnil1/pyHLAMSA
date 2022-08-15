@@ -1,13 +1,13 @@
 """ Command line code """
 import logging
 import argparse
-from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, msaio, Genemsa
+from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, msaio, Genemsa, Familymsa
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
 
 
-def add_parser():
+def add_parser() -> argparse.ArgumentParser:
     """ Add two command: download and view """
     parser = argparse.ArgumentParser(
             prog="pyHLAMSA",
@@ -79,7 +79,7 @@ def add_parser():
     return parser
 
 
-def download_command(args):
+def download_command(args: argparse.Namespace):
     """" Download database and save to msa """
     if args.seq_type == "merged":
         filetype = ["nuc", "gen"]
@@ -87,8 +87,8 @@ def download_command(args):
         filetype = [args.seq_type]
 
     if args.family.lower() == "hla":
-        family = HLAmsaEX(genes=args.include_genes, version=args.version,
-                          filetype=filetype, imgt_folder=args.db_folder)
+        family: Familymsa = HLAmsaEX(genes=args.include_genes, version=args.version,
+                                     filetype=filetype, imgt_folder=args.db_folder)
     elif args.family.lower() == "kir":
         family = KIRmsa(genes=args.include_genes, version=args.version,
                         filetype=filetype, ipd_folder=args.db_folder)
@@ -158,7 +158,7 @@ def write_to_files(args, msa: Genemsa):
         logger.info(f"Save to {args.name}.ref.fa")
 
 
-def run_command(args):
+def run_command(args: argparse.Namespace):
     """ Run command by args """
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)

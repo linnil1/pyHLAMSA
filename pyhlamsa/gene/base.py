@@ -6,7 +6,7 @@ including GenemsaBase, BlockInfo, IndexInfo
 import copy
 import logging
 import dataclasses
-from typing import Tuple, List, Dict, TypeVar, Optional
+from typing import TypeVar, Optional
 from collections.abc import Iterable
 
 
@@ -68,7 +68,7 @@ class GenemsaBase:
             reference (str): The reference allele of the msa (Optional)
         """
         self.gene_name = gene_name
-        self.alleles = {}  # type: Dict[str, str]
+        self.alleles: dict[str, str] = {}
         self.blocks = copy.deepcopy(list(blocks or []))  # intron exon length
         self.index = copy.deepcopy(list(index or []))
         self.logger = logging.getLogger(__name__)
@@ -91,7 +91,7 @@ class GenemsaBase:
         """
         return len(self.alleles)
 
-    def size(self) -> Tuple[int, int]:
+    def size(self) -> tuple[int, int]:
         """ Get the size (num_of_sequences, length_of_sequence) """
         return (len(self), self.get_length())
 
@@ -100,7 +100,7 @@ class GenemsaBase:
         # 0 sequences is allow
         return len(self.get_reference()[1])
 
-    def list_alleles(self) -> List[str]:
+    def list_alleles(self) -> list[str]:
         """
         List all the allele's sequence name in MSA
 
@@ -110,7 +110,7 @@ class GenemsaBase:
         """
         return list(self.alleles.keys())
 
-    def get_sequence_names(self) -> List[str]:
+    def get_sequence_names(self) -> list[str]:
         """ Same as list_allele_names """
         return self.list_alleles()
 
@@ -136,7 +136,7 @@ class GenemsaBase:
         self.reference = allele
         return self
 
-    def get_reference(self) -> Tuple[str, str]:
+    def get_reference(self) -> tuple[str, str]:
         """
         Get the reference in MSA, if not existed, output the first one
 

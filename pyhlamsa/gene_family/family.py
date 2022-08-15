@@ -1,7 +1,7 @@
 import os
 import logging
 import subprocess
-from typing import Any, List, Union, Set, Iterable
+from typing import Iterable, Union
 
 from ..gene import Genemsa, BlockInfo
 from .. import msaio
@@ -49,7 +49,7 @@ class Familymsa:
             self.logger.info(f"Reading {gene_name}'s sequences")
             self.genes[gene_name] = self.read_db_gene(gene_name, filetype)
 
-    def list_genes(self) -> List[str]:
+    def list_genes(self) -> list[str]:
         """ List all the gene's name in this family """
         return list(self.genes.keys())
 
@@ -83,7 +83,7 @@ class Familymsa:
         self.logger.debug("Run " + " ".join(args))
         subprocess.run(args, cwd=cwd, check=True)
 
-    def list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> list[str]:
         """ Abstract method: code for listing gene names """
         raise NotImplementedError
 

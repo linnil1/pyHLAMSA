@@ -369,7 +369,7 @@ You can fill it by consensus_seq shown before.
 
 
 ## Requirement
-* python3.8
+* python3.9
 * biopython
 * pysam
 * wget

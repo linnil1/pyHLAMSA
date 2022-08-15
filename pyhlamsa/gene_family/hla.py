@@ -1,5 +1,4 @@
 from glob import glob
-from typing import List, Set
 from tempfile import TemporaryDirectory
 
 from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
@@ -28,7 +27,7 @@ class HLAmsa(Familymsa):
 
                 Set None if you want read all gene in HLA
 
-            filetype (str | list[str] | Set[str]): A list of filetype.
+            filetype (str | list[str] | set[str]): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
 
@@ -65,12 +64,12 @@ class HLAmsa(Familymsa):
                             "https://github.com/ANHIG/IMGTHLA.git", tmp_dir)
             self._run_shell("mv", tmp_dir + "/alignments", self.db_folder)
 
-    def _get_name(self, search_name: str) -> Set[str]:
+    def _get_name(self, search_name: str) -> set[str]:
         """ Handy function to list names from file pattern """
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> list[str]:
         """ List the gene in folder """
         drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:

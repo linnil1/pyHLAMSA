@@ -1,9 +1,7 @@
-import os
 from glob import glob
-from typing import List, Set
 import subprocess
 
-from .family import Familymsa, Genemsa, BlockInfo, msaio, GeneSet, TypeSet
+from .family import Familymsa, Genemsa, msaio, GeneSet, TypeSet
 from ..utils import dat
 
 
@@ -29,7 +27,7 @@ class HLAmsaEX(Familymsa):
 
                 Set None if you want read all gene in HLA
 
-            filetype (str | list[str] | Set[str]): A list of filetype.
+            filetype (str | list[str] | set[str]): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
 
@@ -66,12 +64,12 @@ class HLAmsaEX(Familymsa):
                         "https://github.com/ANHIG/IMGTHLA.git", self.db_folder)
         self._run_shell("git", "lfs", "pull", cwd=self.db_folder)
 
-    def _get_name(self, search_name: str) -> Set[str]:
+    def _get_name(self, search_name: str) -> set[str]:
         """ Extract name from file pattern """
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> list[str]:
         """ List the gene in folder """
         drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:

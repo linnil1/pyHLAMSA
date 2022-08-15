@@ -15,7 +15,7 @@ import os
 import re
 import json
 import logging
-from typing import List, Tuple, Dict, Any
+from typing import Any
 from Bio import AlignIO, SeqIO
 import pysam
 from pysam import bcftools
@@ -27,7 +27,7 @@ from .utils import vcf
 logger = logging.getLogger(__name__)
 
 
-def _table_to_string(data: List[List[Any]]) -> str:
+def _table_to_string(data: list[list[Any]]) -> str:
     """ Turn table into tab separted string """
     return "\n".join('\t'.join(map(str, items)) for items in data)
 
@@ -48,7 +48,7 @@ def read_alignment_txt(fname: str, seq_type="") -> Genemsa:
     return new_msa
 
 
-def _parse_alignment_txt(fname: str) -> Dict[str, str]:
+def _parse_alignment_txt(fname: str) -> dict[str, str]:
     """
     Read MSA file defined in IMGT .e.g. IMGT/alignments/A_gen.txt
 
@@ -113,7 +113,7 @@ def read_msf_file(file_msf: str) -> Genemsa:
     return Genemsa.from_MultipleSeqAlignment(AlignIO.read(file_msf, "msf"))
 
 
-def _cigar_to_pysam(cigar: List[Tuple[str, int]]) -> List[Tuple[int, int]]:
+def _cigar_to_pysam(cigar: list[tuple[str, int]]) -> list[tuple[int, int]]:
     """
     Translate cigar to cigar tuple defined in
     https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
@@ -190,7 +190,7 @@ def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
 
 
 def _allele_to_gff_list(msa: Genemsa, allele: str,
-                        strand="+", igv_show_label=False) -> List[Any]:
+                        strand="+", igv_show_label=False) -> list[Any]:
     # remove gap
     self = msa.select_allele([allele]).shrink()
 

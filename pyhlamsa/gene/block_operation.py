@@ -1,4 +1,4 @@
-from typing import List, TypeVar, Optional, Any, Union, Tuple
+from typing import TypeVar, Optional, Union
 from collections.abc import Iterable
 
 from .base import GenemsaBase, BlockInfo
@@ -40,7 +40,7 @@ class GenemsaBlockOp(GenemsaBase):
             raise IndexError(f"{block} is out of index")
         return id
 
-    def get_block_interval(self, block: BlockInput) -> Tuple[int, int]:
+    def get_block_interval(self, block: BlockInput) -> tuple[int, int]:
         """ Calculate the start(included) and end index (excluded) of the block """
         index = self._get_block_index(block)
         start = sum(self.blocks[i].length for i in range(index))
@@ -80,7 +80,7 @@ class GenemsaBlockOp(GenemsaBase):
         exons = [b for b in self.blocks if b.type == "exon"]
 
         # If not specific the index, extract all exons
-        exon_list = []  # type: List[BlockInput]
+        exon_list: list[BlockInput] = []
         if not exon_index:
             exon_list = exons  # type: ignore
         else:
@@ -151,6 +151,6 @@ class GenemsaBlockOp(GenemsaBase):
             new_msa.alleles[allele] = new_seq
         return new_msa
 
-    def split(self: GenemsaType) -> List[GenemsaType]:
+    def split(self: GenemsaType) -> list[GenemsaType]:
         """ Split the msa by blocks """
         return [self.select_block([i]) for i in range(len(self.blocks))]

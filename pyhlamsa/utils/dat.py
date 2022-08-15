@@ -5,7 +5,7 @@ import re
 import copy
 import logging
 from collections import defaultdict
-from typing import Dict, List, Tuple, Any
+from typing import Any
 
 from ..gene import Genemsa, BlockInfo
 
@@ -13,7 +13,7 @@ from ..gene import Genemsa, BlockInfo
 logger = logging.getLogger(__name__)
 
 
-def read_dat_block(file_dat: str) -> Dict:
+def read_dat_block(file_dat: str) -> dict:
     """
     Read block information in .dat file
 
@@ -27,8 +27,7 @@ def read_dat_block(file_dat: str) -> Dict:
     """
     now_allele = ""
     read_next = False
-    data = {}  # type: Dict[str, List[Dict[str, Any]]]
-
+    data: dict[str, list[dict[str, Any]]] = {}
     with open(file_dat) as f_dat:
         for line in f_dat:
             # read allele name
@@ -65,7 +64,7 @@ def read_dat_block(file_dat: str) -> Dict:
     return data
 
 
-def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
+def apply_dat_info_on_msa(msa: Genemsa, dat: dict, seq_type="gen") -> Genemsa:
     """
     Apply the dat information to MSA to cut the exon, intron position.
 
@@ -88,7 +87,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
     # block_cord save the min and max possible position of intron and exon
     # first element: the maximum of the first position
     # first element: the minimum of the last position
-    block_cord = defaultdict(lambda: [msf_length, 0])  # type: Dict[str, List[int]]
+    block_cord: dict[str, list[int]] = defaultdict(lambda: [msf_length, 0])
     # new_alleles: save the sequence
     new_alleles = {}
 
@@ -174,7 +173,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: Dict, seq_type="gen") -> Genemsa:
     # Because the ensure two consecutive region will not overlap before,
     # we just set any value between the lower and upper bound
     # of each intron/exon position in block_cord
-    block_cord_list = []  # type: List[Tuple[str, List[int]]]
+    block_cord_list: list[tuple[str, list[int]]] = []
     start_pos = 0
     for block_name, (start, end) in sorted(block_cord.items(), key=lambda i: i[1]):
         assert start_pos <= end

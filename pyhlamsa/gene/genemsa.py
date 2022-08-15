@@ -114,7 +114,7 @@ class Genemsa(GenemsaAlleleOp,
         # allele names
         gen_names = set(self.get_sequence_names())
         nuc_names = set(msa_nuc.get_sequence_names())
-        exclude_name = set()  # type: set[str]
+        exclude_name: set[str] = set()
 
         # block-wise
         msas_gen = self.split()

@@ -1,6 +1,6 @@
 import re
 import copy
-from typing import List, TypeVar, Iterable, Tuple, Union
+from typing import TypeVar, Iterable, Union
 from collections.abc import Iterable
 from Bio.Seq import Seq
 
@@ -18,7 +18,7 @@ class GenemsaAlleleOp(GenemsaBase):
         """ Get the sequence by allele name """
         return self.alleles[allele]
 
-    def get_allele_or_error(self, allele="") -> Tuple[str, str]:
+    def get_allele_or_error(self, allele="") -> tuple[str, str]:
         """
         Get the sequence by allele name
 
@@ -115,7 +115,7 @@ class GenemsaAlleleOp(GenemsaBase):
                            for allele, seq in self.alleles.items()}
         return new_msa
 
-    def get_cigar(self, target_allele: str, ref_allele="") -> List[Tuple[str, int]]:
+    def get_cigar(self, target_allele: str, ref_allele="") -> list[tuple[str, int]]:
         """
         Get the cigar string of target_allele from ref_allele
 
@@ -123,7 +123,7 @@ class GenemsaAlleleOp(GenemsaBase):
         it will automatically find the reference by get_reference
 
         Return:
-          cigar(List[op_str, num]): The list of operator and number of bases
+          cigar(list[op_str, num]): The list of operator and number of bases
         Exmaple:
           `cigar = [(M, 1), (X, 1), (D, 2), (M, 2)]`
         """

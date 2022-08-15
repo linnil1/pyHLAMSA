@@ -2,9 +2,9 @@
 VCF releated functions
 """
 from datetime import datetime
-from typing import List, Dict, Any
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from typing import Any
 import pysam
 from Bio import SeqIO
 
@@ -28,7 +28,7 @@ class VcfVariant:
         return hash((self.pos, self.ref, self.alt))
 
 
-def extract_variants(ref_seq: str, tar_seq: str) -> List[VcfVariant]:
+def extract_variants(ref_seq: str, tar_seq: str) -> list[VcfVariant]:
     """
     Compare two sequences and
     find the difference between them and
@@ -36,7 +36,7 @@ def extract_variants(ref_seq: str, tar_seq: str) -> List[VcfVariant]:
     """
     pos = 0
     ref_gap = 0
-    variants = []  # type: List[VcfVariant]
+    variants: list[VcfVariant] = []
     prev_nomatch = False
 
     # remove when both sequences are gap
@@ -119,10 +119,10 @@ def get_vcf_header(ref_name: str, ref_seq: str) -> str:
 ##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"""
 
 
-def variants_to_table(allele_variants: Dict[str, List[VcfVariant]]) -> List[List[Any]]:
+def variants_to_table(allele_variants: dict[str, list[VcfVariant]]) -> list[list[Any]]:
     """ Summary variant in each allele """
-    # Convert Dict[allele_name, List[variant]] = allele_variants
-    # to      Dict[variant, List[allele_name]] = variant_alleles
+    # Convert dict[allele_name, list[variant]] = allele_variants
+    # to      dict[variant, list[allele_name]] = variant_alleles
     variant_alleles = defaultdict(set)
     for allele, variants in allele_variants.items():
         for variant in variants:
@@ -146,7 +146,7 @@ def variants_to_table(allele_variants: Dict[str, List[VcfVariant]]) -> List[List
     return table
 
 
-def read_vcf(file_vcf: str, file_fasta: str) -> Dict[str, Dict[str, str]]:
+def read_vcf(file_vcf: str, file_fasta: str) -> dict[str, dict[str, str]]:
     """
     An experiment function to read vcf file into msa
 

@@ -1,7 +1,5 @@
 import os
 from glob import glob
-from typing import List, Set
-
 from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
 from ..utils import dat
 
@@ -24,7 +22,7 @@ class KIRmsa(Familymsa):
 
                 Set None if you want read all gene in HLA
 
-            filetype (str | list[str] | Set[str]): A list of filetype.
+            filetype (str | list[str] | set[str]): A list of filetype.
 
                 If both `gen` and `nuc` are given, it will merge them automatically.
 
@@ -56,12 +54,12 @@ class KIRmsa(Familymsa):
         self._run_shell("git", "clone", "--branch", version, "--single-branch",
                         "https://github.com/ANHIG/IPDKIR", self.db_folder)
 
-    def _get_name(self, search_name: str) -> Set[str]:
+    def _get_name(self, search_name: str) -> set[str]:
         """ Extract name from file pattern """
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
-    def list_db_gene(self, filetype: TypeSet) -> List[str]:
+    def list_db_gene(self, filetype: TypeSet) -> list[str]:
         """ List the gene in folder """
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf")

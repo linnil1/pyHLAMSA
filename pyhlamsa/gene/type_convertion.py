@@ -1,10 +1,10 @@
-from typing import Dict, Any, TypeVar, Type, List
 import dataclasses
+from typing import Any, TypeVar, Type
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Align import MultipleSeqAlignment
 
-from .base import GenemsaBase, IndexInfo, BlockInfo
+from .base import IndexInfo, BlockInfo
 from .column_operation import GenemsaColumnOp
 
 
@@ -20,7 +20,7 @@ class GenemsaConverter(GenemsaColumnOp):
     * SeqRecord
     * MultipleSeqAlignment
     """
-    def meta_to_json(self) -> Dict[str, Any]:
+    def meta_to_json(self) -> dict[str, Any]:
         """ Extract all meta information about this msa into json """
         meta = {
             'index': [dataclasses.asdict(i) for i in self.index],
@@ -32,7 +32,7 @@ class GenemsaConverter(GenemsaColumnOp):
 
     @classmethod
     def meta_from_json(cls: Type[GenemsaType],
-                       data: Dict[str, Any] = None) -> GenemsaType:
+                       data: dict[str, Any] = None) -> GenemsaType:
         """ Import meta information from json """
         Genemsa = cls
         if data:
@@ -42,7 +42,7 @@ class GenemsaConverter(GenemsaColumnOp):
                            reference=data.get("reference"))
         return Genemsa("Unamed")
 
-    def to_records(self: GenemsaType, gap=True) -> List[SeqRecord]:
+    def to_records(self: GenemsaType, gap=True) -> list[SeqRecord]:
         """
         Transfer MSA to list of SeqRecord
 

@@ -1,5 +1,5 @@
 import copy
-from typing import List, TypeVar
+from typing import TypeVar
 
 from .base import BlockInfo, IndexInfo
 from .block_operation import GenemsaBlockOp
@@ -14,7 +14,7 @@ class GenemsaColumnOp(GenemsaBlockOp):
     provided some column-wise and index-wise operation
     """
 
-    def calculate_frequency(self) -> List[List[int]]:
+    def calculate_frequency(self) -> list[list[int]]:
         """
         Calculate ATCG and gap frequency of each bp in MSA
 
@@ -85,7 +85,7 @@ class GenemsaColumnOp(GenemsaBlockOp):
 
         return new_msa
 
-    def get_variantion_base(self) -> List[int]:
+    def get_variantion_base(self) -> list[int]:
         """
         Get the base positions where variation occurs
 
