@@ -41,7 +41,7 @@ def add_parser() -> argparse.ArgumentParser:
     parser_download.add_argument("--consensus-name", default="*consensus",
                                  help="The name of the new consensus sequences "
                                       "automatically generated "
-                                      "(format: {gene}{consensus-name}")
+                                      "(format: {gene}{consensus-name})")
     # view command
     parser_view = subparser.add_parser(
             "view",
@@ -96,6 +96,8 @@ def download_command(args: argparse.Namespace):
         family = CYPmsa(genes=args.include_genes, version=args.version,
                         filetype=filetype, pharmvar_folder=args.db_folder)
     for gene_name, msa in family.items():
+        msa = msa.shrink()
+        msa = msa.reset_index()
         msa.append(f"{gene_name}{args.consensus_name}", msa.get_consensus())
         msa.set_reference(f"{gene_name}{args.consensus_name}")
         msaio.save_msa(msa, f"{args.name}.{gene_name}.fa",

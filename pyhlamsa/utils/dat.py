@@ -89,8 +89,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: dict, seq_type="gen") -> Genemsa:
     # first element: the maximum of the first position
     # first element: the minimum of the last position
     block_cord: dict[str, list[int]] = defaultdict(lambda: [msf_length, 0])
-    # new_alleles: save the sequence
-    new_alleles = {}
+    new_alleles = {}  # save the sequence
 
     for allele_name, seq in msa.alleles.items():
         if allele_name not in dat:
@@ -170,6 +169,11 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: dict, seq_type="gen") -> Genemsa:
         else:
             # success
             new_alleles[allele_name] = seq
+
+    # if all alleles are skipped:
+    if not block_cord:
+        logger.error(f"Error {msa}. No allele pass the critiria")
+        return msa
 
     # Because the ensure two consecutive region will not overlap before,
     # we just set any value between the lower and upper bound

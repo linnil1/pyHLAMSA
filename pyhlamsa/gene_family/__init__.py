@@ -8,3 +8,11 @@ from .hla import HLAmsa
 from .hla_ex import HLAmsaEX
 from .kir import KIRmsa
 from .cyp import CYPmsa
+
+__all__ = [
+    "Familymsa",
+    "HLAmsa",
+    "HLAmsaEX",
+    "KIRmsa",
+    "CYPmsa",
+]

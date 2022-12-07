@@ -14,7 +14,7 @@ You can simply use this package by command line.
 If you want to use more powerful function, try the APIs written in below sections.
 
 ``` bash
-pip3 install -e git+https://github.com/linnil1/pyHLAMSA
+pip3 install git+https://github.com/linnil1/pyHLAMSA
 # show help
 pyhlamsa -h
 # download kir

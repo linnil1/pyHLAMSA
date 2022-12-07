@@ -32,7 +32,7 @@ class GenemsaConverter(GenemsaColumnOp):
 
     @classmethod
     def meta_from_json(cls: Type[GenemsaType],
-                       data: dict[str, Any] = None) -> GenemsaType:
+                       data: dict[str, Any] = {}) -> GenemsaType:
         """ Import meta information from json """
         Genemsa = cls
         if data:
