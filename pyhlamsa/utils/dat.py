@@ -51,9 +51,10 @@ def read_dat_block(file_dat: str) -> dict:
                 })
 
             # read block name .e.g. exon1 exon2
-            elif "/number=" in line:
+            # if block_name = "gene": skip (by data[now_allele] is empty)
+            elif "/number=" in line and data[now_allele]:
                 data[now_allele][-1]['name'] += line.split('"')[1]
-            elif "/pseudo" in line:
+            elif "/pseudo" in line and data[now_allele]:
                 data[now_allele][-1]['pseudo'] = True
             else:
                 continue

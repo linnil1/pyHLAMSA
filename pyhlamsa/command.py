@@ -135,6 +135,7 @@ def write_to_files(args, msa: Genemsa):
     if args.save:
         msaio.save_msa(msa, f"{args.name}.fa", f"{args.name}.json")
         logger.info(f"Save to {args.name}.fa {args.name}.json")
+    msa = msa.shrink()
     if args.bam:
         save_ref_seq = True
         msaio.to_bam(msa, f"{args.name}.bam")
