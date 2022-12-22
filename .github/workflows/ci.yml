@@ -12,13 +12,13 @@ jobs:
         with:
           python-version: 3.9
       - name: Install temporary packages for document and testing
-        run: pip install mkdocs-material mkdocstrings[python-lagacy]==0.18 pytest pycodestyle mypy
+        run: pip install mkdocs-material mkdocstrings[python-lagacy]==0.18 pytest black mypy
       - name: Install this package
         run: pip install .
       - name: Test
         run: pytest
       - name: Test code style
-        run: pycodestyle pyhlamsa
+        run: black --check pyhlamsa
       - name: Test type
         run: mypy pyhlamsa
       - name: Deploy web

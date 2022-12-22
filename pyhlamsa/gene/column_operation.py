@@ -24,12 +24,9 @@ class GenemsaColumnOp(GenemsaBlockOp):
         """
         freqs = []
         for i in zip(*self.alleles.values()):
-            freqs.append([
-                i.count("A"),
-                i.count("T"),
-                i.count("C"),
-                i.count("G"),
-                i.count("-")])
+            freqs.append(
+                [i.count("A"), i.count("T"), i.count("C"), i.count("G"), i.count("-")]
+            )
         return freqs
 
     def get_consensus(self, include_gap=False) -> str:
@@ -57,7 +54,8 @@ class GenemsaColumnOp(GenemsaBlockOp):
         if not include_gap:
             if any(sum(f[:4]) == 0 for f in freqs):
                 self.logger.warning(
-                    "MSA contains gap, try .shrink() before .get_consensus()")
+                    "MSA contains gap, try .shrink() before .get_consensus()"
+                )
             max_ind = [max(range(4), key=lambda i: f[i]) for f in freqs]
         else:
             max_ind = [max(range(5), key=lambda i: f[i]) for f in freqs]
@@ -65,7 +63,7 @@ class GenemsaColumnOp(GenemsaBlockOp):
         return "".join(seq)
 
     def shrink(self: GenemsaType) -> GenemsaType:
-        """ Remove empty base if all bases in that column is gap """
+        """Remove empty base if all bases in that column is gap"""
         # index to delete
         freqs = self.calculate_frequency()
         masks = [f[4] != sum(f) for f in freqs]
@@ -74,14 +72,15 @@ class GenemsaColumnOp(GenemsaBlockOp):
         # recalcuate blocks
         for i in range(len(self.blocks)):
             start, end = self.get_block_interval(i)
-            new_msa.blocks[i].length = sum(masks[start: end])
+            new_msa.blocks[i].length = sum(masks[start:end])
         assert sum(masks) == new_msa.get_length()
         new_msa.index = [new_msa.index[i] for i in range(len(masks)) if masks[i]]
 
         # remove base in allele
         for allele, seq in self.alleles.items():
             new_msa.alleles[allele] = "".join(
-                [seq[i] for i in range(len(seq)) if masks[i]])
+                [seq[i] for i in range(len(seq)) if masks[i]]
+            )
 
         return new_msa
 
@@ -122,8 +121,10 @@ class GenemsaColumnOp(GenemsaBlockOp):
         names0 = set(self.get_sequence_names())
         names1 = set(msa.get_sequence_names())
         if names0 != names1:
-            raise ValueError("Can not concat because some allele is miss: "
-                             + str(names0.symmetric_difference(names1)))
+            raise ValueError(
+                "Can not concat because some allele is miss: "
+                + str(names0.symmetric_difference(names1))
+            )
         new_msa = self.copy()
         new_msa.blocks.extend(copy.deepcopy(msa.blocks))
         new_msa.index.extend(copy.deepcopy(msa.index))
@@ -156,15 +157,18 @@ class GenemsaColumnOp(GenemsaBlockOp):
             index = [index]
         if isinstance(index, slice):
             new_msa = Genemsa(self.gene_name, reference=self.reference)
-            new_msa.alleles = {allele: seq[index]
-                               for allele, seq in self.alleles.items()}
+            new_msa.alleles = {
+                allele: seq[index] for allele, seq in self.alleles.items()
+            }
             new_msa.blocks = [BlockInfo(length=len(new_msa.get_reference()[1]))]
             new_msa.index = copy.deepcopy(self.index[index])
             return new_msa
         elif isinstance(index, (tuple, list)):
             new_msa = Genemsa(self.gene_name, reference=self.reference)
-            new_msa.alleles = {allele: "".join([seq[i] for i in index])
-                               for allele, seq in self.alleles.items()}
+            new_msa.alleles = {
+                allele: "".join([seq[i] for i in index])
+                for allele, seq in self.alleles.items()
+            }
             new_msa.blocks = [BlockInfo(length=len(new_msa.get_reference()[1]))]
             new_msa.index = copy.deepcopy([self.index[i] for i in index])
             return new_msa
@@ -200,11 +204,13 @@ class GenemsaColumnOp(GenemsaBlockOp):
         new_msa.index = []
         for block in self.blocks:
             for _ in range(block.length):
-                new_msa.index.append(IndexInfo(
-                    pos=start,
-                    type=block.type,
-                    name=block.name,
-                ))
+                new_msa.index.append(
+                    IndexInfo(
+                        pos=start,
+                        type=block.type,
+                        name=block.name,
+                    )
+                )
                 start += 1
         assert start == self.get_length()
         return new_msa

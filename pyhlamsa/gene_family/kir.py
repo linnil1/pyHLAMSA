@@ -12,10 +12,13 @@ class KIRmsa(Familymsa):
         genes (dict[str, Genemsa]): The msa object for each gene
     """
 
-    def __init__(self, genes: GeneSet = None,
-                 filetype: TypeSet = ["gen", "nuc"],
-                 ipd_folder: str = "",
-                 version: str = "Latest"):
+    def __init__(
+        self,
+        genes: GeneSet = None,
+        filetype: TypeSet = ["gen", "nuc"],
+        ipd_folder: str = "",
+        version: str = "Latest",
+    ):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
@@ -51,16 +54,23 @@ class KIRmsa(Familymsa):
         """
         Download the KIR to `IPDKIR`
         """
-        self._run_shell("git", "clone", "--branch", version, "--single-branch",
-                        "https://github.com/ANHIG/IPDKIR", self.db_folder)
+        self._run_shell(
+            "git",
+            "clone",
+            "--branch",
+            version,
+            "--single-branch",
+            "https://github.com/ANHIG/IPDKIR",
+            self.db_folder,
+        )
 
     def _get_name(self, search_name: str) -> set[str]:
-        """ Extract name from file pattern """
+        """Extract name from file pattern"""
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
     def list_db_gene(self, filetype: TypeSet) -> list[str]:
-        """ List the gene in folder """
+        """List the gene in folder"""
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/msf/*_gen.msf")
         if "nuc" in filetype:
@@ -97,28 +107,41 @@ class KIRmsa(Familymsa):
 
         if "gen" in filetype and "nuc" in filetype:
             # remove some gen not included in nuc
-            diff_name = list(set(msa_gen.get_sequence_names()) -
-                             set(msa_nuc.get_sequence_names()))
+            diff_name = list(
+                set(msa_gen.get_sequence_names()) - set(msa_nuc.get_sequence_names())
+            )
             if diff_name:
                 self.logger.warning(
-                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}"
+                )
             msa_gen = msa_gen.remove(diff_name)
 
             # specical case
             # exon 3 is pseudo exon
             # so, fill with gene's exon3
-            gene_has_pseudo_exon3 = ["KIR2DL1", "KIR2DL2", "KIR2DL3", "KIR2DP1",
-                                     "KIR2DS1", "KIR2DS2", "KIR2DS3", "KIR2DS4",
-                                     "KIR2DS5"]
+            gene_has_pseudo_exon3 = [
+                "KIR2DL1",
+                "KIR2DL2",
+                "KIR2DL3",
+                "KIR2DP1",
+                "KIR2DS1",
+                "KIR2DS2",
+                "KIR2DS3",
+                "KIR2DS4",
+                "KIR2DS5",
+            ]
             if gene in gene_has_pseudo_exon3:
 
                 exon3 = msa_gen.select_block([5])
-                for name in (set(msa_nuc.get_sequence_names())
-                             - set(msa_gen.get_sequence_names())):
+                for name in set(msa_nuc.get_sequence_names()) - set(
+                    msa_gen.get_sequence_names()
+                ):
                     exon3.append(name, "-" * exon3.get_length())
-                msa_nuc = (msa_nuc.select_block(list(range(0, 2)))
-                           + exon3
-                           + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks)))))
+                msa_nuc = (
+                    msa_nuc.select_block(list(range(0, 2)))
+                    + exon3
+                    + msa_nuc.select_block(list(range(3, len(msa_nuc.blocks))))
+                )
 
             # merge
             msa_merged = msa_gen.merge_exon(msa_nuc)

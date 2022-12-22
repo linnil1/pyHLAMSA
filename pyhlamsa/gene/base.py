@@ -23,6 +23,7 @@ class BlockInfo:
       name: (Optional) The name of the block. e.g. intron1, exon2
       type: (Optional) The tag of the block defined in Category:SO:SOFA.
     """
+
     length: int
     name: str = ""
     type: str = ""
@@ -38,6 +39,7 @@ class IndexInfo:
       name: (Optional) The belonged block name for the position
       type: (Optional) The belonged block tag  for the position
     """
+
     pos: int
     name: str = ""
     type: str = ""
@@ -47,10 +49,14 @@ class GenemsaBase:
     """
     The basic definition of MSA
     """
-    def __init__(self, gene_name: str,
-                 blocks: Optional[Iterable[BlockInfo]] = None,
-                 index: Optional[Iterable[IndexInfo]] = None,
-                 reference=None):
+
+    def __init__(
+        self,
+        gene_name: str,
+        blocks: Optional[Iterable[BlockInfo]] = None,
+        index: Optional[Iterable[IndexInfo]] = None,
+        reference=None,
+    ):
         """
         Attributes:
             gene_name (str): The name of the gene
@@ -77,9 +83,7 @@ class GenemsaBase:
     # Show the MSA attribute
     def __repr__(self) -> str:
         block_info = " ".join([f"{b.name}({b.length})" for b in self.blocks])
-        return f"<{self.gene_name} "\
-               f"alleles={len(self.alleles)} "\
-               f"block={block_info}>"
+        return f"<{self.gene_name} alleles={len(self.alleles)} block={block_info}>"
 
     def __len__(self) -> int:
         """
@@ -92,11 +96,11 @@ class GenemsaBase:
         return len(self.alleles)
 
     def size(self) -> tuple[int, int]:
-        """ Get the size (num_of_sequences, length_of_sequence) """
+        """Get the size (num_of_sequences, length_of_sequence)"""
         return (len(self), self.get_length())
 
     def get_length(self) -> int:
-        """ Get the length of MSA """
+        """Get the length of MSA"""
         # 0 sequences is allow
         return len(self.get_reference()[1])
 
@@ -111,7 +115,7 @@ class GenemsaBase:
         return list(self.alleles.keys())
 
     def get_sequence_names(self) -> list[str]:
-        """ Same as list_allele_names """
+        """Same as list_allele_names"""
         return self.list_alleles()
 
     def copy(self: GenemsaType, copy_allele=True) -> GenemsaType:
@@ -122,15 +126,18 @@ class GenemsaBase:
           copy_allele (bool): copy the sequences
         """
         Genemsa = type(self)  # Child Type
-        new_msa = Genemsa(self.gene_name,
-                          blocks=self.blocks, index=self.index,
-                          reference=self.reference)
+        new_msa = Genemsa(
+            self.gene_name,
+            blocks=self.blocks,
+            index=self.index,
+            reference=self.reference,
+        )
         if copy_allele:
             new_msa.alleles = dict(self.alleles.items())
         return new_msa
 
     def set_reference(self: GenemsaType, allele: str) -> GenemsaType:
-        """ Set the reference in msa (Inplace) """
+        """Set the reference in msa (Inplace)"""
         if allele not in self.alleles:
             raise IndexError(f"Cannot find {allele} in msa")
         self.reference = allele

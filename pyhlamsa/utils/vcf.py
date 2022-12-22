@@ -13,7 +13,8 @@ from . import cigar
 
 @dataclass
 class VcfVariant:
-    """ The object to save the variant """
+    """The object to save the variant"""
+
     pos: int
     ref: str
     alt: str
@@ -50,57 +51,71 @@ def extract_variants(ref_seq: str, tar_seq: str) -> list[VcfVariant]:
             pos += cigar_count
             prev_nomatch = False
         elif cigar_op == "X":
-            if (prev_nomatch and len(variants[-1].ref) != len(variants[-1].alt)
-                    and variants[-1].pos == 1):
+            if (
+                prev_nomatch
+                and len(variants[-1].ref) != len(variants[-1].alt)
+                and variants[-1].pos == 1
+            ):
                 variants[-1] = VcfVariant(
-                    pos=variants[-1].pos,
-                    ref=variants[-1].ref,
-                    alt=tar_seq[pos])
+                    pos=variants[-1].pos, ref=variants[-1].ref, alt=tar_seq[pos]
+                )
                 pos += 1
                 cigar_count -= 1
             for _ in range(cigar_count):
-                variants.append(VcfVariant(pos=pos + 1 - ref_gap,
-                                           ref=ref_seq[pos],
-                                           alt=tar_seq[pos]))
+                variants.append(
+                    VcfVariant(
+                        pos=pos + 1 - ref_gap, ref=ref_seq[pos], alt=tar_seq[pos]
+                    )
+                )
                 pos += 1
             prev_nomatch = True
         elif cigar_op == "I":
             if pos:
                 if not prev_nomatch:
-                    variants.append(VcfVariant(
-                        pos=pos - ref_gap,
-                        ref=ref_seq[pos - 1],
-                        alt=tar_seq[pos - 1:pos + cigar_count]))
+                    variants.append(
+                        VcfVariant(
+                            pos=pos - ref_gap,
+                            ref=ref_seq[pos - 1],
+                            alt=tar_seq[pos - 1 : pos + cigar_count],
+                        )
+                    )
                 else:
                     variants[-1] = VcfVariant(
                         pos=variants[-1].pos,
                         ref=variants[-1].ref,
-                        alt=variants[-1].alt + tar_seq[pos:pos + cigar_count])
+                        alt=variants[-1].alt + tar_seq[pos : pos + cigar_count],
+                    )
             else:  # pos == 0
-                variants.append(VcfVariant(
-                    pos=1,
-                    ref=ref_seq[cigar_count],
-                    alt=tar_seq[:cigar_count + 1]))
+                variants.append(
+                    VcfVariant(
+                        pos=1, ref=ref_seq[cigar_count], alt=tar_seq[: cigar_count + 1]
+                    )
+                )
             pos += cigar_count
             ref_gap += cigar_count
             prev_nomatch = True
         elif cigar_op == "D":
             if pos:
                 if not prev_nomatch:
-                    variants.append(VcfVariant(
-                        pos=pos - ref_gap,
-                        ref=ref_seq[pos - 1:pos + cigar_count],
-                        alt=tar_seq[pos - 1]))
+                    variants.append(
+                        VcfVariant(
+                            pos=pos - ref_gap,
+                            ref=ref_seq[pos - 1 : pos + cigar_count],
+                            alt=tar_seq[pos - 1],
+                        )
+                    )
                 else:
                     variants[-1] = VcfVariant(
                         pos=variants[-1].pos,
-                        ref=variants[-1].ref + ref_seq[pos:pos + cigar_count],
-                        alt=variants[-1].alt)
+                        ref=variants[-1].ref + ref_seq[pos : pos + cigar_count],
+                        alt=variants[-1].alt,
+                    )
             else:  # pos == 0
-                variants.append(VcfVariant(
-                    pos=1,
-                    ref=ref_seq[:cigar_count + 1],
-                    alt=tar_seq[cigar_count]))
+                variants.append(
+                    VcfVariant(
+                        pos=1, ref=ref_seq[: cigar_count + 1], alt=tar_seq[cigar_count]
+                    )
+                )
             pos += cigar_count
             prev_nomatch = True
         else:
@@ -111,7 +126,7 @@ def extract_variants(ref_seq: str, tar_seq: str) -> list[VcfVariant]:
 
 
 def get_vcf_header(ref_name: str, ref_seq: str) -> str:
-    """ Return minimal vcf header """
+    """Return minimal vcf header"""
     return f"""\
 ##fileformat=VCFv4.1
 ##fileDate={datetime.now().strftime("%Y%m%d")}
@@ -120,7 +135,7 @@ def get_vcf_header(ref_name: str, ref_seq: str) -> str:
 
 
 def variants_to_table(allele_variants: dict[str, list[VcfVariant]]) -> list[list[Any]]:
-    """ Summary variant in each allele """
+    """Summary variant in each allele"""
     # Convert dict[allele_name, list[variant]] = allele_variants
     # to      dict[variant, list[allele_name]] = variant_alleles
     variant_alleles = defaultdict(set)
@@ -133,16 +148,37 @@ def variants_to_table(allele_variants: dict[str, list[VcfVariant]]) -> list[list
 
     # set header
     table = []
-    table.append(["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO",
-                  "FORMAT", *alleles_name])
+    table.append(
+        [
+            "#CHROM",
+            "POS",
+            "ID",
+            "REF",
+            "ALT",
+            "QUAL",
+            "FILTER",
+            "INFO",
+            "FORMAT",
+            *alleles_name,
+        ]
+    )
 
     # each record
     for variant, alleles in variant_alleles.items():
-        table.append([
-            variant.chrom, variant.pos, ".", variant.ref, variant.alt,  # type: ignore
-            ".", ".", ".",
-            "GT", *("1" if name in alleles else "0" for name in alleles_name)
-        ])
+        table.append(
+            [
+                variant.chrom,
+                variant.pos,  # type: ignore
+                ".",
+                variant.ref,
+                variant.alt,
+                ".",
+                ".",
+                ".",
+                "GT",
+                *("1" if name in alleles else "0" for name in alleles_name),
+            ]
+        )
     return table
 
 
@@ -189,15 +225,14 @@ def read_vcf(file_vcf: str, file_fasta: str) -> dict[str, dict[str, str]]:
                 sample_seq = chrom_msa[record.chrom][allele_name]
                 pos = record.pos - 1
                 # must be True if vcf is correct
-                assert sample_seq[pos:pos + len(ref)] == ref
+                assert sample_seq[pos : pos + len(ref)] == ref
                 if pos:
                     alt_with_gap = alt + "-" * (len(ref) - len(alt))
                 else:
                     alt_with_gap = "-" * (len(ref) - len(alt)) + alt
-                sample_seq = \
-                    sample_seq[:pos] \
-                    + alt_with_gap \
-                    + sample_seq[pos + len(ref):]
+                sample_seq = (
+                    sample_seq[:pos] + alt_with_gap + sample_seq[pos + len(ref) :]
+                )
                 chrom_msa[record.chrom][allele_name] = sample_seq
 
     return chrom_msa

@@ -14,10 +14,13 @@ class CYPmsa(Familymsa):
         genes (dict[str, Genemsa]): The msa object for each gene
     """
 
-    def __init__(self, genes: GeneSet = None,
-                 filetype: TypeSet = [],
-                 pharmvar_folder: str = "",
-                 version: str = "5.2.2"):
+    def __init__(
+        self,
+        genes: GeneSet = None,
+        filetype: TypeSet = [],
+        pharmvar_folder: str = "",
+        version: str = "5.2.2",
+    ):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
@@ -43,11 +46,12 @@ class CYPmsa(Familymsa):
         """
         Download the CYP from https://www.pharmvar.org/download
         """
-        raise ValueError("You should download CYP genes from "
-                         "https://www.pharmvar.org/download")
+        raise ValueError(
+            "You should download CYP genes from https://www.pharmvar.org/download"
+        )
 
     def list_db_gene(self, filetype: TypeSet = []) -> list[str]:
-        """ List the gene in folder """
+        """List the gene in folder"""
         return sorted(os.listdir(self.db_folder))
 
     def read_db_gene(self, gene: str, filetype: TypeSet = []) -> Genemsa:
@@ -58,8 +62,9 @@ class CYPmsa(Familymsa):
         """
         # read fasta
         ref_seqs = {}
-        for seq in SeqIO.parse(f"{self.db_folder}/{gene}/{gene}.haplotypes.fasta",
-                               "fasta"):
+        for seq in SeqIO.parse(
+            f"{self.db_folder}/{gene}/{gene}.haplotypes.fasta", "fasta"
+        ):
             # split allele name
             # e.g.  rs75017182, rs56038477 PV01077 NG_008807.2 PharmVar Version:5.1.10
             for name in seq.description.replace(", ", ",").split(" ")[0].split(","):
@@ -88,17 +93,18 @@ class CYPmsa(Familymsa):
             if gene == "DPYD":
                 reference_name = "rs111858276"
                 reference_seq = ref_seqs[reference_name]
-                reference_seq = reference_seq[:376460 - 1] + "A" + reference_seq[376460:]
+                reference_seq = (
+                    reference_seq[: 376460 - 1] + "A" + reference_seq[376460:]
+                )
             else:
                 raise ValueError(f"Not reference found in {gene}")
 
         assert reference_name is not None
         # Fill with Reference and reference is the first one
         alleles = {reference_name: ""}
-        alleles.update({
-            allele_name: reference_seq
-            for allele_name in set(i[0] for i in table)
-        })
+        alleles.update(
+            {allele_name: reference_seq for allele_name in set(i[0] for i in table)}
+        )
         self.logger.debug(f"Read vcf {alleles.keys()}")
 
         # Remove duplciate
@@ -140,8 +146,11 @@ class CYPmsa(Familymsa):
                 # else: replace the '-' with insertion seq
                 if set(alleles[i[0]][pos:end]) != set("-"):
                     for allele_name in alleles:
-                        alleles[allele_name] = alleles[allele_name][:pos] + i[6] \
-                                               + alleles[allele_name][pos:]
+                        alleles[allele_name] = (
+                            alleles[allele_name][:pos]
+                            + i[6]
+                            + alleles[allele_name][pos:]
+                        )
             else:
                 raise ValueError(f"Unknown Type {i[8]}")
 

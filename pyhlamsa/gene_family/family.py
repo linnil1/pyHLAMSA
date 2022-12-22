@@ -26,9 +26,13 @@ class Familymsa:
         The dictionary use gene_name as key and msa object as value
     """
 
-    def __init__(self, genes: GeneSet = None,
-                 filetype: TypeSet = ["gen", "nuc"],
-                 db_folder="dbpath", version="latest"):
+    def __init__(
+        self,
+        genes: GeneSet = None,
+        filetype: TypeSet = ["gen", "nuc"],
+        db_folder="dbpath",
+        version="latest",
+    ):
         self.logger = logging.getLogger(__name__)
         self.db_folder = db_folder
         self.genes = {}
@@ -50,23 +54,23 @@ class Familymsa:
             self.genes[gene_name] = self.read_db_gene(gene_name, filetype)
 
     def list_genes(self) -> list[str]:
-        """ List all the gene's name in this family """
+        """List all the gene's name in this family"""
         return list(self.genes.keys())
 
     def __getitem__(self, index: str) -> Genemsa:
-        """ Get specific gene's msa """
+        """Get specific gene's msa"""
         return self.genes[index]
 
     def __iter__(self):
-        """ Iter gene name like iter(dict) """
+        """Iter gene name like iter(dict)"""
         return iter(self.genes)
 
     def items(self):
-        """ list gene name and msa like dict.items() """
+        """list gene name and msa like dict.items()"""
         return self.genes.items()
 
     def _download(self, version: str):
-        """ Check before running download """
+        """Check before running download"""
         if not os.path.exists(self.db_folder):
             self._download_db(version=version)
             if not os.path.exists(self.db_folder):
@@ -75,18 +79,18 @@ class Familymsa:
             self.logger.info(f"{self.db_folder} exists")
 
     def _download_db(self, version: str):
-        """ Abstract method: code for downloading your db """
+        """Abstract method: code for downloading your db"""
         raise NotImplementedError
 
     def _run_shell(self, *args, cwd=None):
-        """ Run shell code """
+        """Run shell code"""
         self.logger.debug("Run " + " ".join(args))
         subprocess.run(args, cwd=cwd, check=True)
 
     def list_db_gene(self, filetype: TypeSet) -> list[str]:
-        """ Abstract method: code for listing gene names """
+        """Abstract method: code for listing gene names"""
         raise NotImplementedError
 
     def read_db_gene(self, gene: str, filetype: TypeSet) -> Genemsa:
-        """ Abstract method: code for reading and merging function """
+        """Abstract method: code for reading and merging function"""
         raise NotImplementedError

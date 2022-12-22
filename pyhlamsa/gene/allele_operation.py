@@ -14,8 +14,9 @@ class GenemsaAlleleOp(GenemsaBase):
     """
     This class provided method for allele-wise (row-wise) operation
     """
+
     def get(self, allele: str) -> str:
-        """ Get the sequence by allele name """
+        """Get the sequence by allele name"""
         return self.alleles[allele]
 
     def get_allele_or_error(self, allele="") -> tuple[str, str]:
@@ -35,12 +36,12 @@ class GenemsaAlleleOp(GenemsaBase):
         return allele, self.alleles[allele]
 
     def sort(self: GenemsaType) -> GenemsaType:
-        """ Sort the sequences """
+        """Sort the sequences"""
         self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[1]))
         return self
 
     def sort_name(self: GenemsaType) -> GenemsaType:
-        """ Sort the sequences by name """
+        """Sort the sequences by name"""
         self.alleles = dict(sorted(self.alleles.items(), key=lambda i: i[0]))
         return self
 
@@ -61,7 +62,7 @@ class GenemsaAlleleOp(GenemsaBase):
         return self
 
     def extend(self: GenemsaType, msa: GenemsaType) -> GenemsaType:
-        """ Add MSA's alleles into this MSA (inplace) """
+        """Add MSA's alleles into this MSA (inplace)"""
         if [b.length for b in self.blocks] != [b.length for b in msa.blocks]:
             raise ValueError("Length is different")
         leng = self.get_length()
@@ -87,7 +88,9 @@ class GenemsaAlleleOp(GenemsaBase):
         # else
         raise NotImplementedError
 
-    def select_allele(self: GenemsaType, query: Union[str, Iterable[str]]) -> GenemsaType:
+    def select_allele(
+        self: GenemsaType, query: Union[str, Iterable[str]]
+    ) -> GenemsaType:
         """
         Select allele name by regex or list of name
 
@@ -99,20 +102,24 @@ class GenemsaAlleleOp(GenemsaBase):
         """
         new_msa = self.copy(copy_allele=False)
         if isinstance(query, str):
-            new_msa.alleles = {allele: seq
-                               for allele, seq in self.alleles.items()
-                               if re.match(query, allele)}
+            new_msa.alleles = {
+                allele: seq
+                for allele, seq in self.alleles.items()
+                if re.match(query, allele)
+            }
         elif isinstance(query, Iterable):
             new_msa.alleles = {name: self.alleles[name] for name in query}
         return new_msa
 
     def reverse_complement(self: GenemsaType) -> GenemsaType:
-        """ Reverse the sequences """
+        """Reverse the sequences"""
         new_msa = self.copy(copy_allele=False)
         new_msa.blocks = copy.deepcopy(list(reversed(self.blocks)))
         new_msa.index = copy.deepcopy(list(reversed(self.index)))
-        new_msa.alleles = {allele: str(Seq(seq).reverse_complement())
-                           for allele, seq in self.alleles.items()}
+        new_msa.alleles = {
+            allele: str(Seq(seq).reverse_complement())
+            for allele, seq in self.alleles.items()
+        }
         return new_msa
 
     def get_cigar(self, target_allele: str, ref_allele="") -> list[tuple[str, int]]:
@@ -130,5 +137,6 @@ class GenemsaAlleleOp(GenemsaBase):
         if target_allele not in self.alleles:
             raise KeyError(f"{target_allele} not found")
         ref_allele, _ = self.get_allele_or_error(ref_allele)
-        return cigar.calculate_cigar(self.alleles[ref_allele],
-                                     self.alleles[target_allele])
+        return cigar.calculate_cigar(
+            self.alleles[ref_allele], self.alleles[target_allele]
+        )

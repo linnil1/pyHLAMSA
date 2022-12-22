@@ -16,16 +16,18 @@ GenemsaType = TypeVar("GenemsaType", bound="GenemsaTextOp")
 
 @dataclasses.dataclass
 class _Column:
-    """ Column format """
-    type: str            # print the position
-    length: int = 1      # type of printable word ("base" | "allele_name" | "char")
+    """Column format"""
+
+    type: str  # print the position
+    length: int = 1  # type of printable word ("base" | "allele_name" | "char")
     index: bool = False  # the width
-    word: str = ""       # the word for print (for type=char)
-    pos: int = -1        # pos = position of base (for type=base)
+    word: str = ""  # the word for print (for type=char)
+    pos: int = -1  # pos = position of base (for type=base)
 
 
-def _apply_column_format_oneline(self: GenemsaType,
-                                 columns_format: Iterable[_Column]) -> str:
+def _apply_column_format_oneline(
+    self: GenemsaType, columns_format: Iterable[_Column]
+) -> str:
     """
     This function only control the layout not logic
 
@@ -68,10 +70,10 @@ def _apply_column_format_oneline(self: GenemsaType,
     return output_str
 
 
-def _generate_column_format(index: Sequence[IndexInfo],
-                            show_position_set=None,
-                            wrap=100) -> Iterator:
-    """ Determine the column by the index information (and block) """
+def _generate_column_format(
+    index: Sequence[IndexInfo], show_position_set=None, wrap=100
+) -> Iterator:
+    """Determine the column by the index information (and block)"""
     # init
     pos = 0  # current sequence position
     last_pos = -1  # last position
@@ -111,7 +113,7 @@ def _generate_column_format(index: Sequence[IndexInfo],
 
         # space to avoid index overlapping
         # pos is 0-base
-        while (show_index and last_index_pos + len(str(index[pos].pos + 1)) > line_pos):
+        while show_index and last_index_pos + len(str(index[pos].pos + 1)) > line_pos:
             column_format.append(_Column(type="char", word=" "))
             line_pos += 1
 
@@ -124,7 +126,7 @@ def _generate_column_format(index: Sequence[IndexInfo],
             last_index_pos = line_pos
 
         # break the line
-        if (num_base_in_line >= wrap or (line_pos > 120 and num_base_in_line % 10 == 0)):
+        if num_base_in_line >= wrap or (line_pos > 120 and num_base_in_line % 10 == 0):
             yield column_format
             column_format = []
             continue
@@ -139,7 +141,7 @@ def _generate_column_format(index: Sequence[IndexInfo],
 
 
 def msa_to_string(self: GenemsaType, **kwargs) -> str:
-    """ Turn msa to string """
+    """Turn msa to string"""
     output_str = ""
     for columns_format in _generate_column_format(self.index, **kwargs):
         output_str += _apply_column_format_oneline(self, columns_format)
@@ -148,7 +150,8 @@ def msa_to_string(self: GenemsaType, **kwargs) -> str:
 
 
 class GenemsaTextOp(GenemsaColumnOp):
-    """ The class is to transfer msa into string """
+    """The class is to transfer msa into string"""
+
     def format_alignment(self, wrap=100) -> str:
         """
         Print the MSA
@@ -235,8 +238,9 @@ class GenemsaTextOp(GenemsaColumnOp):
         new_msa.alleles[ref_allele] = new_msa.alleles[ref_allele].replace("-", ".")
         return msa_to_string(new_msa, show_position_set=show_position_set)
 
-    def format_alignment_from_center(self, pos: Union[int, Iterable[int]],
-                                     left=5, right=5) -> str:
+    def format_alignment_from_center(
+        self, pos: Union[int, Iterable[int]], left=5, right=5
+    ) -> str:
         """
         Print all alleles sequences from the center of specific position
 
@@ -270,9 +274,9 @@ class GenemsaTextOp(GenemsaColumnOp):
         msa = None
         for p in want_pos:
             if msa is None:
-                msa = self[p - left: p + right]
+                msa = self[p - left : p + right]
             else:
-                msa += self[p - left: p + right]
+                msa += self[p - left : p + right]
         assert msa
         return msa.format_alignment_diff(show_position_set=show_position_set)
 
@@ -331,8 +335,10 @@ class GenemsaTextOp(GenemsaColumnOp):
         msa = None
         for b_left, b_right in merged_bases:
             if msa is None:
-                msa = self[b_left - 5: b_right + 5]
+                msa = self[b_left - 5 : b_right + 5]
             else:
-                msa += self[b_left - 5: b_right + 5]
+                msa += self[b_left - 5 : b_right + 5]
         assert msa
-        return output_str + msa.format_alignment_diff(show_position_set=show_position_set)
+        return output_str + msa.format_alignment_diff(
+            show_position_set=show_position_set
+        )

@@ -17,10 +17,14 @@ class HLAmsa(Familymsa):
       genes (dict[str, Genemsa]):
         The dictionary use gene_name as key and msa object as value
     """
-    def __init__(self, genes: GeneSet = None,
-                 filetype: TypeSet = ["gen", "nuc"],
-                 imgt_alignment_folder: str = "",
-                 version: str = "Latest"):
+
+    def __init__(
+        self,
+        genes: GeneSet = None,
+        filetype: TypeSet = ["gen", "nuc"],
+        imgt_alignment_folder: str = "",
+        version: str = "Latest",
+    ):
         """
         Args:
             genes (str | list[str]): A list of genes you want to read.
@@ -48,8 +52,9 @@ class HLAmsa(Familymsa):
         """
         if not imgt_alignment_folder:
             imgt_alignment_folder = f"alignment_v{version}"
-        super().__init__(genes, filetype,
-                         db_folder=imgt_alignment_folder, version=version)
+        super().__init__(
+            genes, filetype, db_folder=imgt_alignment_folder, version=version
+        )
 
     def _download_db(self, version: str = "Latest"):
         """
@@ -60,17 +65,24 @@ class HLAmsa(Familymsa):
         for better version controlling
         """
         with TemporaryDirectory() as tmp_dir:
-            self._run_shell("git", "clone", "--branch", version, "--single-branch",
-                            "https://github.com/ANHIG/IMGTHLA.git", tmp_dir)
+            self._run_shell(
+                "git",
+                "clone",
+                "--branch",
+                version,
+                "--single-branch",
+                "https://github.com/ANHIG/IMGTHLA.git",
+                tmp_dir,
+            )
             self._run_shell("mv", tmp_dir + "/alignments", self.db_folder)
 
     def _get_name(self, search_name: str) -> set[str]:
-        """ Handy function to list names from file pattern """
+        """Handy function to list names from file pattern"""
         arr_files = glob(search_name)
         return set([f.split("/")[-1].split("_")[0] for f in arr_files])
 
     def list_db_gene(self, filetype: TypeSet) -> list[str]:
-        """ List the gene in folder """
+        """List the gene in folder"""
         drb = set(["DRB1", "DRB3", "DRB4", "DRB5"])
         if "gen" in filetype:
             names = names_gen = self._get_name(f"{self.db_folder}/*_gen.txt") | drb
@@ -118,11 +130,13 @@ class HLAmsa(Familymsa):
 
         if "gen" in filetype and "nuc" in filetype:
             # remove some gene
-            diff_name = list(set(msa_gen.get_sequence_names())
-                             - set(msa_nuc.get_sequence_names()))
+            diff_name = list(
+                set(msa_gen.get_sequence_names()) - set(msa_nuc.get_sequence_names())
+            )
             if diff_name:
                 self.logger.warning(
-                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}")
+                    f"Remove alleles doesn't exist in gen and nuc either: {diff_name}"
+                )
             msa_gen = msa_gen.remove(diff_name)
 
             # merge

@@ -20,26 +20,30 @@ class GenemsaConverter(GenemsaColumnOp):
     * SeqRecord
     * MultipleSeqAlignment
     """
+
     def meta_to_json(self) -> dict[str, Any]:
-        """ Extract all meta information about this msa into json """
+        """Extract all meta information about this msa into json"""
         meta = {
-            'index': [dataclasses.asdict(i) for i in self.index],
-            'blocks': [dataclasses.asdict(b) for b in self.blocks],
-            'name': self.gene_name,
-            'reference': self.reference,
+            "index": [dataclasses.asdict(i) for i in self.index],
+            "blocks": [dataclasses.asdict(b) for b in self.blocks],
+            "name": self.gene_name,
+            "reference": self.reference,
         }
         return meta
 
     @classmethod
-    def meta_from_json(cls: Type[GenemsaType],
-                       data: dict[str, Any] = {}) -> GenemsaType:
-        """ Import meta information from json """
+    def meta_from_json(
+        cls: Type[GenemsaType], data: dict[str, Any] = {}
+    ) -> GenemsaType:
+        """Import meta information from json"""
         Genemsa = cls
         if data:
-            return Genemsa(data['name'],
-                           blocks=[BlockInfo(**b) for b in data['blocks']],
-                           index=[IndexInfo(**i) for i in data['index']],
-                           reference=data.get("reference"))
+            return Genemsa(
+                data["name"],
+                blocks=[BlockInfo(**b) for b in data["blocks"]],
+                index=[IndexInfo(**i) for i in data["index"]],
+                reference=data.get("reference"),
+            )
         return Genemsa("Unamed")
 
     def to_records(self: GenemsaType, gap=True) -> list[SeqRecord]:
@@ -50,22 +54,30 @@ class GenemsaConverter(GenemsaColumnOp):
           gap (bool): The sequence included gap or not
         """
         if gap:
-            return [SeqRecord(Seq(seq.replace("E", "-")),
-                              id=allele, description="")
-                    for allele, seq in self.alleles.items()]
+            return [
+                SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
+                for allele, seq in self.alleles.items()
+            ]
         else:
-            return [SeqRecord(Seq(seq.replace("E", "").replace("-", "")),
-                              id=allele, description="")
-                    for allele, seq in self.alleles.items()]
+            return [
+                SeqRecord(
+                    Seq(seq.replace("E", "").replace("-", "")),
+                    id=allele,
+                    description="",
+                )
+                for allele, seq in self.alleles.items()
+            ]
 
     def to_MultipleSeqAlignment(self) -> MultipleSeqAlignment:
-        """ Transfer this object to MultipleSeqAlignment(biopython) """
-        return MultipleSeqAlignment(self.to_records(gap=True),
-                                    annotations=self.meta_to_json())
+        """Transfer this object to MultipleSeqAlignment(biopython)"""
+        return MultipleSeqAlignment(
+            self.to_records(gap=True), annotations=self.meta_to_json()
+        )
 
     @classmethod
-    def from_MultipleSeqAlignment(cls: Type[GenemsaType],
-                                  bio_msa: MultipleSeqAlignment) -> GenemsaType:
+    def from_MultipleSeqAlignment(
+        cls: Type[GenemsaType], bio_msa: MultipleSeqAlignment
+    ) -> GenemsaType:
         """
         Transfer MultipleSeqAlignment instance(biopython) to Genemsa
 

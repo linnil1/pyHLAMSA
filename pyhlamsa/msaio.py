@@ -28,8 +28,8 @@ logger = logging.getLogger(__name__)
 
 
 def _table_to_string(data: list[list[Any]]) -> str:
-    """ Turn table into tab separted string """
-    return "\n".join('\t'.join(map(str, items)) for items in data)
+    """Turn table into tab separted string"""
+    return "\n".join("\t".join(map(str, items)) for items in data)
 
 
 def read_alignment_txt(fname: str, seq_type="") -> Genemsa:
@@ -109,7 +109,7 @@ def _parse_alignment_txt(fname: str) -> dict[str, str]:
 
 
 def read_msf_file(file_msf: str) -> Genemsa:
-    """ Read .msf file """
+    """Read .msf file"""
     return Genemsa.from_MultipleSeqAlignment(AlignIO.read(file_msf, "msf"))
 
 
@@ -157,9 +157,12 @@ def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
     ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
 
     # setup reference and header
-    header = {'HD': {'VN': "1.0"},
-              'SQ': [{'LN': len(ref_seq.replace("-", "").replace("E", "")),
-                      'SN': ref_allele}]}
+    header = {
+        "HD": {"VN": "1.0"},
+        "SQ": [
+            {"LN": len(ref_seq.replace("-", "").replace("E", "")), "SN": ref_allele}
+        ],
+    }
 
     # write bam file
     with pysam.AlignmentFile(fname, "wb", header=header) as outf:
@@ -189,17 +192,26 @@ def to_bam(self: Genemsa, fname: str, ref_allele="", save_ref=True):
     pysam.index(fname)  # type: ignore
 
 
-def _allele_to_gff_list(msa: Genemsa, allele: str,
-                        strand="+", igv_show_label=False) -> list[Any]:
+def _allele_to_gff_list(
+    msa: Genemsa, allele: str, strand="+", igv_show_label=False
+) -> list[Any]:
     # remove gap
     self = msa.select_allele([allele]).shrink()
 
     # Gene
-    records = [[
-        allele, "pyHLAMSA", "gene",
-        1, self.get_length(), ".", strand, ".",
-        f"ID={allele};Name={allele}"
-    ]]
+    records = [
+        [
+            allele,
+            "pyHLAMSA",
+            "gene",
+            1,
+            self.get_length(),
+            ".",
+            strand,
+            ".",
+            f"ID={allele};Name={allele}",
+        ]
+    ]
 
     # Blocks
     pos = 0
@@ -209,11 +221,19 @@ def _allele_to_gff_list(msa: Genemsa, allele: str,
         #   1. header: ref source type start end . strand . tags
         #   2. pos: 1-base included position
         #   3. type: In HLA annotations exon=CDS
-        records.append([
-            allele, "pyHLAMSA", b.type if b.type != "exon" else "CDS",
-            pos + 1, pos + b.length, ".", strand, ".",
-            f"ID={b.name}_{allele}"
-        ])
+        records.append(
+            [
+                allele,
+                "pyHLAMSA",
+                b.type if b.type != "exon" else "CDS",
+                pos + 1,
+                pos + b.length,
+                ".",
+                strand,
+                ".",
+                f"ID={b.name}_{allele}",
+            ]
+        )
         # To show the label of all block in IGV
         # I break the relation (Remove parent attribute)
         if not igv_show_label:
@@ -222,8 +242,14 @@ def _allele_to_gff_list(msa: Genemsa, allele: str,
     return records
 
 
-def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="",
-           igv_show_label=False, save_all=False):
+def to_gff(
+    self: Genemsa,
+    fname: str,
+    strand="+",
+    ref_allele="",
+    igv_show_label=False,
+    save_all=False,
+):
     """
     Save to GFF3 format
 
@@ -247,13 +273,15 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="",
     # labels
     if not all(b.type for b in self.blocks):
         self.logger.warning(
-            "You should assign block's label. (We assume seq_type='other')")
+            "You should assign block's label. (We assume seq_type='other')"
+        )
         self.assume_label("other")
 
     if "-" in ref_seq:
         self.logger.warning(
             "Found gap in reference. "
-            "Note this progam calculate the gff positions by gapless sequence")
+            "Note this progam calculate the gff positions by gapless sequence"
+        )
 
     if save_all:
         alleles = self.list_alleles()
@@ -263,8 +291,11 @@ def to_gff(self: Genemsa, fname: str, strand="+", ref_allele="",
     records = []
     for allele in alleles:
         self.logger.debug(f"{allele} to gff")
-        records.extend(_allele_to_gff_list(self, allele, strand=strand,
-                                           igv_show_label=igv_show_label))
+        records.extend(
+            _allele_to_gff_list(
+                self, allele, strand=strand, igv_show_label=igv_show_label
+            )
+        )
 
     # save
     with open(fname, "w") as f_gff:
@@ -293,13 +324,15 @@ def load_msa(file_fasta: str, file_json: str) -> Genemsa:
 
 
 def save_msa(self: Genemsa, file_fasta: str, file_json: str):
-    """ Save Genemsa to fasta and json """
+    """Save Genemsa to fasta and json"""
     to_fasta(self, file_fasta, gap=True)
     with open(file_json, "w") as f:
         json.dump(self.meta_to_json(), f)
 
 
-def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_text=False):
+def to_vcf(
+    self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_text=False
+):
     """
     Save Genemsa into vcf format
 
@@ -352,11 +385,13 @@ def to_vcf(self: Genemsa, file_vcf: str, ref_allele="", save_ref=True, plain_tex
     # sort, normalize and index
     to_fasta(self.select_allele([ref_allele]), f"{tmpname}.fa", gap=False)
     with open(f"{tmpname}.norm.vcf.gz", "wb") as f_vcf:
-        f_vcf.write(bcftools.norm("-f", f"{tmpname}.fa",  # type: ignore
-                                  f"{tmpname}.vcf", "-O", "z"))
+        f_vcf.write(
+            bcftools.norm(  # type: ignore
+                "-f", f"{tmpname}.fa", f"{tmpname}.vcf", "-O", "z"
+            )
+        )
     with open(f"{basename}.vcf.gz", "wb") as f_vcf:
-        f_vcf.write(bcftools.sort(f"{tmpname}.norm.vcf.gz",  # type: ignore
-                                  "-O", "z"))
+        f_vcf.write(bcftools.sort(f"{tmpname}.norm.vcf.gz", "-O", "z"))  # type: ignore
     bcftools.index(f"{basename}.vcf.gz", "-t", "-f")  # type: ignore
     os.remove(f"{tmpname}.fa")
     os.remove(f"{tmpname}.fa.fai")

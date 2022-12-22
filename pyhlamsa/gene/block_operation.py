@@ -12,14 +12,15 @@ class GenemsaBlockOp(GenemsaBase):
     The class inherited from base model
     provided some block-wise operation
     """
+
     def get_length(self) -> int:
-        """ Get the length of MSA """
+        """Get the length of MSA"""
         # 0 sequences is allow
         # overwrite the original len(seq) method
         return sum(i.length for i in self.blocks)
 
     def _get_block_index(self, block=BlockInput) -> int:
-        """ Find the index of the block """
+        """Find the index of the block"""
         if isinstance(block, str):
             for i, b in enumerate(self.blocks):
                 if b.name == block:
@@ -41,18 +42,19 @@ class GenemsaBlockOp(GenemsaBase):
         return id
 
     def get_block_interval(self, block: BlockInput) -> tuple[int, int]:
-        """ Calculate the start(included) and end index (excluded) of the block """
+        """Calculate the start(included) and end index (excluded) of the block"""
         index = self._get_block_index(block)
         start = sum(self.blocks[i].length for i in range(index))
         return start, start + self.blocks[index].length
 
     def get_block_position(self, block: BlockInput) -> int:
-        """ Calculate the start position of the block """
+        """Calculate the start position of the block"""
         index = self._get_block_index(block)
         return sum(self.blocks[i].length for i in range(index))
 
-    def select_exon(self: GenemsaType,
-                    exon_index: Optional[Iterable[BlockInput]] = None) -> GenemsaType:
+    def select_exon(
+        self: GenemsaType, exon_index: Optional[Iterable[BlockInput]] = None
+    ) -> GenemsaType:
         """
         Extract the exon by index.
 
@@ -141,7 +143,7 @@ class GenemsaBlockOp(GenemsaBase):
             new_block.append(self.blocks[i])
             start, end = self.get_block_interval(i)
             all_pos.append((start, end))
-            new_index.extend(self.index[start: end])
+            new_index.extend(self.index[start:end])
         new_msa.blocks = new_block
         new_msa.index = new_index
 
@@ -152,5 +154,5 @@ class GenemsaBlockOp(GenemsaBase):
         return new_msa
 
     def split(self: GenemsaType) -> list[GenemsaType]:
-        """ Split the msa by blocks """
+        """Split the msa by blocks"""
         return [self.select_block([i]) for i in range(len(self.blocks))]

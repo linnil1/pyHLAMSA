@@ -12,11 +12,14 @@ from .allele_operation import GenemsaAlleleOp
 from .text_operation import GenemsaTextOp
 
 
-class Genemsa(GenemsaAlleleOp,
-              GenemsaConverter,
-              GenemsaTextOp,
-              GenemsaColumnOp, GenemsaBlockOp,
-              GenemsaBase):
+class Genemsa(
+    GenemsaAlleleOp,
+    GenemsaConverter,
+    GenemsaTextOp,
+    GenemsaColumnOp,
+    GenemsaBlockOp,
+    GenemsaBase,
+):
     """
     Genemsa: core object in pyhlamsa
 
@@ -28,22 +31,25 @@ class Genemsa(GenemsaAlleleOp,
     from pyhlamsa import Genemsa
     ```
     """
+
     def select_complete(self) -> Genemsa:
-        """ Select non exon-only sequences (No `E` in the sequence)"""
+        """Select non exon-only sequences (No `E` in the sequence)"""
         new_msa = self.copy(copy_allele=False)
-        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
-                           if "E" not in seq}
+        new_msa.alleles = {
+            allele: seq for allele, seq in self.alleles.items() if "E" not in seq
+        }
         return new_msa
 
     def select_incomplete(self) -> Genemsa:
-        """ Select exon-only sequences (`E` exists in the sequence)"""
+        """Select exon-only sequences (`E` exists in the sequence)"""
         new_msa = self.copy(copy_allele=False)
-        new_msa.alleles = {allele: seq for allele, seq in self.alleles.items()
-                           if "E" in seq}
+        new_msa.alleles = {
+            allele: seq for allele, seq in self.alleles.items() if "E" in seq
+        }
         return new_msa
 
     def fill_incomplete(self, ref_allele: str) -> Genemsa:
-        """ Fill the `E` in exon-only sequences with ref_allele sequence (inplace) """
+        """Fill the `E` in exon-only sequences with ref_allele sequence (inplace)"""
         if ref_allele not in self.alleles:
             raise KeyError(f"{ref_allele} not found")
 
@@ -51,8 +57,8 @@ class Genemsa(GenemsaAlleleOp,
         for allele, seq in self.alleles.items():
             if "E" in seq:
                 self.alleles[allele] = "".join(
-                    [seq[i] if seq[i] != "E" else ref_seq[i]
-                     for i in range(len(seq))])
+                    [seq[i] if seq[i] != "E" else ref_seq[i] for i in range(len(seq))]
+                )
         return self
 
     def merge_exon(self, msa_nuc: Genemsa) -> Genemsa:
@@ -97,14 +103,16 @@ class Genemsa(GenemsaAlleleOp,
           ```
         """
         # A mapping from gen name to nuc index
-        nuc_name_index = {b.name: i for i, b in enumerate(msa_nuc.blocks)
-                          if b.type == "exon"}
+        nuc_name_index = {
+            b.name: i for i, b in enumerate(msa_nuc.blocks) if b.type == "exon"
+        }
 
         # check it's one-to-one mapping
         exon_set = set(b.name for b in self.blocks if b.type == "exon")
         if set(nuc_name_index.keys()) != exon_set:
-            raise ValueError(f"Cannot match blocks: "
-                             f"gen={exon_set} nuc={nuc_name_index.keys()}")
+            raise ValueError(
+                f"Cannot match blocks: " f"gen={exon_set} nuc={nuc_name_index.keys()}"
+            )
 
         # create new msa and make sure the order of alleles
         new_msa = Genemsa(self.gene_name, reference=self.reference)
@@ -123,32 +131,35 @@ class Genemsa(GenemsaAlleleOp,
             # intron -> fill with E
             if self.blocks[i_gen].name not in nuc_name_index:
                 for name in nuc_names - gen_names:
-                    msas_gen[i_gen].append(name,
-                                           "E" * self.blocks[i_gen].length)
+                    msas_gen[i_gen].append(name, "E" * self.blocks[i_gen].length)
                 new_msa += msas_gen[i_gen].remove(list(exclude_name))
             # exon -> check before merge
             else:
                 i_nuc = nuc_name_index[self.blocks[i_gen].name]
                 # content change or length change
-                if (msas_nuc[i_nuc].get_length() != msas_gen[i_gen].get_length()
-                    or any(msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name)
-                           for name in (nuc_names & gen_names))):
+                if msas_nuc[i_nuc].get_length() != msas_gen[i_gen].get_length() or any(
+                    msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name)
+                    for name in (nuc_names & gen_names)
+                ):
                     # check before merge
                     if len(gen_names - nuc_names):
                         raise ValueError(
                             f"Some alleles doesn't exist in nuc MSA: "
-                            f"{gen_names - nuc_names}")
+                            f"{gen_names - nuc_names}"
+                        )
 
-                    diff_name = filter(lambda name:
-                                       msas_nuc[i_nuc].get(name).replace("-", "")
-                                       != msas_gen[i_gen].get(name).replace("-", ""),
-                                       gen_names)
+                    diff_name = filter(
+                        lambda name: msas_nuc[i_nuc].get(name).replace("-", "")
+                        != msas_gen[i_gen].get(name).replace("-", ""),
+                        gen_names,
+                    )
                     diff_names = list(diff_name)
                     if diff_names:
                         self.logger.warning(
                             f"Some exon sequences in gen MSA "
                             f"is not same as in nuc MSA "
-                            f"{self.blocks[i_gen].name}: {diff_names}")
+                            f"{self.blocks[i_gen].name}: {diff_names}"
+                        )
                         new_msa.remove(diff_names)
                         exclude_name.update(diff_names)
                 new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
