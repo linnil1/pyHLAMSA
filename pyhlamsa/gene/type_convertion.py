@@ -4,14 +4,13 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.Align import MultipleSeqAlignment
 
-from .base import IndexInfo, BlockInfo
-from .column_operation import GenemsaColumnOp
+from .base import IndexInfo, BlockInfo, GenemsaBase
 
 
 GenemsaType = TypeVar("GenemsaType", bound="GenemsaConverter")
 
 
-class GenemsaConverter(GenemsaColumnOp):
+class GenemsaConverter(GenemsaBase):
     """
     This class is to convert msa into another format and convert them back
 
@@ -42,7 +41,7 @@ class GenemsaConverter(GenemsaColumnOp):
                 data["name"],
                 blocks=[BlockInfo(**b) for b in data["blocks"]],
                 index=[IndexInfo(**i) for i in data["index"]],
-                reference=data.get("reference"),
+                reference=data.get("reference", ""),
             )
         return Genemsa("Unamed")
 

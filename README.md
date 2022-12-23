@@ -367,6 +367,13 @@ You can fill it by consensus_seq shown before.
 * [x] Add command line usage
 * [ ] CDS != exon, (rename it?)
 
+more dict operation
+select/remove allele regex
+create scratch msa and boolean test
+ACGT order
+split -> split_block
+more it getitem
+
 
 ## Requirement
 * python3.9
@@ -378,6 +385,8 @@ You can fill it by consensus_seq shown before.
 
 ## Installation
 ``` bash
+pip3 install git+https://github.com/linnil1/pyHLAMSA
+# or
 git clone https://github.com/linnil1/pyHLAMSA
 pip3 install -e pyHLAMSA
 ```

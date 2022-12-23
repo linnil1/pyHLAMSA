@@ -7,8 +7,7 @@ import dataclasses
 from collections.abc import Iterator, Iterable, Sequence
 from typing import TypeVar, Union
 
-from .base import IndexInfo
-from .column_operation import GenemsaColumnOp
+from .base import IndexInfo, GenemsaBase
 
 
 GenemsaType = TypeVar("GenemsaType", bound="GenemsaTextOp")
@@ -149,7 +148,7 @@ def msa_to_string(self: GenemsaType, **kwargs) -> str:
     return output_str
 
 
-class GenemsaTextOp(GenemsaColumnOp):
+class GenemsaTextOp(GenemsaBase):
     """The class is to transfer msa into string"""
 
     def format_alignment(self, wrap=100) -> str:

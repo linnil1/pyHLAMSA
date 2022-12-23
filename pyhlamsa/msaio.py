@@ -284,7 +284,7 @@ def to_gff(
         )
 
     if save_all:
-        alleles = self.list_alleles()
+        alleles = list(self.list_alleles())
     else:
         alleles = [ref_allele]
 
