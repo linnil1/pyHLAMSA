@@ -1,5 +1,5 @@
-alignments/
-Alignments_Rel_*
 *.swp
-*.egg-info
 __pycache__
+
+*.egg-info
+build

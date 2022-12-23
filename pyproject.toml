@@ -27,8 +27,11 @@ classifiers = [
 [project.scripts]
 pyhlamsa = "pyhlamsa.command:main"
 
-[tool.setuptools]
-packages = ["pyhlamsa"]
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+pyhlamsa = ["py.typed"]
 
 [[tool.mypy.overrides]]
 module = "pysam"
