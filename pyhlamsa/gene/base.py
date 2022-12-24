@@ -67,6 +67,10 @@ class GenemsaBase:
     Sequence-level:
     allele_name1   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
     allele_name2   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+
+    The sequence has basic bases, "A", "T", "C", "G" and "-" for gap,
+    "E" stands for error.
+    (Mostly because some sequence has exon part only, so I fill the intron with E.)
     ```
     """
 
@@ -79,19 +83,16 @@ class GenemsaBase:
     ):
         """
         Attributes:
-            gene_name (str): The name of the gene
+            gene_name: The name of the gene
 
-            alleles (dict of str,str): MSA data.
+            alleles MSA data.
 
                 Allele name as the key and the sequence string as the value.
 
-                The sequence has basic bases, "A", "T", "C", "G", "-" for gap,
-                "E" stands for error (Mostly because some sequence has exon part only,
-                so I fill the intron with E.
 
-            blocks (list of BlockInfo): list of block information
-            index (list of IndexInfo): list of index(position) information
-            reference (str): The reference allele of the msa (Optional)
+            blocks: list of block information
+            index: list of index(position) information
+            reference: allele of the msa (Optional)
         """
         self.gene_name = gene_name
         self.alleles: dict[str, str] = {}
@@ -204,7 +205,9 @@ class GenemsaBase:
             f"Reference {self.reference} not existed in MSA."
             " Using the first allele instead."
         )
-        return next(iter(self.items()))
+        allele, seq = next(iter(self.items()))
+        self.reference = allele  # set it
+        return allele, seq
 
     def get_allele_or_error(self, allele: str = "") -> tuple[str, str]:
         """
