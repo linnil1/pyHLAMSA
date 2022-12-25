@@ -119,7 +119,7 @@ The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` aft
 <A nuc alleles=10 block=exon2(335) exon3(413)>
 
 # print it
->>> print(exon23_10.format_alignment())
+>>> exon23_10.print_alignment()
                   812                                                      1136
                     |                                                         |
  A*01:01:01:01      ACCGAGCGAA CCTGGGGACC CTGCGCGGCT ACTACAACCA GAGCGAGGAC G| GTTCTCACA CC-ATCCAGA TAATGTATGG CTGCGACG-- ----------
@@ -137,7 +137,7 @@ The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` aft
 # using regex to select
 # "|" indicate the border of block, in this case, it's the border of exon2 and exon3
 >>> exon23_1field = exon23.select_allele(r"A\*.*:01:01:01$")
->>> print(exon23_1field.format_alignment_diff())
+>>> exon23_1field.print_alignment_diff()
                   812                                                      1136
                     |                                                         |
  A*01:01:01:01      ACCGAGCGAA CCTGGGGACC CTGCGCGGCT ACTACAACCA GAGCGAGGAC G| GTTCTCACA CC.ATCCAGA TAATGTATGG CTGCGACG.. ..........
@@ -161,7 +161,7 @@ The nucleotide MSA is a exon-only sequence, thus we fill the intron with `E` aft
 
 
 # show only variantiation
->>> print(exon23_1field.format_variantion_base())
+>>> exon23_1field.print_snv()
 Total variantion: 71
                          536 537  541          565 567 570          593          640          654 658          684          721      
                            |   |    |            |   |   |            |            |            |   |            |            |      
@@ -207,7 +207,7 @@ Total variantion: 71
 
 
 # Shrink: remove gap if all bases in the column are gap
->>> print(exon23_10.shrink().format_alignment_diff())
+>>> exon23_10.shrink().print_snv()
  gDNA               200
                     |
  A*01:01:01:01      AAGGCCCACT CACAGACTGA CCGAGCGAAC CTGGGGACCC TGCGCGGCTA CTACAACCAG AGCGAGGACG| GTTCTCACAC CATCCAGATA ATGTATGGCT
@@ -226,7 +226,7 @@ Total variantion: 71
 >>> a_gen[12:100]
 <A  alleles=4100 block=(88)>
 
->>> print(a_gen[[12,100]].format_alignment())
+>>> a_gen[[12,100]].print_alignment_diff()
  gDNA               0
                     |
  A*01:01:01:01      GG
@@ -255,11 +255,6 @@ You should fill the `E` BEFORE save it.**
 
 You can fill it by consensus_seq shown before.
 
-
-* IMGT alignment format
-    ``` python
-    print(a_gen.format_alignment_diff(), file=open("filename.txt", "w"))
-    ```
 
 * MultipleSeqAlignment
 
@@ -300,20 +295,18 @@ You can fill it by consensus_seq shown before.
 
 * fasta
     ``` python
-    from pyhlamsa import msaio
-    msaio.to_fasta(a_gen, "filename.msa.fa", gap=True)
-    msaio.to_fasta(a_gen, "filename.fa", gap=False)
+    a_gen.to_fasta("filename.msa.fa", gap=True)
+    a_gen.to_fasta("filename.fa", gap=False)
     ```
 
 * bam
     ``` python
-    from pyhlamsa import msaio
-    msaio.to_bam(a_gen, "filename.bam")
+    a_gen.to_bam("filename.bam")
     ```
 
 * gff
     ``` python
-    msaio.to_gff(a_gen, "filename.gff")
+    a_gen.to_gff("filename.gff")
     ```
 
     After save the MSA as bam and gff, you can show the alignments on IGV
@@ -321,7 +314,13 @@ You can fill it by consensus_seq shown before.
 
 * vcf
     ``` python
-    msaio.to_vcf(a_gen, "filename.vcf.gz")
+    a_gen.to_vcf("filename.vcf.gz")
+    ```
+
+* IMGT MSA format (xx_gen.txt)
+    ``` python
+    a_gen.to_imgt_alignment("A_gen.txt")
+    a_gen.to_imgt_alignment("A_nuc.txt", seq_type="nuc")
     ```
 
 * save/load
@@ -329,8 +328,8 @@ You can fill it by consensus_seq shown before.
     Save our model in fasta and json, where json contains block, index information
 
     ``` python
-    msaio.save_msa(a_gen, "a_gen.fa", "a_gen.json")
-    a_gen = msaio.load_msa("a_gen.fa", "a_gen.json")
+    a_gen.save_msa("a_gen.fa", "a_gen.json")
+    a_gen = Genemsa.load_msa("a_gen.fa", "a_gen.json")
     ```
 
 * load msa from other format
@@ -365,14 +364,11 @@ You can fill it by consensus_seq shown before.
 * [x] Split code
 * [x] save to VCF
 * [x] Add command line usage
+* [x] Remove msaio
+* [x] Rewrite gene Mixins (Too complicated)
+* [ ] Fix selction and removeing allele by regex
+* [ ] ACGT order
 * [ ] CDS != exon, (rename it?)
-
-more dict operation
-select/remove allele regex
-create scratch msa and boolean test
-ACGT order
-split -> split_block
-more it getitem
 
 
 ## Requirement
@@ -470,9 +466,6 @@ See [https://linnil1.github.io/pyHLAMSA](See https://linnil1.github.io/pyHLAMSA)
 
 ::: pyhlamsa.gene.genemsa
 ::: pyhlamsa
-    selection:
-      members:
-        - msaio
 ::: pyhlamsa.gene_family.hla
 ::: pyhlamsa.gene_family.hla_ex
 ::: pyhlamsa.gene_family.kir

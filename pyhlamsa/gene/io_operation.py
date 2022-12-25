@@ -203,13 +203,14 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
         https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
         """
         new_msa = cls.meta_from_json(bio_msa.annotations)
+        for seq in bio_msa:
+            new_msa.alleles[seq.id] = str(seq.seq)
+
+        # Fix header (block and index)
         if not new_msa.blocks:
             new_msa.blocks = [BlockInfo(length=bio_msa.get_alignment_length())]
         if not new_msa.index:
             new_msa = new_msa.reset_index()
-
-        for seq in bio_msa:
-            new_msa.alleles[seq.id] = str(seq.seq)
         assert new_msa.get_length() == bio_msa.get_alignment_length()
         return new_msa
 
@@ -431,6 +432,13 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
     def read_alignment_txt(
         cls: Type[GenemsaType], fname: str, seq_type: str = ""
     ) -> GenemsaType:
+        """Same as read_imgt_alignment"""
+        return cls.read_imgt_alignment(fname, seq_type)
+
+    @classmethod
+    def read_imgt_alignment(
+        cls: Type[GenemsaType], fname: str, seq_type: str = ""
+    ) -> GenemsaType:
         """
         Read IMGT-alignment MSA file into Genemsa object.
         e.g. IMGT/alignments/A_gen.txt
@@ -450,38 +458,55 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
     def to_imgt_alignment(
         self,
         file: FileType,
-        gene_type: str = "nuc",
+        seq_type: str = "gen",
         index_start_from: str = "exon1",
     ) -> None:
         """
         Export to IMGT-alignment-like format.
 
+        But some features do not implemented:
+        * AA codon position: So the values in the header always 1
+        * position: So the values in the header always 1
+
         Args:
-            gene_type: gen or nuc format
+            seq_type: gen or nuc format
             index_start_from: set the start position (1) starts from.
         """
         # This function should be located in io_operation
         new_msa = self._calc_imgt_alignment_msa()
         start = new_msa.get_block_position(index_start_from)
-        if gene_type == "gen":
+
+        # The position is calculated by reference sequence not MSA itself
+        ref_no_gap_pos = -1
+        seq = new_msa.get_reference()[1]
+        for i, ind in enumerate(new_msa.index):
+            if seq[i] != ".":
+                ref_no_gap_pos += 1
+            ind.pos = ref_no_gap_pos
+
+        if seq_type == "gen":
             # force modify the index
             # IMGT ends with -1 and start with 1
-            for i in new_msa.index:
-                i.pos -= start
-                if i.pos < 0:
-                    i.pos -= 1
+            for ind in new_msa.index:
+                ind.pos -= start - 1
+                if ind.pos < 0:
+                    ind.pos -= 1
             pages = self._format_page(
-                [new_msa.index], header_text_align="left", index_header=["gDNA"]
+                [new_msa.index],
+                header_text_align="left",
+                index_header=["gDNA"],
+                show_position_when_same_value=False,
             )
-        elif gene_type == "nuc":
+        elif seq_type == "nuc":
             fake_index = [IndexInfo(pos=0)] * len(new_msa.index)
             pages = self._format_page(
                 [new_msa.index, fake_index],
                 header_text_align="left",
                 index_header=["cDNA", "AA Codon"],
+                show_position_when_same_value=False,
             )
         else:
-            raise NotImplementedError(f"Not implement {gene_type=}")
+            raise NotImplementedError(f"Not implement {seq_type=}")
 
         # write
         txt, require_close = getFileHandle(file)

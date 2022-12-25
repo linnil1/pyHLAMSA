@@ -100,10 +100,16 @@ def add_parser() -> argparse.ArgumentParser:
     parser_view.add_argument("--bam", action="store_true", help="Save to bamfile")
     parser_view.add_argument("--gff", action="store_true", help="Save to gff")
     parser_view.add_argument("--vcf", action="store_true", help="Save to vcf")
+    parser_view.add_argument(
+        "--imgt-gen", action="store_true", help="Save to IMGT MSA txt (like) format"
+    )
+    parser_view.add_argument(
+        "--imgt-nuc", action="store_true", help="Save to IMGT MSA txt (like) format"
+    )
     return parser
 
 
-def download_command(args: argparse.Namespace):
+def download_command(args: argparse.Namespace) -> None:
     """ " Download database and save to msa"""
     if args.seq_type == "merged":
         filetype = ["nuc", "gen"]
@@ -140,7 +146,7 @@ def download_command(args: argparse.Namespace):
         logger.info(f"Save to {args.name}.{gene_name}.*")
 
 
-def extract_msa(args) -> Genemsa:
+def extract_msa(args: argparse.Namespace) -> Genemsa:
     """read msa, selection region/position/alleles"""
     msa = Genemsa.load_msa(f"{args.input_name}.fa", f"{args.input_name}.json")
     if args.include_alleles is not None:
@@ -159,7 +165,7 @@ def extract_msa(args) -> Genemsa:
     return msa
 
 
-def write_to_files(args, msa: Genemsa):
+def write_to_files(args: argparse.Namespace, msa: Genemsa) -> None:
     """save msa to another format"""
     if not args.name:
         if (
@@ -202,9 +208,15 @@ def write_to_files(args, msa: Genemsa):
     if save_ref_seq:
         msa.to_fasta(f"{args.name}.ref.fa", gap=False, ref_only=True)
         logger.info(f"Save to {args.name}.ref.fa")
+    if args.imgt_gen:
+        msa.to_imgt_alignment(f"{args.name}.imgt.gen.txt")
+        logger.info(f"Save to {args.name}.imgt.gen.txt")
+    if args.imgt_nuc:
+        msa.to_imgt_alignment(f"{args.name}.imgt.nuc.txt", seq_type="nuc")
+        logger.info(f"Save to {args.name}.imgt.nuc.txt")
 
 
-def run_command(args: argparse.Namespace):
+def run_command(args: argparse.Namespace) -> None:
     """Run command by args"""
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -223,7 +235,7 @@ def run_command(args: argparse.Namespace):
         write_to_files(args, msa)
 
 
-def main():
+def main() -> None:
     """Main function for command line"""
     parser = add_parser()
     args = parser.parse_args()
@@ -231,4 +243,4 @@ def main():
     if args.subcommand:
         run_command(args)
     else:
-        print(parser.print_help())
+        parser.print_help()

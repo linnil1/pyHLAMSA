@@ -59,10 +59,11 @@ class GenemsaTextOp(GenemsaBase):
         index: list[list[IndexInfo]],
         index_header: list[str] = [],
         show_position_set: set[int] = set(),
+        show_position_when_same_value: bool = True,
         position_base: int = 1,
         max_page_width: int = 140,
         header_text_align: str = "right",
-        allele_name_size: int = 18,
+        allele_name_size: int = 17,
         break_per_k_base: int = 10,
     ) -> Iterator[_TextPage]:
         """
@@ -164,7 +165,10 @@ class GenemsaTextOp(GenemsaBase):
                 continue
 
             # rule4: position incontinuous
-            if index[0][seq_index].pos != last_position_value + 1:
+            if index[0][seq_index].pos != last_position_value + 1 and (
+                show_position_when_same_value
+                or index[0][seq_index].pos != last_position_value
+            ):
                 show_index = True
             last_position_value = index[0][seq_index].pos
             # rule5: Force the print position

@@ -39,6 +39,47 @@ class TestMsaMainFunction(unittest.TestCase):
         self.input_allele = alleles
         self.msa = self.msa.reset_index()
 
+    def test_builtin_func(self):
+        # truth and length
+        msa = Genemsa("yourname")
+        self.assertFalse(bool(msa))
+        self.assertEqual(len(msa), 0)
+
+        msa = Genemsa("yourname")
+        msa.blocks = [BlockInfo(length=10)]
+        self.assertFalse(bool(msa))
+        self.assertEqual(msa.get_length(), 10)
+
+        msa.alleles = {"A": "G" * 10}
+        self.assertTrue(bool(msa))
+        self.assertEqual(msa.get_length(), 10)
+        self.assertEqual(len(msa), 1)
+
+        # in/contains
+        self.assertTrue("A" in msa)
+        self.assertTrue("B" not in msa)
+
+    def test_basic_attr(self):
+        n = len(self.input_allele)
+        self.assertEqual(self.msa.get_sequence_names(), self.input_allele.keys())
+        # shape information checking
+        self.assertEqual(len(self.msa), n)
+        self.assertEqual(self.msa.get_length(), len(self.input_allele['a1'].replace("|", "")))
+        self.assertEqual(self.msa.size(), (n, len(self.input_allele['a1'].replace("|", ""))))
+
+        # test deepcopy
+        newmsa = self.msa.copy()
+        newmsa.alleles['a1'] = "123"
+        self.assertEqual(self.msa.get("a1"), self.input_allele["a1"].replace("|", ""))
+        newmsa.blocks[1] = 123
+        self.assertNotEqual(self.msa.blocks, newmsa)
+
+        # test Bio.MultipleSeqAlignment
+        newmsa = Genemsa.from_MultipleSeqAlignment(self.msa.to_MultipleSeqAlignment())
+        self.assertEqual(self.msa.blocks, newmsa.blocks)
+        for name in newmsa.get_sequence_names():
+            self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
+
     def test_shrink(self):
         # before shrink
         seq = self.input_allele['a1']
@@ -208,30 +249,9 @@ class TestMsaMainFunction(unittest.TestCase):
         newmsa.blocks[1] = 123
         self.assertNotEqual(self.msa.blocks, newmsa)
 
-    def test_basic_attr(self):
-        n = len(self.input_allele)
-        self.assertEqual(self.msa.get_sequence_names(), list(self.input_allele.keys()))
-        # shape information checking
-        self.assertEqual(len(self.msa), n)
-        self.assertEqual(self.msa.get_length(), len(self.input_allele['a1'].replace("|", "")))
-        self.assertEqual(self.msa.size(), (n, len(self.input_allele['a1'].replace("|", ""))))
-
-        # test deepcopy
-        newmsa = self.msa.copy()
-        newmsa.alleles['a1'] = "123"
-        self.assertEqual(self.msa.get("a1"), self.input_allele["a1"].replace("|", ""))
-        newmsa.blocks[1] = 123
-        self.assertNotEqual(self.msa.blocks, newmsa)
-
-        # test Bio.MultipleSeqAlignment
-        newmsa = Genemsa.from_MultipleSeqAlignment(self.msa.to_MultipleSeqAlignment())
-        self.assertEqual(self.msa.blocks, newmsa.blocks)
-        for name in newmsa.get_sequence_names():
-            self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
-
     def test_select_block(self):
         chunk_num = self.input_allele['a1'].count("|") + 1
-        self.assertEqual(self.msa.get_sequence_names(), list(self.input_allele.keys()))
+        self.assertEqual(self.msa.get_sequence_names(), self.input_allele.keys())
 
         # check: out of range
         with self.assertRaises(IndexError):
@@ -354,10 +374,10 @@ class TestMsaMainFunction(unittest.TestCase):
                          set([i.pos for i in newmsa.index]))
 
     def test_reference_changing(self):
-        a = self.msa.format_alignment_diff("a1")
+        a = self.msa._calc_diff_msa("a1")
         self.msa.set_reference("a1")
-        b = self.msa.format_alignment_diff()
-        self.assertEqual(a, b)
+        b = self.msa._calc_diff_msa()
+        self.assertEqual(a.alleles, b.alleles)
         self.msa.set_reference("a0")
 
     def test_vcf(self):
@@ -451,9 +471,9 @@ class TestMsaExonOnly(unittest.TestCase):
         msa = msa.reset_index()
 
         # Check E in sequence
-        self.assertEqual(msa.select_complete().get_sequence_names(), ["a0", "a1", "c2"])
-        self.assertEqual(msa.select_incomplete().get_sequence_names(), ["e0", "e1", "e2"])
-        self.assertEqual(msa.select_exon().select_incomplete().get_sequence_names(), ["e1"])
+        self.assertEqual(list(msa.select_complete().get_sequence_names()), ["a0", "a1", "c2"])
+        self.assertEqual(list(msa.select_incomplete().get_sequence_names()), ["e0", "e1", "e2"])
+        self.assertEqual(list(msa.select_exon().select_incomplete().get_sequence_names()), ["e1"])
 
         # check fill the E
         partical_seq_name = msa.select_incomplete().get_sequence_names()

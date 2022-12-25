@@ -129,9 +129,11 @@ class GenemsaBase:
     def get_length(self) -> int:
         """Get the length of MSA"""
         # 0 sequences is allow
-        return len(self.get_reference()[1])
-        # another way to calculate length
-        # return sum(i.length for i in self.blocks)
+        if self:
+            return len(self.get_reference()[1])
+        else:
+            # another way to calculate length
+            return sum(i.length for i in self.blocks)
 
     def size(self) -> tuple[int, int]:
         """Get the size (num_of_allele, length_of_sequence)"""
@@ -179,7 +181,10 @@ class GenemsaBase:
         return len(self.alleles)
 
     def truth(self) -> bool:
-        """Implement if(self) function"""
+        """
+        If msa has 0 alleles return False
+        else return Implement if(self) function
+        """
         return bool(self.alleles)
 
     # reference-related function
@@ -239,8 +244,8 @@ class GenemsaBase:
         """
         if len(seq) != self.get_length():
             raise ValueError("Length not match to alignments")
-        if not self:
-            raise ValueError("MSA is empty")
+        if not self.blocks:
+            raise ValueError("MSA doesn't has block info")
         if name in self:
             raise ValueError(f"{name} already exist")
 
@@ -491,7 +496,7 @@ class GenemsaBase:
         for allele, gen_seq in self.items():
             new_seq = "".join([gen_seq[start:end] for start, end in all_pos])
             new_msa.alleles[allele] = new_seq
-        return new_msa
+        return new_msa.copy()
 
     def select_exon(
         self: GenemsaType, exon_index: Iterable[BlockInput] = []
@@ -758,8 +763,9 @@ class GenemsaBase:
             )
 
         # create new msa and make sure the order of alleles
-        Genemsa = type(self)
-        new_msa = Genemsa(self.gene_name, reference=self.reference)
+        new_msa = self.copy(copy_allele=False)
+        new_msa.blocks = []
+        new_msa.index = []
         new_msa.alleles = {name: "" for name in self.get_sequence_names()}
         new_msa.alleles.update({name: "" for name in msa_nuc.get_sequence_names()})
 
