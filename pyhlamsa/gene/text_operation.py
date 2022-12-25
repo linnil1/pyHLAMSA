@@ -5,8 +5,7 @@ All string formatting code are written in this file
 """
 import dataclasses
 from collections.abc import Iterator, Iterable
-from typing import TypeVar, Union, Any, TextIO
-from io import IOBase
+from typing import TypeVar, Union, Any
 
 from itertools import chain
 
@@ -80,7 +79,6 @@ class GenemsaTextOp(GenemsaBase):
           A*02 (allele_name)  AATTATACCTACGGGGGAAATTTCCC(base)
           A*03 (allele_name)  AATTATACCTACGGGGGAAATTTCCC
         ```
-
 
         Rules:
             0. Calculate where to print sequences
@@ -484,8 +482,6 @@ class GenemsaTextOp(GenemsaBase):
             b_left, b_right = grouped_base[0], grouped_base[-1]
             if msa is None:
                 msa = self[max(b_left - 5, 0) : b_right + 5]
-                print("Here", msa)
-                print("Here", msa.get_length())
             else:
                 msa += self[max(b_left - 5, 0) : b_right + 5]
         assert msa
@@ -496,7 +492,9 @@ class GenemsaTextOp(GenemsaBase):
     ) -> GenemsaType:
         """
         Step 2. Modifiy the MSA.
-        Transform our MSA to IMGT-alignment-like characters
+        Transform our MSA to IMGT-alignment-like characters.
+
+        Used by `to_imgt_alignment`.
         """
         ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
 
@@ -517,43 +515,3 @@ class GenemsaTextOp(GenemsaBase):
                     seq_list[i] = "-"
             new_msa.alleles[allele] = "".join(seq_list)
         return new_msa
-
-    def to_imgt_alignment(
-            self, file: TextIO | str, gene_type: str = "nuc", index_start_from: str = "exon1"
-    ) -> None:
-        """
-        Export to IMGT-alignment-like format.
-
-        Args:
-            gene_type: gen or nuc format
-            index_start_from: set the start position (1) starts from.
-        """
-        new_msa = self._calc_imgt_alignment_msa()
-        start = new_msa.get_block_position(index_start_from)
-        if gene_type == "gen":
-            # force modify the index
-            # IMGT ends with -1 and start with 1
-            for i in new_msa.index:
-                i.pos -= start
-                if i.pos < 0:
-                    i.pos -= 1
-            pages = self._format_page(
-                [new_msa.index], header_text_align="left", index_header=["gDNA"]
-            )
-        elif gene_type == "nuc":
-            fake_index = [IndexInfo(pos=0)] * len(new_msa.index)
-            pages = self._format_page(
-                [new_msa.index, fake_index],
-                header_text_align="left",
-                index_header=["cDNA", "AA Codon"],
-            )
-        else:
-            raise NotImplementedError(f"Not implement {gene_type=}")
-
-        # write
-        if isinstance(file, IOBase):
-            file_handle = file
-        else:
-            file_handle = open(file, "w")
-        for i in chain.from_iterable(map(new_msa._apply_page, pages)):
-            file_handle.write(i)

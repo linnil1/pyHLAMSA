@@ -1,5 +1,5 @@
 import unittest
-from pyhlamsa import Genemsa, BlockInfo, msaio
+from pyhlamsa import Genemsa, BlockInfo
 from pyhlamsa.utils import cigar, vcf
 from tempfile import NamedTemporaryFile, mkstemp, TemporaryDirectory
 from Bio import SeqIO, AlignIO
@@ -93,7 +93,7 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # save fasta with gap
         n = 0
-        msaio.to_fasta(self.msa, fname, gap=True)
+        self.msa.to_fasta(fname, gap=True)
         for seq in SeqIO.parse(fname, "fasta"):
             n += 1
             self.assertTrue(seq.id in self.input_allele)
@@ -111,7 +111,7 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # no gap
         n = 0
-        msaio.to_fasta(self.msa, fname, gap=False)
+        self.msa.to_fasta(fname, gap=False)
         for seq in SeqIO.parse(fname, "fasta"):
             n += 1
             self.assertTrue(seq.id in self.input_allele)
@@ -121,8 +121,8 @@ class TestMsaMainFunction(unittest.TestCase):
     def test_load_save_msa(self):
         fname1 = mkstemp()[1]
         fname2 = mkstemp()[1]
-        msaio.save_msa(self.msa, fname1, fname2)
-        newmsa = msaio.load_msa(fname1, fname2)
+        self.msa.save_msa(fname1, fname2)
+        newmsa = Genemsa.load_msa(fname1, fname2)
 
         # check for same msa
         self.assertEqual(len(newmsa), len(self.input_allele))
@@ -400,9 +400,9 @@ class TestMsaMainFunction(unittest.TestCase):
         with TemporaryDirectory() as tmp_dir:
             file_fasta = tmp_dir + "/testing.fa"
             file_vcf = tmp_dir + "/testing.vcf"
-            msaio.to_fasta(msa, file_fasta, gap=False, ref_only=True)
-            msaio.to_vcf(msa, file_vcf)  # run it but not test
-            msaio.to_vcf(msa, file_vcf, plain_text=True)
+            msa.to_fasta(file_fasta, gap=False, ref_only=True)
+            msa.to_vcf(file_vcf)  # run it but not test
+            msa.to_vcf(file_vcf, plain_text=True)
             chrom_dict = vcf.read_vcf(file_vcf, file_fasta)
 
         self.assertTrue("consensus" in chrom_dict)

@@ -1,7 +1,7 @@
 """ Command line code """
 import logging
 import argparse
-from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, msaio, Genemsa, Familymsa
+from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, Genemsa, Familymsa
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
@@ -136,15 +136,13 @@ def download_command(args: argparse.Namespace):
         msa = msa.reset_index()
         msa.append(f"{gene_name}{args.consensus_name}", msa.get_consensus())
         msa.set_reference(f"{gene_name}{args.consensus_name}")
-        msaio.save_msa(
-            msa, f"{args.name}.{gene_name}.fa", f"{args.name}.{gene_name}.json"
-        )
+        msa.save_msa(f"{args.name}.{gene_name}.fa", f"{args.name}.{gene_name}.json")
         logger.info(f"Save to {args.name}.{gene_name}.*")
 
 
 def extract_msa(args) -> Genemsa:
     """read msa, selection region/position/alleles"""
-    msa = msaio.load_msa(f"{args.input_name}.fa", f"{args.input_name}.json")
+    msa = Genemsa.load_msa(f"{args.input_name}.fa", f"{args.input_name}.json")
     if args.include_alleles is not None:
         msa = msa.select_allele(args.include_alleles)
     if args.exclude_alleles:
@@ -180,29 +178,29 @@ def write_to_files(args, msa: Genemsa):
         )
     save_ref_seq = False
     if args.save:
-        msaio.save_msa(msa, f"{args.name}.fa", f"{args.name}.json")
+        msa.save_msa(f"{args.name}.fa", f"{args.name}.json")
         logger.info(f"Save to {args.name}.fa {args.name}.json")
     msa = msa.shrink()
     if args.bam:
         save_ref_seq = True
-        msaio.to_bam(msa, f"{args.name}.bam")
+        msa.to_bam(f"{args.name}.bam")
         logger.info(f"Save to {args.name}.bam")
     if args.gff:
         save_ref_seq = True
-        msaio.to_gff(msa, f"{args.name}.gff")
+        msa.to_gff(f"{args.name}.gff")
         logger.info(f"Save to {args.name}.gff")
     if args.fasta_gapless:
-        msaio.to_fasta(msa, f"{args.name}.nogap.fa", gap=False)
+        msa.to_fasta(f"{args.name}.nogap.fa", gap=False)
         logger.info(f"Save to {args.name}.nogap.fa")
     if args.fasta_msa:
-        msaio.to_fasta(msa, f"{args.name}.msa.fa", gap=True)
+        msa.to_fasta(f"{args.name}.msa.fa", gap=True)
         logger.info(f"Save to {args.name}.msa.fa")
     if args.vcf:
         save_ref_seq = True
-        msaio.to_vcf(msa, f"{args.name}.vcf.gz")
+        msa.to_vcf(f"{args.name}.vcf.gz")
         logger.info(f"Save to {args.name}.vcf.gz")
     if save_ref_seq:
-        msaio.to_fasta(msa, f"{args.name}.ref.fa", gap=False, ref_only=True)
+        msa.to_fasta(f"{args.name}.ref.fa", gap=False, ref_only=True)
         logger.info(f"Save to {args.name}.ref.fa")
 
 
@@ -219,9 +217,9 @@ def run_command(args: argparse.Namespace):
         msa = extract_msa(args)
         if not args.no_show:
             if args.show_diff:
-                print(msa.format_variantion_base())
+                msa.print_snv()
             else:
-                print(msa.format_alignment_diff())
+                msa.print_alignment_diff()
         write_to_files(args, msa)
 
 

@@ -5,12 +5,12 @@ All the msa operation are merged into Genemsa
 """
 from __future__ import annotations
 from .base import GenemsaBase
-from .type_convertion import GenemsaConverter
+from .io_operation import GenemsaIO
 from .text_operation import GenemsaTextOp
 
 
 class Genemsa(
-    GenemsaConverter,
+    GenemsaIO,
     GenemsaTextOp,
     GenemsaBase,
 ):

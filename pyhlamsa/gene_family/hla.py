@@ -1,7 +1,7 @@
 from glob import glob
 from tempfile import TemporaryDirectory
 
-from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
+from .family import GeneSet, TypeSet, Familymsa, Genemsa
 
 
 class HLAmsa(Familymsa):
@@ -108,7 +108,7 @@ class HLAmsa(Familymsa):
         If both `gen` and `nuc` are given, it will merge them.
         """
         if "gen" in filetype:
-            msa_gen = msaio.read_alignment_txt(f"{self.db_folder}/{gene}_gen.txt")
+            msa_gen = Genemsa.read_alignment_txt(f"{self.db_folder}/{gene}_gen.txt")
             msa_gen.gene_name = gene
             if gene != "P":
                 # P: special case: has even block
@@ -119,10 +119,10 @@ class HLAmsa(Familymsa):
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
-                msa_nuc = msaio.read_alignment_txt(f"{self.db_folder}/DRB_nuc.txt")
+                msa_nuc = Genemsa.read_alignment_txt(f"{self.db_folder}/DRB_nuc.txt")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
             else:
-                msa_nuc = msaio.read_alignment_txt(f"{self.db_folder}/{gene}_nuc.txt")
+                msa_nuc = Genemsa.read_alignment_txt(f"{self.db_folder}/{gene}_nuc.txt")
 
             msa_nuc.gene_name = gene
             msa_nuc.assume_label("nuc")
