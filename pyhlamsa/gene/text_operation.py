@@ -5,7 +5,8 @@ All string formatting code are written in this file
 """
 import dataclasses
 from collections.abc import Iterator, Iterable
-from typing import TypeVar, Union, Any
+from typing import TypeVar, Union, Any, TextIO
+from io import IOBase
 
 from itertools import chain
 
@@ -25,7 +26,9 @@ class _TextColumn:
     type:
         * char: print character (in value)
         * allele_name: print allele name with reserved length
-        * index: show the index (the position in value)
+        * index:
+            show the header text (saved in value)
+            If there exists more than one header, it will be index0, index1...
         * indicator: show the index (the position in value)
     value: The main value (The meaning is defined by the type)
     length: The width that the column need
@@ -51,102 +54,170 @@ class GenemsaTextOp(GenemsaBase):
     5. Print it
     """
 
+    @classmethod
     def _format_page(
-        self,
+        cls,
+        index: list[list[IndexInfo]],
+        index_header: list[str] = [],
         show_position_set: set[int] = set(),
+        position_base: int = 1,
         max_page_width: int = 140,
+        header_text_align: str = "right",
+        allele_name_size: int = 18,
+        break_per_k_base: int = 10,
     ) -> Iterator[_TextPage]:
         """
-        Step3: Determine when to space, when to split, where to breakline.
-        And return a list of _TextColumn.
+        Step3: Determine when to space, when to split, where to breakline
+        and when to showing the position text above the base.
+
+        The function return a list of _TextColumn as a page layout.
+
+        The layout should be like this:
+        ```
+         DNA(index_header)      100(index_position)  150
+         RNA(index_header)        1
+                                  |(indicator)         |
+          A*02 (allele_name)  AATTATACCTACGGGGGAAATTTCCC(base)
+          A*03 (allele_name)  AATTATACCTACGGGGGAAATTTCCC
+        ```
+
 
         Rules:
             0. Calculate where to print sequences
-            1. Start with ' {allele_name:18s} '
+            1. Start with ' {allele_name} '
             2. Split every different blocks
-            3. Break every 10 bases
-            4. Position indicator exists when line or block start or position is not continued
-            5. Position indicator can be forcely turn on or turn off, left-aligned and right-aligned
+            3. Break every k bases
+            4. Position text and it's indicator exists when line or block start or position is not continued
+            5. index showing can be forcely turn on or turn off, left-aligned and right-aligned
             6. Page should but over the screen
+            7. Index name can be written in header (e.g. gDNA)
+            8. One or more index can be used and the first index is the main index
         """
         # init
+        if len(index) == 0:
+            raise ValueError("At least one index should be input")
+        index_num = len(index)
         seq_index = 0  # current sequence position
-        seq_length = self.get_length()  # sequence max length
-        last_seq_text_value = -1  # Last position of sequence's shwoing position(text)
-        # (Note the position is not seq_index, it's absolute position of origin MSA)
-        last_block_name = "last_block_name"  # Block name of last base
+        seq_length = len(index[0])  # sequence max length
+        last_position_value = -1  # the position of the last base
+        last_block_name = "last_block_name"  # block name of the last base
+        column_pos = -1  # current position in the line
+        last_avail_header_pos = [
+            0
+        ] * index_num  # the position allow to text of each index
+        num_base_in_line = 0  # current number of base in the line
+        last_indicator_pos = 0  # the position of last indicator
 
         page: _TextPage = []
         while seq_index < seq_length:
-            show_text = False  # if this base need column position indicator
+            show_index = False  # if header text should popup, so does indicator
 
             # init a line
             if not page:
                 # rule 1
                 page.append(_TextColumn(type="char", value=" "))
-                page.append(_TextColumn(type="allele_name", value=18, length=18))
-                page.append(_TextColumn(type="char", value=" "))
-                column_pos = 20  # current position in the line
-                last_avail_text_pos = 0  # the position allow to print column position
-                num_base_in_line = (
-                    0  # number of base in the line, mostly I'll split by 10
+                page.append(
+                    _TextColumn(
+                        type="allele_name",
+                        value=allele_name_size,
+                        length=allele_name_size,
+                    )
                 )
-                # rule4
-                show_text = True  # Should this position add position number on header
+                page.append(_TextColumn(type="char", value=" "))
+                column_pos = 2 + allele_name_size
+                last_avail_header_pos = [0] * index_num
+                num_base_in_line = 0
+                last_indicator_pos = 0
+                show_index = True  # rule4
+                if index_header:  # rule 7, 8
+                    if len(index_header) != index_num:
+                        raise ValueError(
+                            "Number of Header is mismatched to Number of index"
+                        )
+                    for i in range(index_num):
+                        page.append(
+                            _TextColumn(
+                                type=f"index{i}",
+                                value=" " + index_header[i],
+                                length=1 + len(index_header[i]),
+                            )
+                        )
+                        last_avail_header_pos[i] = 1 + len(index_header[i])
 
-            # block indicator (rule2, but skip first block)
-            if seq_index and last_block_name != self.index[seq_index].name:
+            # rule2: block indicator, but skip first block
+            if seq_index and last_block_name != index[0][seq_index].name:
                 page.append(_TextColumn(type="char", value="|"))
                 column_pos += 1
-                show_text = True
-            last_block_name = self.index[seq_index].name
+                show_index = True  # If it encounter line break, it's fine
+            last_block_name = index[0][seq_index].name
 
-            # rule3
-            if num_base_in_line % 10 == 0:
+            # rule3: spacing but skip split in the first base
+            if num_base_in_line and num_base_in_line % break_per_k_base == 0:
                 page.append(_TextColumn(type="char", value=" "))
                 column_pos += 1
 
-            # rule6
+            # rule6: page break
             if column_pos >= max_page_width or (
-                column_pos > max_page_width - 20 and num_base_in_line % 10 == 0
+                column_pos > max_page_width - 20
+                and num_base_in_line % break_per_k_base == 0
             ):
                 yield page
                 page = []
                 continue
 
-            # rule4
-            if self.index[seq_index].pos != last_seq_text_value + 1:
-                page.append(_TextColumn(type="char", value=" "))
-                column_pos += 1
-                show_text = True
-            last_seq_text_value = self.index[seq_index].pos
-
-            # rule5
+            # rule4: position incontinuous
+            if index[0][seq_index].pos != last_position_value + 1:
+                show_index = True
+            last_position_value = index[0][seq_index].pos
+            # rule5: Force the print position
             if show_position_set:
-                show_text = self.index[seq_index].pos in show_position_set
+                show_index = index[0][seq_index].pos in show_position_set
 
-            # rule5
-            # space to avoid index overlapping
-            # pos is 0-base and printed postion text is 1-base
-            # TODO: left-align and right-align position text
-            text = str(self.index[seq_index].pos + 1)
-            while show_text and last_avail_text_pos + len(text) > column_pos:
-                page.append(_TextColumn(type="char", value=" "))
-                column_pos += 1
+            # rule8: for each index
+            if show_index:
+                for i in range(index_num):
+                    text = str(index[i][seq_index].pos + position_base)
+                    # rule5
+                    # space to avoid index overlapping
+                    while (
+                        header_text_align == "right"
+                        and last_avail_header_pos[i] + len(text) > column_pos
+                    ) or (
+                        header_text_align == "left"
+                        and last_avail_header_pos[i] > column_pos - 1
+                    ):
+                        page.append(_TextColumn(type="char", value=" "))
+                        column_pos += 1
 
-            # rule0, rule4
-            page.append(_TextColumn(type="base", value=seq_index))
-            if show_text:
-                page.append(_TextColumn(type="indicator", value=True, length=0))
-                # index has it's own format
+                # rule4: Write index position
+                # index has it's own format (It has independent width)
+                for i in range(index_num):
+                    text = str(index[i][seq_index].pos + position_base)
+                    page.append(
+                        _TextColumn(
+                            type=f"index{i}",
+                            value=text,
+                            length=column_pos + 1 - last_avail_header_pos[i],
+                        )
+                    )
+                    if header_text_align == "left":
+                        page[-1].length += len(text) - 1
+                        last_avail_header_pos[i] = column_pos + len(text)
+                    else:
+                        last_avail_header_pos[i] = column_pos + 1
+
+                # rule4: Write indicator
                 page.append(
                     _TextColumn(
-                        type="index",
-                        value=text,
-                        length=column_pos + 1 - last_avail_text_pos,
+                        type="indicator",
+                        value="|",
+                        length=column_pos + 1 - last_indicator_pos,
                     )
                 )
-                last_avail_text_pos = column_pos + 1
+                last_indicator_pos = column_pos + 1
+
+            # rule0: Write sequence
+            page.append(_TextColumn(type="base", value=seq_index))
             seq_index += 1
             column_pos += 1
             num_base_in_line += 1
@@ -158,28 +229,20 @@ class GenemsaTextOp(GenemsaBase):
             yield page
 
     def _apply_page(self, page: _TextPage) -> Iterator[str]:
-        """Step 4: Page + MSA -> str"""
-        output_str = ""
+        """Step 4: Page format + MSA -> str"""
 
-        # column position line
-        for column in page:
-            if column.type == "index":
-                # note: 1-base
-                output_str += f"{column.value:>{column.length}}"
-        output_str += "\n"
-        yield output_str
-
-        # indicator line
-        output_str = ""
-        index_left_space = 0
-        for column in page:
-            if column.type != "index":
-                index_left_space += column.length
-            if column.type == "indicator":
-                output_str += f"{'|':>{index_left_space}}"
-                index_left_space = 0
-        output_str += "\n"
-        yield output_str
+        # index line (header)
+        # rule8: support mutlitple index
+        index_ids = sorted(
+            set(column.type for column in page if column.type.startswith("index"))
+        ) + ["indicator"]
+        for index_id in index_ids:
+            output_str = ""
+            for column in page:
+                if column.type == index_id:
+                    output_str += f"{column.value:>{column.length}}"
+            output_str += "\n"
+            yield output_str
 
         # allele line
         for name, seq in self.alleles.items():
@@ -197,7 +260,7 @@ class GenemsaTextOp(GenemsaBase):
         # separte each page by two lines
         yield "\n\n"
 
-    def format_alignment(self, **kwargs_format) -> Iterator[str]:
+    def format_alignment(self, **kwargs_format: Any) -> Iterator[str]:
         """
         Transfer MSA to string(generator)
         To the things in step3 and step4.
@@ -209,22 +272,20 @@ class GenemsaTextOp(GenemsaBase):
         """
         if not self:
             raise ValueError("MSA is empty")
-        pages = self._format_page(**kwargs_format)
+        pages = self._format_page([self.index], **kwargs_format)
         yield from chain.from_iterable(map(self._apply_page, pages))
 
-    def print_alignment(self, **kwargs_format) -> None:
+    def print_alignment(self, **kwargs_format: Any) -> None:
         """
         Print the MSA
 
         Note: The index shown on output string is 1-base absolute position.
         If you want to print in relative position, use `.reset_index()` first.
 
-        Args:
-          wrap: The maximum base per line
-          show_position_set (set): The list of position(0-base) you want to indicate
-
-        Returns:
-          str: A formatted string
+        * `*` indicate deletion
+        * `ATCG` indicate the SNV
+        * `E` indicate the null base in exon-only sequence
+        * `|` is intron and exon boundary
 
         Examples:
           >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
@@ -244,17 +305,13 @@ class GenemsaTextOp(GenemsaBase):
         for i in page_str:
             print(i, end="")
 
-    def print_alignment_diff(self, ref_allele: str = "", **kwargs_format) -> None:
+    def print_alignment_diff(self, ref_allele: str = "", **kwargs_format: Any) -> None:
         """
         Print the sequences of all alleles diff from `ref_allele` sequence.
 
-        * `-` indicate same as reference
-        * `*` indicate deletion
-        * `ATCG` indicate the SNV
-        * `E` indicate the null base in exon-only sequence
-        * `|` is intron and exon boundary
-
-        Check `.format_alignment()` for output detail.
+        Same as print_alignment, but
+        once the base of alleles is same as the base in reference sequence,
+        `-` will be used
 
         Returns:
           str: A formatted string
@@ -277,7 +334,10 @@ class GenemsaTextOp(GenemsaBase):
         new_msa.print_alignment(**kwargs_format)
 
     def _calc_diff_msa(self: GenemsaType, ref_allele: str = "") -> GenemsaType:
-        """Step 2. Modifiy the MSA. See print_alignment_diff for result"""
+        """
+        Step 2. Modifiy the MSA.
+        See print_alignment_diff for result
+        """
         ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
 
         # use new msa object to save sequences
@@ -300,9 +360,12 @@ class GenemsaTextOp(GenemsaBase):
     def _calc_center_msa(
         self: GenemsaType, pos: Iterable[int], left: int = 5, right: int = 5
     ) -> GenemsaType:
-        """Step 2. Modifiy the MSA. See print_alignment_from_center for result"""
+        """
+        Step 2. Modifiy the MSA.
+        See print_alignment_from_center for result
+        """
         msa = None
-        for p in want_pos:
+        for p in pos:
             if msa is None:
                 msa = self[p - left : p + right]
             else:
@@ -315,8 +378,8 @@ class GenemsaTextOp(GenemsaBase):
         pos: Union[int, Iterable[int]],
         left: int = 5,
         right: int = 5,
-        **kwargs_format,
-    ) -> GenemsaType:
+        **kwargs_format: Any,
+    ) -> None:
         """
         Print all alleles sequences from the center of specific position
 
@@ -342,14 +405,14 @@ class GenemsaTextOp(GenemsaBase):
         if isinstance(pos, int):
             want_pos = [pos]
         else:
-            want_pos = list(pos)  # type: ignore
+            want_pos = list(pos)
         if not want_pos:
-            return ""
+            return
         new_msa = self._calc_center_msa(want_pos, left, right)
         show_position_set = set(self.index[i].pos for i in want_pos)
         new_msa.print_alignment(show_position_set=show_position_set, **kwargs_format)
 
-    def print_snv(self, **kwargs_format) -> None:
+    def print_snv(self, **kwargs_format: Any) -> None:
         """
         A handy function to show all the variation between the alleles
 
@@ -393,9 +456,17 @@ class GenemsaTextOp(GenemsaBase):
         msa.print_alignment(show_position_set=show_position_set, **kwargs_format)
 
     def _calc_snp_msa(self: GenemsaType) -> tuple[GenemsaType, list[list[int]]]:
+        """
+        Step 2. Modifiy the MSA.
+        Find the snp in MSA and crop each block
+
+        Return:
+            msa: The modified MSA
+            grouped_bases: A list of Grouped SNPs (The grouped when they are closed)
+        """
         bases = self.get_variantion_base()
         if not bases:
-            return type(GenemsaType)("Empty"), []
+            return type(self)("Empty"), []
 
         # merge if two variant are too close
         grouped_bases: list[list[int]] = []
@@ -419,3 +490,70 @@ class GenemsaTextOp(GenemsaBase):
                 msa += self[max(b_left - 5, 0) : b_right + 5]
         assert msa
         return msa, grouped_bases
+
+    def _calc_imgt_alignment_msa(
+        self: GenemsaType, ref_allele: str = ""
+    ) -> GenemsaType:
+        """
+        Step 2. Modifiy the MSA.
+        Transform our MSA to IMGT-alignment-like characters
+        """
+        ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
+
+        # use new msa object to save sequences
+        new_msa = self.copy(copy_allele=False)
+        new_msa.alleles = {ref_allele: ref_seq.replace("-", ".")}
+        for allele, seq in self.items():
+            if allele == ref_allele:
+                continue
+            seq_list = list(seq)
+            new_seq = ""
+            for i in range(len(seq)):
+                if seq[i] == "-" and ref_seq[i] == "-":
+                    seq_list[i] = "."
+                elif seq[i] == "-":
+                    seq_list[i] = "*"
+                elif seq[i] == ref_seq[i]:
+                    seq_list[i] = "-"
+            new_msa.alleles[allele] = "".join(seq_list)
+        return new_msa
+
+    def to_imgt_alignment(
+            self, file: TextIO | str, gene_type: str = "nuc", index_start_from: str = "exon1"
+    ) -> None:
+        """
+        Export to IMGT-alignment-like format.
+
+        Args:
+            gene_type: gen or nuc format
+            index_start_from: set the start position (1) starts from.
+        """
+        new_msa = self._calc_imgt_alignment_msa()
+        start = new_msa.get_block_position(index_start_from)
+        if gene_type == "gen":
+            # force modify the index
+            # IMGT ends with -1 and start with 1
+            for i in new_msa.index:
+                i.pos -= start
+                if i.pos < 0:
+                    i.pos -= 1
+            pages = self._format_page(
+                [new_msa.index], header_text_align="left", index_header=["gDNA"]
+            )
+        elif gene_type == "nuc":
+            fake_index = [IndexInfo(pos=0)] * len(new_msa.index)
+            pages = self._format_page(
+                [new_msa.index, fake_index],
+                header_text_align="left",
+                index_header=["cDNA", "AA Codon"],
+            )
+        else:
+            raise NotImplementedError(f"Not implement {gene_type=}")
+
+        # write
+        if isinstance(file, IOBase):
+            file_handle = file
+        else:
+            file_handle = open(file, "w")
+        for i in chain.from_iterable(map(new_msa._apply_page, pages)):
+            file_handle.write(i)
