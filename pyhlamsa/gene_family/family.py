@@ -4,7 +4,6 @@ import subprocess
 from typing import Iterable, Union
 
 from ..gene import Genemsa, BlockInfo
-from .. import msaio
 
 
 GeneSet = Union[str, Iterable[str], None]

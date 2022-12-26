@@ -1,6 +1,6 @@
 import os
 import unittest
-from pyhlamsa import Genemsa, msaio
+from pyhlamsa import Genemsa
 from pyhlamsa.utils import dat as datop
 
 from tempfile import TemporaryDirectory
@@ -15,7 +15,6 @@ class TestMsaReadFromDB(unittest.TestCase):
         os.system("gunzip -k ./tests/hla_A01.dat.gz")
         os.system("gunzip -k ./tests/A01_gen.txt.gz")
         os.system("gunzip -k ./tests/A01_gen.msf.gz")
-        pass
 
     def test_dat(self):
         data = datop.read_dat_block("./tests/hla_A01.dat")
@@ -46,15 +45,37 @@ class TestMsaReadFromDB(unittest.TestCase):
 
     def test_msa_file(self):
         # this function will run parse_alignment also
-        msa = msaio.read_alignment_txt(f"tests/A01_gen.txt")
+        msa = Genemsa.read_alignment_txt(f"tests/A01_gen.txt")
         msa.gene_name = "A"
         msa.assume_label("gen")
         self.assertEqual(len(msa.blocks), 17)
         self.assertEqual(msa.get_length(), 3834)
         self.assertEqual(len(msa), 301)
 
+    def test_msa_read_write(self):
+        # Write the alignment and read it again
+        msa = Genemsa.read_alignment_txt(f"tests/A01_gen.txt")
+        msa.assume_label("gen")
+
+        with TemporaryDirectory() as tmp_dir:
+            msa.to_imgt_alignment(f"{tmp_dir}/A01_gen_copy.txt")
+            new_msa = Genemsa.read_alignment_txt(f"{tmp_dir}/A01_gen_copy.txt")
+
+        self.assertEqual(msa.alleles, new_msa.alleles)
+
+    def test_msa_read_write_nuc(self):
+        # Test write IMGT alignment nuc
+        msa = Genemsa.read_alignment_txt(f"tests/A01_gen.txt")
+        msa.assume_label("gen")
+
+        with TemporaryDirectory() as tmp_dir:
+            msa.select_exon().to_imgt_alignment(f"{tmp_dir}/A01_nuc_copy.txt", seq_type="nuc")
+            new_msa = Genemsa.read_alignment_txt(f"{tmp_dir}/A01_nuc_copy.txt")
+
+        self.assertEqual(msa.select_exon().alleles, new_msa.alleles)
+
     def test_msf_file(self):
-        msa = msaio.read_msf_file("tests/A01_gen.msf")
+        msa = Genemsa.read_msf_file("tests/A01_gen.msf")
         self.assertEqual(len(msa.blocks), 1)
         self.assertEqual(msa.get_length(), 3890)
         self.assertEqual(len(msa), 301)
@@ -62,9 +83,9 @@ class TestMsaReadFromDB(unittest.TestCase):
 
     def test_same_in_two_method(self):
         # msf
-        msa = msaio.read_msf_file("tests/A01_gen.msf")
+        msa = Genemsa.read_msf_file("tests/A01_gen.msf")
         # msa
-        msa_ali = msaio.read_alignment_txt(f"tests/A01_gen.txt")
+        msa_ali = Genemsa.read_alignment_txt(f"tests/A01_gen.txt")
         for name in msa.get_sequence_names():
             self.assertEqual(msa.get(name).replace('-', ''),
                              msa_ali.get(name).replace('-', ''))
@@ -73,7 +94,7 @@ class TestMsaReadFromDB(unittest.TestCase):
     def test_msf_with_dat(self):
         # main test
         dat = datop.read_dat_block("tests/hla_A01.dat")
-        msa = msaio.read_msf_file("tests/A01_gen.msf")
+        msa = Genemsa.read_msf_file("tests/A01_gen.msf")
         msa.gene_name = "A"
 
         msa1 = datop.apply_dat_info_on_msa(msa, dat, seq_type="gen")
@@ -90,7 +111,7 @@ class TestMsaReadFromDB(unittest.TestCase):
         self.assertTrue("A*01:11N" not in msa1.get_sequence_names())
 
         # compare result
-        msa2 = msaio.read_alignment_txt(f"tests/A01_gen.txt")
+        msa2 = Genemsa.read_alignment_txt(f"tests/A01_gen.txt")
         self.assertEqual(sorted(set(msa1.get_sequence_names()) | set(["A*01:11N"])), sorted(msa2.get_sequence_names()))
         for m1, m2 in zip(msa1.split(), msa2.split()):
             for name in msa1.get_sequence_names():
@@ -161,8 +182,8 @@ class TestMsaHLA(unittest.TestCase):
 
             with TemporaryDirectory() as tmp_dir:
                 name = tmp_dir + "/test"
-                msaio.to_fasta(msa, f"{name}.{gene}.ref.fa", gap=False, ref_only=True)
-                msaio.to_vcf(msa,  f"{name}.{gene}.vcf", plain_text=True)
+                Genemsa.to_fasta(msa, f"{name}.{gene}.ref.fa", gap=False, ref_only=True)
+                Genemsa.to_vcf(msa,  f"{name}.{gene}.vcf", plain_text=True)
                 with open(f"{name}.run_bcftools.sh", "w") as f:
                     print(f"bcftools sort {name}.{gene}.vcf -o {name}.{gene}.vcf.gz", file=f)
                     print(f"bcftools index -t                  {name}.{gene}.vcf.gz", file=f)

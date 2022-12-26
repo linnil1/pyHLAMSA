@@ -1,6 +1,6 @@
 import os
 from glob import glob
-from .family import GeneSet, TypeSet, Familymsa, Genemsa, msaio
+from .family import GeneSet, TypeSet, Familymsa, Genemsa
 from ..utils import dat
 
 
@@ -94,13 +94,13 @@ class KIRmsa(Familymsa):
                 self.dat = dat.read_dat_block(f"{self.db_folder}/kir.dat")
 
         if "gen" in filetype:
-            msa_gen = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_gen.msf")
+            msa_gen = Genemsa.read_msf_file(f"{self.db_folder}/msf/{gene}_gen.msf")
             msa_gen.gene_name = gene
             msa_gen = dat.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
             self.logger.debug(f"Gen {msa_gen}")
 
         if "nuc" in filetype:
-            msa_nuc = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
+            msa_nuc = Genemsa.read_msf_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
             msa_nuc.gene_name = gene
             msa_nuc = dat.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
             self.logger.debug(f"Nuc {msa_nuc}")

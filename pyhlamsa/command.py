@@ -1,7 +1,7 @@
 """ Command line code """
 import logging
 import argparse
-from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, msaio, Genemsa, Familymsa
+from pyhlamsa import HLAmsaEX, KIRmsa, CYPmsa, Genemsa, Familymsa
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.INFO)
@@ -100,10 +100,16 @@ def add_parser() -> argparse.ArgumentParser:
     parser_view.add_argument("--bam", action="store_true", help="Save to bamfile")
     parser_view.add_argument("--gff", action="store_true", help="Save to gff")
     parser_view.add_argument("--vcf", action="store_true", help="Save to vcf")
+    parser_view.add_argument(
+        "--imgt-gen", action="store_true", help="Save to IMGT MSA txt (like) format"
+    )
+    parser_view.add_argument(
+        "--imgt-nuc", action="store_true", help="Save to IMGT MSA txt (like) format"
+    )
     return parser
 
 
-def download_command(args: argparse.Namespace):
+def download_command(args: argparse.Namespace) -> None:
     """ " Download database and save to msa"""
     if args.seq_type == "merged":
         filetype = ["nuc", "gen"]
@@ -136,15 +142,13 @@ def download_command(args: argparse.Namespace):
         msa = msa.reset_index()
         msa.append(f"{gene_name}{args.consensus_name}", msa.get_consensus())
         msa.set_reference(f"{gene_name}{args.consensus_name}")
-        msaio.save_msa(
-            msa, f"{args.name}.{gene_name}.fa", f"{args.name}.{gene_name}.json"
-        )
+        msa.save_msa(f"{args.name}.{gene_name}.fa", f"{args.name}.{gene_name}.json")
         logger.info(f"Save to {args.name}.{gene_name}.*")
 
 
-def extract_msa(args) -> Genemsa:
+def extract_msa(args: argparse.Namespace) -> Genemsa:
     """read msa, selection region/position/alleles"""
-    msa = msaio.load_msa(f"{args.input_name}.fa", f"{args.input_name}.json")
+    msa = Genemsa.load_msa(f"{args.input_name}.fa", f"{args.input_name}.json")
     if args.include_alleles is not None:
         msa = msa.select_allele(args.include_alleles)
     if args.exclude_alleles:
@@ -161,7 +165,7 @@ def extract_msa(args) -> Genemsa:
     return msa
 
 
-def write_to_files(args, msa: Genemsa):
+def write_to_files(args: argparse.Namespace, msa: Genemsa) -> None:
     """save msa to another format"""
     if not args.name:
         if (
@@ -180,33 +184,39 @@ def write_to_files(args, msa: Genemsa):
         )
     save_ref_seq = False
     if args.save:
-        msaio.save_msa(msa, f"{args.name}.fa", f"{args.name}.json")
+        msa.save_msa(f"{args.name}.fa", f"{args.name}.json")
         logger.info(f"Save to {args.name}.fa {args.name}.json")
     msa = msa.shrink()
     if args.bam:
         save_ref_seq = True
-        msaio.to_bam(msa, f"{args.name}.bam")
+        msa.to_bam(f"{args.name}.bam")
         logger.info(f"Save to {args.name}.bam")
     if args.gff:
         save_ref_seq = True
-        msaio.to_gff(msa, f"{args.name}.gff")
+        msa.to_gff(f"{args.name}.gff")
         logger.info(f"Save to {args.name}.gff")
     if args.fasta_gapless:
-        msaio.to_fasta(msa, f"{args.name}.nogap.fa", gap=False)
+        msa.to_fasta(f"{args.name}.nogap.fa", gap=False)
         logger.info(f"Save to {args.name}.nogap.fa")
     if args.fasta_msa:
-        msaio.to_fasta(msa, f"{args.name}.msa.fa", gap=True)
+        msa.to_fasta(f"{args.name}.msa.fa", gap=True)
         logger.info(f"Save to {args.name}.msa.fa")
     if args.vcf:
         save_ref_seq = True
-        msaio.to_vcf(msa, f"{args.name}.vcf.gz")
+        msa.to_vcf(f"{args.name}.vcf.gz")
         logger.info(f"Save to {args.name}.vcf.gz")
     if save_ref_seq:
-        msaio.to_fasta(msa, f"{args.name}.ref.fa", gap=False, ref_only=True)
+        msa.to_fasta(f"{args.name}.ref.fa", gap=False, ref_only=True)
         logger.info(f"Save to {args.name}.ref.fa")
+    if args.imgt_gen:
+        msa.to_imgt_alignment(f"{args.name}.imgt.gen.txt")
+        logger.info(f"Save to {args.name}.imgt.gen.txt")
+    if args.imgt_nuc:
+        msa.to_imgt_alignment(f"{args.name}.imgt.nuc.txt", seq_type="nuc")
+        logger.info(f"Save to {args.name}.imgt.nuc.txt")
 
 
-def run_command(args: argparse.Namespace):
+def run_command(args: argparse.Namespace) -> None:
     """Run command by args"""
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
@@ -219,13 +229,13 @@ def run_command(args: argparse.Namespace):
         msa = extract_msa(args)
         if not args.no_show:
             if args.show_diff:
-                print(msa.format_variantion_base())
+                msa.print_snv()
             else:
-                print(msa.format_alignment_diff())
+                msa.print_alignment_diff()
         write_to_files(args, msa)
 
 
-def main():
+def main() -> None:
     """Main function for command line"""
     parser = add_parser()
     args = parser.parse_args()
@@ -233,4 +243,4 @@ def main():
     if args.subcommand:
         run_command(args)
     else:
-        print(parser.print_help())
+        parser.print_help()

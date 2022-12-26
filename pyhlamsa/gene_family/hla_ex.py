@@ -1,7 +1,7 @@
 from glob import glob
 import subprocess
 
-from .family import Familymsa, Genemsa, msaio, GeneSet, TypeSet
+from .family import Familymsa, Genemsa, GeneSet, TypeSet
 from ..utils import dat
 
 
@@ -101,7 +101,7 @@ class HLAmsaEX(Familymsa):
             self.dat = dat.read_dat_block(f"{self.db_folder}/hla.dat")
 
         if "gen" in filetype:
-            msa_gen = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_gen.msf")
+            msa_gen = Genemsa.read_msf_file(f"{self.db_folder}/msf/{gene}_gen.msf")
             msa_gen.gene_name = gene
             msa_gen = dat.apply_dat_info_on_msa(msa_gen, self.dat, seq_type="gen")
             self.logger.debug(f"{msa_gen}")
@@ -109,10 +109,10 @@ class HLAmsaEX(Familymsa):
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
-                msa_nuc = msaio.read_msf_file(f"{self.db_folder}/msf/DRB_nuc.msf")
+                msa_nuc = Genemsa.read_msf_file(f"{self.db_folder}/msf/DRB_nuc.msf")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
             else:
-                msa_nuc = msaio.read_msf_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
+                msa_nuc = Genemsa.read_msf_file(f"{self.db_folder}/msf/{gene}_nuc.msf")
             msa_nuc.gene_name = gene
             msa_nuc = dat.apply_dat_info_on_msa(msa_nuc, self.dat, seq_type="nuc")
             self.logger.debug(f"{msa_nuc}")
