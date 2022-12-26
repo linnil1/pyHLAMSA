@@ -180,7 +180,7 @@ def write_to_files(args: argparse.Namespace, msa: Genemsa) -> None:
         return
     if args.input_name == args.name:
         raise ValueError(
-            "output name should not same as input name," "it will overwrite it"
+            "output name should not same as input name, it will overwrite it"
         )
     save_ref_seq = False
     if args.save:

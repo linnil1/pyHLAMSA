@@ -7,7 +7,7 @@ import re
 import copy
 import logging
 import dataclasses
-from typing import TypeVar, Optional, Union, Any
+from typing import TypeVar, Union, Any
 from collections.abc import Iterable, KeysView, Iterator
 
 from Bio.Seq import Seq
@@ -56,27 +56,29 @@ class GenemsaBase:
     The MSA has additional block-level infomations,
     which is useful for integrating dna and rna data.
 
-    ```
-    Block-level:
-    name           intron1  exon1  intron2
-    region         <-------><-----><------------>
+    The structre of the msa looks like:
+        ```
+        Block-level:
+        name           intron1  exon1  intron2
+        region         <-------><-----><------------>
 
-    Index-level:
-    (column-level) 123456789012345678901234567890
+        Index-level:
+        (column-level) 123456789012345678901234567890
 
-    Sequence-level:
-    allele_name1   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
-    allele_name2   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+        Sequence-level:
+        allele_name1   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+        allele_name2   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+        ```
 
     The sequence has basic bases, "A", "T", "C", "G" and "-" for gap,
     "E" stands for error.
     (Mostly because some sequence has exon part only, so I fill the intron with E.)
-    ```
     """
 
     def __init__(
         self,
         gene_name: str = "Unamed",
+        alleles: dict[str, str] = {},
         blocks: Iterable[BlockInfo] = [],
         index: Iterable[IndexInfo] = [],
         reference: str = "",
@@ -85,7 +87,7 @@ class GenemsaBase:
         Attributes:
             gene_name: The name of the gene
 
-            alleles MSA data.
+            alleles: MSA data.
 
                 Allele name as the key and the sequence string as the value.
 
@@ -101,6 +103,9 @@ class GenemsaBase:
         self.logger = logging.getLogger(__name__)
         self.reference = reference
 
+        if alleles:
+            self.extend(alleles)
+
     def copy(self: GenemsaType, copy_allele: bool = True) -> GenemsaType:
         """
         Clone a new MSA.
@@ -115,25 +120,26 @@ class GenemsaBase:
             blocks=self.blocks,
             index=self.index,
             reference=self.reference,
+            alleles=self.alleles if copy_allele else {},
         )
-        if copy_allele:
-            new_msa.alleles = dict(self.items())
         return new_msa
 
     def __repr__(self) -> str:
         """Show name, number of alleles and block infos in this MSA"""
-        block_info = " ".join([f"{b.name}({b.length})" for b in self.blocks])
+        block_info = " ".join([f"{b.name}({b.length})" for b in self.list_blocks()])
         return f"<{self.gene_name} alleles={len(self)} block={block_info}>"
 
     # size
     def get_length(self) -> int:
         """Get the length of MSA"""
         # 0 sequences is allow
-        if self:
-            return len(self.get_reference()[1])
-        else:
+        if not self:
             # another way to calculate length
-            return sum(i.length for i in self.blocks)
+            return sum(i.length for i in self.list_blocks())
+        else:
+            # when extend, reference allele may not exists here
+            # return len(self.get_reference()[1])
+            return len(next(iter(self.items()))[1])
 
     def size(self) -> tuple[int, int]:
         """Get the size (num_of_allele, length_of_sequence)"""
@@ -189,7 +195,7 @@ class GenemsaBase:
 
     # reference-related function
     def set_reference(self: GenemsaType, allele: str) -> GenemsaType:
-        """Set the reference in msa (Inplace)"""
+        """Set the reference in msa (inplace)"""
         if allele not in self:
             self.logger.warning(f"Cannot find {allele} in MSA")
         self.reference = allele
@@ -232,7 +238,7 @@ class GenemsaBase:
 
     # allele function
     def sort_name(self: GenemsaType) -> GenemsaType:
-        """Sort the allele by alelle name"""
+        """Sort the allele by alelle name (inplace)"""
         self.alleles = dict(sorted(self.items(), key=lambda i: i[0]))
         return self
 
@@ -242,48 +248,58 @@ class GenemsaBase:
 
         Make sure the sequence length is same as in MSA
         """
+        if len(seq) == 0:  # OK to add 0 length string
+            self.alleles[name] = seq
+            return self
         if len(seq) != self.get_length():
             raise ValueError("Length not match to alignments")
-        if not self.blocks:
-            raise ValueError("MSA doesn't has block info")
         if name in self:
             raise ValueError(f"{name} already exist")
 
         self.alleles[name] = seq
         return self
 
-    def extend(self: GenemsaType, msa: GenemsaType) -> GenemsaType:
+    def extend(
+        self: GenemsaType, msa: Union[GenemsaType, dict[str, str]]
+    ) -> GenemsaType:
         """Add MSA's alleles into this MSA (inplace)"""
-        if [b.length for b in self.blocks] != [b.length for b in msa.blocks]:
-            raise ValueError("Length is different")
-        leng = self.get_length()
-
+        if isinstance(msa, GenemsaBase):
+            if [b.length for b in self.list_blocks()] != [
+                b.length for b in msa.list_blocks()
+            ]:
+                raise ValueError("Block length is different")
         for name, seq in msa.items():
-            if name in self:
-                raise ValueError(f"{name} already exist")
-            if len(seq) != leng:
-                raise ValueError(f"Length is different, caused by {name}")
-        self.alleles.update(msa.alleles)
+            self.append(name, seq)
         return self
 
-    def remove(self: GenemsaType, name: Union[str, Iterable[str]]) -> GenemsaType:
+    def remove_allele(
+        self: GenemsaType, query: Union[str, Iterable[str]], inplace: bool = True
+    ) -> GenemsaType:
         """
-        Remove a/some sequence from MSA (inplace)
+        Remove allele sequences by regex(when query is string)
+        or by exactly deleting (when query is a list)
         """
-        if isinstance(name, str):
-            del self.alleles[name]
-        elif isinstance(name, (list, tuple)):
-            for n in name:
-                del self.alleles[n]
-        return self
-        # else
-        raise NotImplementedError
+        if inplace:
+            new_msa = self
+        else:
+            new_msa = self.copy()
+        if isinstance(query, str):
+            for allele in list(self):
+                if re.match(query, allele):
+                    del new_msa.alleles[allele]
+        elif isinstance(query, (list, tuple)):
+            for allele in query:
+                del new_msa.alleles[allele]
+        else:
+            raise NotImplementedError
+        return new_msa
 
     def select_allele(
         self: GenemsaType, query: Union[str, Iterable[str]]
     ) -> GenemsaType:
         """
-        Select allele name by regex or list of name
+        Select allele name by regex(when query is string)
+        or by exactly selecting (when query is a list)
 
         Examples:
           >>> # select allele name start with A*01:01
@@ -293,16 +309,18 @@ class GenemsaBase:
         """
         new_msa = self.copy(copy_allele=False)
         if isinstance(query, str):
-            new_msa.alleles = {
-                allele: seq for allele, seq in self.items() if re.match(query, allele)
-            }
+            new_msa.extend(
+                {allele: seq for allele, seq in self.items() if re.match(query, allele)}
+            )
         elif isinstance(query, Iterable):
-            new_msa.alleles = {name: self.alleles[name] for name in query}
+            new_msa.extend({allele: self.get(allele) for allele in query})
+        else:
+            raise NotImplementedError
         return new_msa
 
     # sequence functions
     def sort(self: GenemsaType) -> GenemsaType:
-        """Sort the allele by their sequences"""
+        """Sort the allele by their sequences (inplace)"""
         self.alleles = dict(sorted(self.items(), key=lambda i: i[1]))
         return self
 
@@ -311,9 +329,9 @@ class GenemsaBase:
         new_msa = self.copy(copy_allele=False)
         new_msa.blocks = copy.deepcopy(list(reversed(self.blocks)))
         new_msa.index = copy.deepcopy(list(reversed(self.index)))
-        new_msa.alleles = {
-            allele: str(Seq(seq).reverse_complement()) for allele, seq in self.items()
-        }
+        new_msa.extend(
+            {allele: str(Seq(seq).reverse_complement()) for allele, seq in self.items()}
+        )
         return new_msa
 
     def get_cigar(
@@ -333,9 +351,7 @@ class GenemsaBase:
         if target_allele not in self:
             raise KeyError(f"{target_allele} not found")
         ref_allele, _ = self.get_allele_or_error(ref_allele)
-        return cigar.calculate_cigar(
-            self.alleles[ref_allele], self.alleles[target_allele]
-        )
+        return cigar.calculate_cigar(self.get(ref_allele), self.get(target_allele))
 
     # column operation part
     def calculate_frequency(self) -> list[list[int]]:
@@ -349,7 +365,7 @@ class GenemsaBase:
         freqs = []
         for i in zip(*self.alleles.values()):
             freqs.append(
-                [i.count("A"), i.count("T"), i.count("C"), i.count("G"), i.count("-")]
+                [i.count("A"), i.count("C"), i.count("G"), i.count("T"), i.count("-")]
             )
         return freqs
 
@@ -385,7 +401,7 @@ class GenemsaBase:
             max_ind = [max(range(4), key=lambda i: f[i]) for f in freqs]
         else:
             max_ind = [max(range(5), key=lambda i: f[i]) for f in freqs]
-        return "".join(map(lambda i: "ATCG-"[i], max_ind))
+        return "".join(map(lambda i: "ACGT-"[i], max_ind))
 
     def get_variantion_base(self) -> list[int]:
         """
@@ -414,39 +430,64 @@ class GenemsaBase:
         return base
 
     # block functions
-    def _get_block_index(self, block: BlockInput) -> int:
+    def list_blocks(self) -> list[BlockInfo]:
+        """Return list of blocks"""
+        return self.blocks
+
+    def get_block_length(self) -> int:
+        """Return list of blocks"""
+        return len(self.list_blocks())
+
+    def list_index(self) -> list[IndexInfo]:
+        """Return list of index"""
+        return self.index
+
+    def get_block(self, block: BlockInput) -> BlockInfo:
+        """Get block by str or id"""
+        return self.blocks[self.get_block_index(block)]
+
+    def set_blocks(
+        self: GenemsaType, blocks: Iterable[Union[int, BlockInfo]]
+    ) -> GenemsaType:
+        """Set blocks (inplace)"""
+        new_blocks = []
+        for i in blocks:
+            if isinstance(i, int):
+                new_blocks.append(BlockInfo(length=i))
+            else:
+                new_blocks.append(copy.deepcopy(i))
+
+        if len(self) and self.get_length() != sum(blk.length for blk in new_blocks):
+            raise ValueError("Total block length not match to alignments")
+
+        self.blocks = new_blocks
+        return self
+
+    def get_block_index(self, block: BlockInput) -> int:
         """Find the index of the block"""
         if isinstance(block, str):
-            for i, b in enumerate(self.blocks):
+            for i, b in enumerate(self.list_blocks()):
                 if b.name == block:
                     return i
-            raise ValueError(f"{block} not found")
         elif isinstance(block, BlockInfo):
-            for i, b in enumerate(self.blocks):
+            for i, b in enumerate(self.list_blocks()):
                 if b.name == block.name:
                     return i
-            raise ValueError(f"{block} not found")
         elif isinstance(block, int):
             id = block
             if id < 0:
-                id = len(self.blocks) + id
-            if not (0 <= id < len(self.blocks)):
-                raise IndexError(f"{block} is out of index")
-            return id
-
+                id = self.get_block_length() + id
+            if 0 <= id < self.get_block_length():
+                return id
         else:
             raise NotImplementedError(f"Type of {block} not work now")
+        raise IndexError(f"{block} not found or out of index")
 
     def get_block_interval(self, block: BlockInput) -> tuple[int, int]:
         """Calculate the start(included) and end index (excluded) of the block"""
-        index = self._get_block_index(block)
+        index = self.get_block_index(block)
         start = sum(self.blocks[i].length for i in range(index))
         return start, start + self.blocks[index].length
-
-    def get_block_position(self, block: BlockInput) -> int:
-        """Calculate the start position of the block"""
-        index = self._get_block_index(block)
-        return sum(self.blocks[i].length for i in range(index))
 
     def select_block(self: GenemsaType, index: Iterable[BlockInput]) -> GenemsaType:
         """
@@ -483,7 +524,7 @@ class GenemsaBase:
         new_block = []
         new_index = []
         all_pos = []
-        index_ids = [self._get_block_index(i) for i in index]
+        index_ids = [self.get_block_index(i) for i in index]
         for i in index_ids:
             new_block.append(self.blocks[i])
             start, end = self.get_block_interval(i)
@@ -495,7 +536,7 @@ class GenemsaBase:
         # extract the sequences inside block region
         for allele, gen_seq in self.items():
             new_seq = "".join([gen_seq[start:end] for start, end in all_pos])
-            new_msa.alleles[allele] = new_seq
+            new_msa.append(allele, new_seq)
         return new_msa.copy()
 
     def select_exon(
@@ -525,7 +566,7 @@ class GenemsaBase:
           >>> a_gen.select_exon(["exon2", "exon3"]))
           <A nuc alleles=7350 block=exon2(351) exon3(436)>
         """
-        exons = [b for b in self.blocks if b.type == "exon"]
+        exons = [b for b in self.list_blocks() if b.type == "exon"]
 
         # If not specific the index, extract all exons
         exon_list: list[BlockInput] = []
@@ -542,14 +583,14 @@ class GenemsaBase:
 
         # check
         for i in exon_list:
-            block = self.blocks[self._get_block_index(i)]
+            block = self.get_block(i)
             if block.type != "exon":
                 raise IndexError(f"{block} is not exon: input={i}")
         return self.select_block(exon_list)
 
-    def split(self: GenemsaType) -> list[GenemsaType]:
+    def split_block(self: GenemsaType) -> list[GenemsaType]:
         """Split the msa by blocks"""
-        return [self.select_block([i]) for i in range(len(self.blocks))]
+        return [self.select_block([i]) for i in range(len(self.list_blocks()))]
 
     # block + column function
     def shrink(self: GenemsaType) -> GenemsaType:
@@ -567,10 +608,8 @@ class GenemsaBase:
         new_msa.index = [new_msa.index[i] for i in range(len(masks)) if masks[i]]
 
         # remove base in allele
-        for allele, seq in self.alleles.items():
-            new_msa.alleles[allele] = "".join(
-                seq[i] for i in range(len(seq)) if masks[i]
-            )
+        for allele, seq in self.items():
+            new_msa.append(allele, "".join(seq[i] for i in range(len(seq)) if masks[i]))
 
         return new_msa
 
@@ -600,7 +639,7 @@ class GenemsaBase:
         new_msa = self.copy()
         start = 0
         new_msa.index = []
-        for block in self.blocks:
+        for block in self.list_blocks():
             for _ in range(block.length):
                 new_msa.index.append(
                     IndexInfo(
@@ -631,7 +670,7 @@ class GenemsaBase:
         new_msa = self.copy()
         new_msa.blocks.extend(copy.deepcopy(msa.blocks))
         new_msa.index.extend(copy.deepcopy(msa.index))
-        for name, seq in msa.alleles.items():
+        for name, seq in msa.items():
             new_msa.alleles[name] += seq
         return new_msa
 
@@ -653,57 +692,52 @@ class GenemsaBase:
         """
         if not index:
             return self.copy()
+        if not self:
+            raise ValueError("MSA is empty")
 
         # Extract specific region in alignment
-        Genemsa = type(self)
         if isinstance(index, int):
             index = [index]
         if isinstance(index, slice):
-            new_msa = Genemsa(self.gene_name, reference=self.reference)
-            new_msa.alleles = {
-                allele: seq[index] for allele, seq in self.alleles.items()
-            }
-            new_msa.blocks = [BlockInfo(length=len(new_msa.get_reference()[1]))]
-            new_msa.index = copy.deepcopy(self.index[index])
-            return new_msa
+            alleles = {allele: seq[index] for allele, seq in self.items()}
+            index = self.index[index]
         elif isinstance(index, (tuple, list)):
-            new_msa = Genemsa(self.gene_name, reference=self.reference)
-            new_msa.alleles = {
-                allele: "".join([seq[i] for i in index])
-                for allele, seq in self.alleles.items()
+            alleles = {
+                allele: "".join([seq[i] for i in index]) for allele, seq in self.items()
             }
-            new_msa.blocks = [BlockInfo(length=len(new_msa.get_reference()[1]))]
-            new_msa.index = copy.deepcopy([self.index[i] for i in index])
-            return new_msa
+            index = [self.index[i] for i in index]
         # Fail
         else:
             raise TypeError("Bad usage")
+
+        new_msa = self.copy(copy_allele=False)
+        new_msa.set_blocks([len(next(iter(alleles.values())))])
+        new_msa.index = copy.deepcopy(index)
+        new_msa.extend(alleles)
+        return new_msa
 
     # type-related functions
     def select_complete(self: GenemsaType) -> GenemsaType:
         """Select non exon-only sequences (No `E` in the sequence)"""
         new_msa = self.copy(copy_allele=False)
-        new_msa.alleles = {
-            allele: seq for allele, seq in self.alleles.items() if "E" not in seq
-        }
+        new_msa.extend({allele: seq for allele, seq in self.items() if "E" not in seq})
         return new_msa
 
     def select_incomplete(self: GenemsaType) -> GenemsaType:
         """Select exon-only sequences (`E` exists in the sequence)"""
         new_msa = self.copy(copy_allele=False)
-        new_msa.alleles = {
-            allele: seq for allele, seq in self.alleles.items() if "E" in seq
-        }
+        new_msa.extend({allele: seq for allele, seq in self.items() if "E" in seq})
         return new_msa
 
     def fill_incomplete(self: GenemsaType, ref_allele: str) -> GenemsaType:
         """Fill the `E` in exon-only sequences with ref_allele sequence (inplace)"""
-        if ref_allele not in self.alleles:
+        if ref_allele not in self:
             raise KeyError(f"{ref_allele} not found")
 
-        ref_seq = self.alleles[ref_allele]
-        for allele, seq in self.alleles.items():
+        ref_seq = self.get(ref_allele)
+        for allele, seq in self.items():
             if "E" in seq:
+                # replace it
                 self.alleles[allele] = "".join(
                     [seq[i] if seq[i] != "E" else ref_seq[i] for i in range(len(seq))]
                 )
@@ -752,11 +786,11 @@ class GenemsaBase:
         """
         # A mapping from gen name to nuc index
         nuc_name_index = {
-            b.name: i for i, b in enumerate(msa_nuc.blocks) if b.type == "exon"
+            b.name: i for i, b in enumerate(msa_nuc.list_blocks()) if b.type == "exon"
         }
 
         # check it's one-to-one mapping
-        exon_set = set(b.name for b in self.blocks if b.type == "exon")
+        exon_set = set(b.name for b in self.list_blocks() if b.type == "exon")
         if set(nuc_name_index.keys()) != exon_set:
             raise ValueError(
                 f"Cannot match blocks: " f"gen={exon_set} nuc={nuc_name_index.keys()}"
@@ -764,10 +798,14 @@ class GenemsaBase:
 
         # create new msa and make sure the order of alleles
         new_msa = self.copy(copy_allele=False)
-        new_msa.blocks = []
+        new_msa.set_blocks([])
         new_msa.index = []
-        new_msa.alleles = {name: "" for name in self.get_sequence_names()}
-        new_msa.alleles.update({name: "" for name in msa_nuc.get_sequence_names()})
+        new_msa.extend(
+            {
+                name: ""
+                for name in self.get_sequence_names() | msa_nuc.get_sequence_names()
+            }
+        )
 
         # allele names
         gen_names = set(self.get_sequence_names())
@@ -775,17 +813,19 @@ class GenemsaBase:
         exclude_name: set[str] = set()
 
         # block-wise
-        msas_gen = self.split()
-        msas_nuc = msa_nuc.split()
-        for i_gen in range(len(self.blocks)):
+        msas_gen = self.split_block()
+        msas_nuc = msa_nuc.split_block()
+        for i_gen, blk_gen in enumerate(self.blocks):
             # intron -> fill with E
-            if self.blocks[i_gen].name not in nuc_name_index:
+            if blk_gen.name not in nuc_name_index:
                 for name in nuc_names - gen_names:
-                    msas_gen[i_gen].append(name, "E" * self.blocks[i_gen].length)
-                new_msa += msas_gen[i_gen].remove(list(exclude_name))
+                    msas_gen[i_gen].append(name, "E" * blk_gen.length)
+                new_msa += msas_gen[i_gen].remove_allele(
+                    list(exclude_name), inplace=True
+                )
             # exon -> check before merge
             else:
-                i_nuc = nuc_name_index[self.blocks[i_gen].name]
+                i_nuc = nuc_name_index[blk_gen.name]
                 # content change or length change
                 if msas_nuc[i_nuc].get_length() != msas_gen[i_gen].get_length() or any(
                     msas_nuc[i_nuc].get(name) != msas_gen[i_gen].get(name)
@@ -808,46 +848,53 @@ class GenemsaBase:
                         self.logger.warning(
                             f"Some exon sequences in gen MSA "
                             f"is not same as in nuc MSA "
-                            f"{self.blocks[i_gen].name}: {diff_names}"
+                            f"{blk_gen.name}: {diff_names}"
                         )
-                        new_msa.remove(diff_names)
+                        new_msa.remove_allele(diff_names)
                         exclude_name.update(diff_names)
-                new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
+                new_msa += msas_nuc[i_nuc].remove_allele(list(exclude_name))
         return new_msa.reset_index()
 
     def assume_label(self: GenemsaType, seq_type: str = "gen") -> GenemsaType:
         """
         It will automatically generate the block's label
-        according on `seq_type`. (Inplace)
+        according on `seq_type`. (inplace)
 
         seq_type:
-
           * gen: 5UTR-exon1-intron1-exon2-...-exon9-3UTR
           * nuc: exon1-exon2-...-exon9
           * other: block1-block2-block3-...
-        """
-        if seq_type == "gen":
-            assert len(self.blocks) % 2 == 1 and len(self.blocks) >= 3
-            for i in range(len(self.blocks)):
-                if i % 2:
-                    self.blocks[i].type = "exon"
-                    self.blocks[i].name = f"exon{i // 2 + 1}"
-                else:
-                    self.blocks[i].type = "intron"
-                    self.blocks[i].name = f"intron{i // 2}"
 
-            self.blocks[0].type = "five_prime_UTR"
-            self.blocks[0].name = "5UTR"
-            self.blocks[-1].type = "three_prime_UTR"
-            self.blocks[-1].name = "3UTR"
+        block_length:
+            If manually assign the block_length, the old block will be cleared.
+        """
+        if not self.get_block_length():
+            raise ValueError("This msa doesn't have any blocks")
+
+        if seq_type == "gen":
+            assert self.get_block_length() % 2 == 1 and self.get_block_length() >= 3
+            for i, blk in enumerate(self.blocks):
+                if i == 0:
+                    blk.type = "five_prime_UTR"
+                    blk.name = "5UTR"
+                elif i == self.get_block_length() - 1:
+                    blk.type = "three_prime_UTR"
+                    blk.name = "3UTR"
+                elif i % 2:
+                    blk.type = "exon"
+                    blk.name = f"exon{i // 2 + 1}"
+                else:
+                    blk.type = "intron"
+                    blk.name = f"intron{i // 2}"
+
         elif seq_type == "nuc":
-            for i in range(len(self.blocks)):
-                self.blocks[i].type = "exon"
-                self.blocks[i].name = f"exon{i+1}"
+            for i, blk in enumerate(self.blocks):
+                blk.type = "exon"
+                blk.name = f"exon{i+1}"
         else:
-            for i in range(len(self.blocks)):
-                self.blocks[i].type = "gene_fragment"
-                self.blocks[i].name = f"block{i+1}"
+            for i, blk in enumerate(self.blocks):
+                blk.type = "gene_fragment"
+                blk.name = f"block{i+1}"
 
         # inplace to reset the index
         self.index = self.reset_index().index

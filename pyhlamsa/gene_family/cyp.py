@@ -3,7 +3,8 @@ from glob import glob
 from typing import cast
 from Bio import SeqIO
 
-from .family import Familymsa, TypeSet, GeneSet, Genemsa, BlockInfo
+from .family import Familymsa, TypeSet, GeneSet
+from ..gene import Genemsa, BlockInfo
 
 
 class CYPmsa(Familymsa):
@@ -42,7 +43,7 @@ class CYPmsa(Familymsa):
             pharmvar_folder = f"pharmvar-{version}"
         super().__init__(genes, filetype, db_folder=pharmvar_folder, version=version)
 
-    def _download_db(self, version=""):
+    def _download_db(self, version: str = "") -> None:
         """
         Download the CYP from https://www.pharmvar.org/download
         """
@@ -112,8 +113,8 @@ class CYPmsa(Familymsa):
         # CYP2D6*149  CYP2D6  rs59421388  NG_008376.4 8203    8203    G   A   substitution
         # CYP2D6*149  CYP2D6  rs59421388  NG_008376.4 8203    8203    G   A   substitution
         table_unique1 = filter(lambda i: i[3] != "REFERENCE", table)
-        table_unique2 = cast(tuple, map(tuple, table_unique1))  # list to tuple
-        table_unique = cast(list, map(list, set(list(table_unique2))))  # tuple to list
+        table_unique2 = cast(tuple, map(tuple, table_unique1))  # type: ignore
+        table_unique = cast(list, map(list, set(list(table_unique2))))  # type: ignore
 
         # Reconstruct msa from VCF variant
         # VCF type: substitution and deleteion, insertion

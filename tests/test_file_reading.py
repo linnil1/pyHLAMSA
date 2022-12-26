@@ -59,9 +59,13 @@ class TestMsaReadFromDB(unittest.TestCase):
 
         with TemporaryDirectory() as tmp_dir:
             msa.to_imgt_alignment(f"{tmp_dir}/A01_gen_copy.txt")
-            new_msa = Genemsa.read_alignment_txt(f"{tmp_dir}/A01_gen_copy.txt")
+            new_msa = Genemsa.read_alignment_txt(f"{tmp_dir}/A01_gen_copy.txt", seq_type="gen")
 
         self.assertEqual(msa.alleles, new_msa.alleles)
+        self.assertEqual([i.name for i in msa.list_blocks()],
+                         [i.name for i in new_msa.list_blocks()])
+        self.assertEqual([i.length for i in msa.list_blocks()],
+                         [i.length for i in new_msa.list_blocks()])
 
     def test_msa_read_write_nuc(self):
         # Test write IMGT alignment nuc
@@ -113,7 +117,7 @@ class TestMsaReadFromDB(unittest.TestCase):
         # compare result
         msa2 = Genemsa.read_alignment_txt(f"tests/A01_gen.txt")
         self.assertEqual(sorted(set(msa1.get_sequence_names()) | set(["A*01:11N"])), sorted(msa2.get_sequence_names()))
-        for m1, m2 in zip(msa1.split(), msa2.split()):
+        for m1, m2 in zip(msa1.split_block(), msa2.split_block()):
             for name in msa1.get_sequence_names():
                 self.assertEqual(msa1.get(name).replace('-', ''),
                                  msa2.get(name).replace('-', ''))

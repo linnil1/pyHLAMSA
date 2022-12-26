@@ -1,7 +1,8 @@
 from glob import glob
 from tempfile import TemporaryDirectory
 
-from .family import GeneSet, TypeSet, Familymsa, Genemsa
+from .family import GeneSet, TypeSet, Familymsa
+from ..gene import Genemsa
 
 
 class HLAmsa(Familymsa):
@@ -56,7 +57,7 @@ class HLAmsa(Familymsa):
             genes, filetype, db_folder=imgt_alignment_folder, version=version
         )
 
-    def _download_db(self, version: str = "Latest"):
+    def _download_db(self, version: str = "Latest") -> None:
         """
         Download the IMGTHLA alignments folder to `db_folder`
 
@@ -108,7 +109,7 @@ class HLAmsa(Familymsa):
         If both `gen` and `nuc` are given, it will merge them.
         """
         if "gen" in filetype:
-            msa_gen = Genemsa.read_alignment_txt(f"{self.db_folder}/{gene}_gen.txt")
+            msa_gen = Genemsa.read_imgt_alignment(f"{self.db_folder}/{gene}_gen.txt")
             msa_gen.gene_name = gene
             if gene != "P":
                 # P: special case: has even block
@@ -119,10 +120,12 @@ class HLAmsa(Familymsa):
         if "nuc" in filetype:
             # Special Case: DRB* nuc are in DRB_nuc.txt
             if gene.startswith("DRB"):
-                msa_nuc = Genemsa.read_alignment_txt(f"{self.db_folder}/DRB_nuc.txt")
+                msa_nuc = Genemsa.read_imgt_alignment(f"{self.db_folder}/DRB_nuc.txt")
                 msa_nuc = msa_nuc.select_allele(gene + ".*")
             else:
-                msa_nuc = Genemsa.read_alignment_txt(f"{self.db_folder}/{gene}_nuc.txt")
+                msa_nuc = Genemsa.read_imgt_alignment(
+                    f"{self.db_folder}/{gene}_nuc.txt"
+                )
 
             msa_nuc.gene_name = gene
             msa_nuc.assume_label("nuc")
@@ -137,7 +140,7 @@ class HLAmsa(Familymsa):
                 self.logger.warning(
                     f"Remove alleles doesn't exist in gen and nuc either: {diff_name}"
                 )
-            msa_gen = msa_gen.remove(diff_name)
+            msa_gen = msa_gen.remove_allele(diff_name)
 
             # merge
             msa_merged = msa_gen.merge_exon(msa_nuc)

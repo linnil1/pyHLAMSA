@@ -1,5 +1,4 @@
 from __future__ import annotations
-from io import IOBase
 from typing import TypeVar, Union, Any, TextIO, Type
 from itertools import chain
 import os
@@ -38,20 +37,6 @@ def getFileHandle(file: FileType) -> tuple[TextIO, bool]:
 def _table_to_string(data: list[list[Any]]) -> str:
     """Turn table into tab separted string"""
     return "\n".join("\t".join(map(str, items)) for items in data)
-
-
-def _cigar_to_pysam(cigar: list[tuple[str, int]]) -> list[tuple[int, int]]:
-    """
-    Translate cigar to cigar tuple defined in
-    https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
-    """
-    op_type_map = {
-        "M": 0,
-        "I": 1,
-        "D": 2,
-        "X": 8,
-    }
-    return list(map(lambda i: (op_type_map.get(i[0], 0), i[1]), cigar))
 
 
 def _block_to_gff(
@@ -133,7 +118,7 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
         if gap:
             return [
                 SeqRecord(Seq(seq.replace("E", "-")), id=allele, description="")
-                for allele, seq in self.alleles.items()
+                for allele, seq in self.items()
             ]
         else:
             return [
@@ -142,7 +127,7 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
                     id=allele,
                     description="",
                 )
-                for allele, seq in self.alleles.items()
+                for allele, seq in self.items()
             ]
 
     def to_fasta(
@@ -203,14 +188,14 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
         https://biopython.org/docs/1.75/api/Bio.Align.html#Bio.Align.MultipleSeqAlignment)
         """
         new_msa = cls.meta_from_json(bio_msa.annotations)
-        for seq in bio_msa:
-            new_msa.alleles[seq.id] = str(seq.seq)
-
         # Fix header (block and index)
         if not new_msa.blocks:
             new_msa.blocks = [BlockInfo(length=bio_msa.get_alignment_length())]
         if not new_msa.index:
             new_msa = new_msa.reset_index()
+        # Add sequences
+        for seq in bio_msa:
+            new_msa.append(seq.id, str(seq.seq))
         assert new_msa.get_length() == bio_msa.get_alignment_length()
         return new_msa
 
@@ -243,7 +228,7 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
 
         # write bam file
         with pysam.AlignmentFile(fname, "wb", header=header) as outf:
-            for allele, seq in self.alleles.items():
+            for allele, seq in self.items():
                 # skip
                 if not save_ref and allele == ref_allele:
                     continue
@@ -252,7 +237,7 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
                 a = pysam.AlignedSegment()
                 a.query_name = allele
                 a.query_sequence = seq.replace("E", "").replace("-", "")
-                a.cigar = _cigar_to_pysam(self.get_cigar(allele, ref_allele))  # type: ignore
+                a.cigar = cigar.cigar_to_pysam(self.get_cigar(allele, ref_allele))  # type: ignore
 
                 # set to default
                 a.mapping_quality = 60
@@ -294,7 +279,7 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
               Note that this is not very fast.
         """
         # TODO: should I save strand == '-' in model?
-        ref_allele, ref_seq = self.get_allele_or_error(ref_allele)
+        ref_allele = self.get_allele_or_error(ref_allele)[0]
 
         # labels
         if not all(b.type for b in self.blocks):
@@ -326,7 +311,6 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
         f_gff.write(_table_to_string(records))
         if require_close:
             f_gff.close()
-        return None
 
     def save_msa(self, file_fasta: FileType, file_json: FileType) -> None:
         """Save Genemsa to pyhlamsa format (fasta and json)"""
@@ -444,15 +428,15 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
         e.g. IMGT/alignments/A_gen.txt
         """
         # Read all alleles
-        Genemsa = cls
         alleles = alignment.parse_alignment_txt(fname)
-        new_msa = Genemsa("Unnamed")
-        new_msa.alleles = {name: seq.replace("|", "") for name, seq in alleles.items()}
+        ref_seq = next(iter(alleles.values()))
 
+        Genemsa = cls
+        new_msa = Genemsa("Unnamed")
         # Use first sequence as reference
-        ref_seq = list(alleles.values())[0]
-        new_msa.blocks = [BlockInfo(length=len(seq)) for seq in ref_seq.split("|")]
+        new_msa.set_blocks([len(seq) for seq in ref_seq.split("|")])
         new_msa.assume_label(seq_type)
+        new_msa.extend({name: seq.replace("|", "") for name, seq in alleles.items()})
         return new_msa
 
     def to_imgt_alignment(
@@ -474,7 +458,7 @@ class GenemsaIO(GenemsaTextOp, GenemsaBase):
         """
         # This function should be located in io_operation
         new_msa = self._calc_imgt_alignment_msa()
-        start = new_msa.get_block_position(index_start_from)
+        start = new_msa.get_block_interval(index_start_from)[0]
 
         # The position is calculated by reference sequence not MSA itself
         ref_no_gap_pos = -1

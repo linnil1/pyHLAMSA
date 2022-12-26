@@ -366,8 +366,9 @@ You can fill it by consensus_seq shown before.
 * [x] Add command line usage
 * [x] Remove msaio
 * [x] Rewrite gene Mixins (Too complicated)
-* [ ] Fix selction and removeing allele by regex
-* [ ] ACGT order
+* [x] Fix selction and removeing allele by regex
+* [x] Change to ACGT order
+* [x] Rename: split -> split_block, remove -> remove_allele
 * [ ] CDS != exon, (rename it?)
 
 
@@ -424,9 +425,9 @@ I use python-lagacy 0.18 because `inherited_members` is not support now
 ## Test
 ``` bash
 pip3 install -e .
-pip3 install pytest pycodestyle mypy
+pip3 install pytest black mypy
 pytest
-pycodestyle pyhlamsa
+black pyhlamsa
 mypy pyhlamsa
 ```
 
@@ -465,7 +466,6 @@ Performance issue is not my bottle-neck yet.
 See [https://linnil1.github.io/pyHLAMSA](See https://linnil1.github.io/pyHLAMSA)
 
 ::: pyhlamsa.gene.genemsa
-::: pyhlamsa
 ::: pyhlamsa.gene_family.hla
 ::: pyhlamsa.gene_family.hla_ex
 ::: pyhlamsa.gene_family.kir

@@ -80,6 +80,20 @@ class TestMsaMainFunction(unittest.TestCase):
         for name in newmsa.get_sequence_names():
             self.assertEqual(newmsa.get(name), self.input_allele[name].replace("|", ""))
 
+        # create new MSA
+        msa = Genemsa("test1")
+        msa.set_blocks([3,7])
+        msa.assume_label("other")
+        msa.append("A", "GGAGGA--CA")
+        msa.append("B", "GGGGGAA--A")
+
+        # test print no error occur
+        msa.print_alignment()
+        msa.print_alignment_diff()
+        msa.print_snv()
+        msa.index[1].pos = 9
+        msa.print_alignment_diff()
+
     def test_shrink(self):
         # before shrink
         seq = self.input_allele['a1']
@@ -214,7 +228,7 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(len(self.msa), n + 2)
 
         # remove
-        self.msa.remove(["test", "test2"])
+        self.msa = self.msa.remove_allele(["test", "test2"])
         self.assertEqual(len(self.msa), n)
 
         # fail to merge msa (extend)
@@ -232,7 +246,7 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(len(self.msa), n + 1)
 
         # cleanup
-        self.msa.remove("test3")
+        self.msa = self.msa.remove_allele("test3")
         self.assertEqual(len(self.msa), n)
 
     def test_reverse(self):
@@ -328,7 +342,7 @@ class TestMsaMainFunction(unittest.TestCase):
         pass
 
     def test_split(self):
-        msa_blocks = self.msa.split()
+        msa_blocks = self.msa.split_block()
         self.assertEqual(self.input_allele['a1'].count("|") + 1, len(msa_blocks))
         self.assertEqual([i.get_length() for i in msa_blocks], list(map(len, self.input_allele['a1'].split("|"))))
 
@@ -337,7 +351,7 @@ class TestMsaMainFunction(unittest.TestCase):
             self.assertEqual(len(newmsa), len(self.input_allele))
 
     def test_concat(self):
-        s = self.msa.split()
+        s = self.msa.split_block()
         newmsa = s[0]
         for i in s[1:]:
             newmsa += i
@@ -348,7 +362,7 @@ class TestMsaMainFunction(unittest.TestCase):
         self.assertEqual(list(range(len(self.input_allele['a1'].replace("|", "")))),
                          [i.pos for i in self.msa.index])
         # block
-        for msa in self.msa.split():
+        for msa in self.msa.split_block():
             for ind in msa.index:
                 self.assertEqual(ind.name, msa.blocks[0].name)
 
@@ -437,7 +451,6 @@ class TestMsaMainFunction(unittest.TestCase):
             self.assertEqual((pos[i], pos[i + 1]), self.msa.get_block_interval(i))
             self.assertEqual(self.msa.get_block_interval(i), self.msa.get_block_interval(self.msa.blocks[i]))
             self.assertEqual(self.msa.get_block_interval(i), self.msa.get_block_interval(self.msa.blocks[i].name))
-            self.assertEqual(pos[i], self.msa.get_block_position(i))
 
 
 class TestMsaExonOnly(unittest.TestCase):

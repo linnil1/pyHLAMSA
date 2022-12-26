@@ -17,13 +17,20 @@ class Genemsa(
     """
     Genemsa: core object in pyhlamsa
 
-    It can do many msa operation while
-    automatically updating index (column position) and block(intron exon region).
+    More details written in GenemsaBase
 
     Basic usage:
     ``` python
     from pyhlamsa import Genemsa
+    msa = Genemsa("test1")
+    msa.set_blocks([3,7])
+    msa.assume_label("other")
+    msa.append("A", "GGAGGA--CA")
+    msa.append("B", "GGGGGAA--A")
+    msa.print_alignment()
+                      1   4     9
+                      |   |     |
+    A                 GGA|GGA--|CA
+    B                 GGG|GGAA-|-A
     ```
     """
-
-    pass

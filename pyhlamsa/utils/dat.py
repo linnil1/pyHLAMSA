@@ -11,9 +11,10 @@ from ..gene import Genemsa, BlockInfo
 
 
 logger = logging.getLogger(__name__)
+DatType = dict[str, list[dict[str, Any]]]
 
 
-def read_dat_block(file_dat: str) -> dict:
+def read_dat_block(file_dat: str) -> DatType:
     """
     Read block information in .dat file
 
@@ -27,7 +28,7 @@ def read_dat_block(file_dat: str) -> dict:
     """
     now_allele = ""
     read_next = False
-    data: dict[str, list[dict[str, Any]]] = {}
+    data: DatType = {}
     with open(file_dat) as f_dat:
         for line in f_dat:
             # read allele name
@@ -63,11 +64,11 @@ def read_dat_block(file_dat: str) -> dict:
 
     # make sure the order start and end position in dat are correct
     for allele in data:
-        data[allele] = list(sorted(data[allele], key=lambda a: a["start"]))
+        data[allele] = list(sorted(data[allele], key=lambda a: a["start"]))  # type: ignore
     return data
 
 
-def apply_dat_info_on_msa(msa: Genemsa, dat: dict, seq_type="gen") -> Genemsa:
+def apply_dat_info_on_msa(msa: Genemsa, dat: DatType, seq_type: str = "gen") -> Genemsa:
     """
     Apply the dat information to MSA to cut the exon, intron position.
 
@@ -99,7 +100,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: dict, seq_type="gen") -> Genemsa:
             continue
 
         # make sure the intron/exon order
-        dat[allele_name] = sorted(dat[allele_name], key=lambda i: i["start"])
+        dat[allele_name] = sorted(dat[allele_name], key=lambda i: i["start"])  # type: ignore
 
         # rename UTR
         if "UTR" == dat[allele_name][0]["name"]:
