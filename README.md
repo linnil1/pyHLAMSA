@@ -424,9 +424,9 @@ I use python-lagacy 0.18 because `inherited_members` is not support now
 ## Test
 ``` bash
 pip3 install -e .
-pip3 install pytest pycodestyle mypy
+pip3 install pytest black mypy
 pytest
-pycodestyle pyhlamsa
+black pyhlamsa
 mypy pyhlamsa
 ```
 
@@ -465,7 +465,6 @@ Performance issue is not my bottle-neck yet.
 See [https://linnil1.github.io/pyHLAMSA](See https://linnil1.github.io/pyHLAMSA)
 
 ::: pyhlamsa.gene.genemsa
-::: pyhlamsa
 ::: pyhlamsa.gene_family.hla
 ::: pyhlamsa.gene_family.hla_ex
 ::: pyhlamsa.gene_family.kir

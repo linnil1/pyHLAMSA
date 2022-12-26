@@ -82,15 +82,15 @@ class GenemsaTextOp(GenemsaBase):
         ```
 
         Rules:
-            0. Calculate where to print sequences
-            1. Start with ' {allele_name} '
-            2. Split every different blocks
-            3. Break every k bases
-            4. Position text and it's indicator exists when line or block start or position is not continued
-            5. index showing can be forcely turn on or turn off, left-aligned and right-aligned
-            6. Page should but over the screen
-            7. Index name can be written in header (e.g. gDNA)
-            8. One or more index can be used and the first index is the main index
+          0. Calculate where to print sequences
+          1. Start with ' {allele_name} '
+          2. Split every different blocks
+          3. Break every k bases
+          4. Position text and it's indicator exists when line or block start or position is not continued
+          5. index showing can be forcely turn on or turn off, left-aligned and right-aligned
+          6. Page should but over the screen
+          7. Index name can be written in header (e.g. gDNA)
+          8. One or more index can be used and the first index is the main index
         """
         # init
         if len(index) == 0:
@@ -268,9 +268,9 @@ class GenemsaTextOp(GenemsaBase):
         To the things in step3 and step4.
 
         Args:
-            kwargs_format:
-              * show_position_set(set[int]): Force to show the position
-              * max_page_width(int): The max width of each line (Default = 140char)
+          kwargs_format:
+            * show_position_set(set[int]): Force to show the position
+            * max_page_width(int): The max width of each line (Default = 140char)
         """
         if not self:
             raise ValueError("MSA is empty")
@@ -281,8 +281,10 @@ class GenemsaTextOp(GenemsaBase):
         """
         Print the MSA
 
-        Note: The index shown on output string is 1-base absolute position.
-        If you want to print in relative position, use `.reset_index()` first.
+        Note that the index shown on output header is 1-base absolute position.
+
+        Also, the index is absolute index, if you you want continuous positiont,
+        use `.reset_index()` first.
 
         * `*` indicate deletion
         * `ATCG` indicate the SNV
@@ -291,7 +293,7 @@ class GenemsaTextOp(GenemsaBase):
 
         Examples:
           >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
-          >>> print("\n".join(a.format_alignment()))
+          >>> print(''.join(a.format_alignment()))
           # or simply use
           >>> a.print_alignment()
                               3166                                  3342
@@ -319,6 +321,7 @@ class GenemsaTextOp(GenemsaBase):
           str: A formatted string
 
         Examples:
+          ```
           >>> a = msa.select_allele(r"A\\*.*:01:01:01$").select_exon([6,7])
           >>> print(a.format_alignment_diff())
                               3166                                  3342
@@ -331,6 +334,7 @@ class GenemsaTextOp(GenemsaBase):
              A*25:01:01:01       ---------- ------C--- T--------- ---| ------- -------
              A*26:01:01:01       ---------- ------C--- T--------- ---| ------- -------
              A*29:01:01:01       ---------- ------C--- T--------- ---| ------- -------
+          ```
         """
         new_msa = self._calc_diff_msa(ref_allele)
         new_msa.print_alignment(**kwargs_format)
@@ -396,13 +400,13 @@ class GenemsaTextOp(GenemsaBase):
           str: A formatted string
 
         Examples:
-          ```
+            ```
              gDNA                    3022
                                      |
              HLA-A*03:02        AGAGAAAAAT
              HLA-A*01:40        -----G----
              HLA-A*03:20        -----G----
-          ```
+            ```
         """
         if isinstance(pos, int):
             want_pos = [pos]

@@ -1,7 +1,7 @@
 import os
 import logging
 import subprocess
-from typing import Iterable, Union
+from typing import Iterable, Union, Iterator, Any
 
 from ..gene import Genemsa, BlockInfo
 
@@ -29,8 +29,8 @@ class Familymsa:
         self,
         genes: GeneSet = None,
         filetype: TypeSet = ["gen", "nuc"],
-        db_folder="dbpath",
-        version="latest",
+        db_folder: str = "dbpath",
+        version: str = "latest",
     ):
         self.logger = logging.getLogger(__name__)
         self.db_folder = db_folder
@@ -60,15 +60,15 @@ class Familymsa:
         """Get specific gene's msa"""
         return self.genes[index]
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[str]:
         """Iter gene name like iter(dict)"""
         return iter(self.genes)
 
-    def items(self):
+    def items(self) -> Iterable[tuple[str, Genemsa]]:
         """list gene name and msa like dict.items()"""
         return self.genes.items()
 
-    def _download(self, version: str):
+    def _download(self, version: str) -> None:
         """Check before running download"""
         if not os.path.exists(self.db_folder):
             self._download_db(version=version)
@@ -77,11 +77,11 @@ class Familymsa:
         else:
             self.logger.info(f"{self.db_folder} exists")
 
-    def _download_db(self, version: str):
+    def _download_db(self, version: str) -> None:
         """Abstract method: code for downloading your db"""
         raise NotImplementedError
 
-    def _run_shell(self, *args, cwd=None):
+    def _run_shell(self, *args: Any, cwd: Union[str, None] = None) -> None:
         """Run shell code"""
         self.logger.debug("Run " + " ".join(args))
         subprocess.run(args, cwd=cwd, check=True)

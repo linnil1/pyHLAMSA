@@ -1,7 +1,8 @@
 from glob import glob
 from tempfile import TemporaryDirectory
 
-from .family import GeneSet, TypeSet, Familymsa, Genemsa
+from .family import GeneSet, TypeSet, Familymsa
+from ..gene import Genemsa
 
 
 class HLAmsa(Familymsa):
@@ -56,7 +57,7 @@ class HLAmsa(Familymsa):
             genes, filetype, db_folder=imgt_alignment_folder, version=version
         )
 
-    def _download_db(self, version: str = "Latest"):
+    def _download_db(self, version: str = "Latest") -> None:
         """
         Download the IMGTHLA alignments folder to `db_folder`
 
@@ -137,7 +138,7 @@ class HLAmsa(Familymsa):
                 self.logger.warning(
                     f"Remove alleles doesn't exist in gen and nuc either: {diff_name}"
                 )
-            msa_gen = msa_gen.remove(diff_name)
+            msa_gen = msa_gen.remove_allele(diff_name)
 
             # merge
             msa_merged = msa_gen.merge_exon(msa_nuc)

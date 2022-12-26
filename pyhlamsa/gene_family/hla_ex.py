@@ -1,7 +1,8 @@
 from glob import glob
 import subprocess
 
-from .family import Familymsa, Genemsa, GeneSet, TypeSet
+from .family import Familymsa, GeneSet, TypeSet
+from ..gene import Genemsa
 from ..utils import dat
 
 
@@ -52,7 +53,7 @@ class HLAmsaEX(Familymsa):
             imgt_folder = f"IMGT_v{version}"
         super().__init__(genes, filetype, db_folder=imgt_folder, version=version)
 
-    def _download_db(self, version: str = "Latest"):
+    def _download_db(self, version: str = "Latest") -> None:
         """
         Download the IMGT/HLA msf and hla.dat to folder `imgt_folder`
         """
@@ -126,7 +127,7 @@ class HLAmsaEX(Familymsa):
                 self.logger.warning(
                     f"Remove alleles existed in gen but not in nuc: {diff_name}"
                 )
-            msa_gen = msa_gen.remove(diff_name)
+            msa_gen = msa_gen.remove_allele(diff_name)
 
             # merge
             msa_merged = msa_gen.merge_exon(msa_nuc)

@@ -56,22 +56,23 @@ class GenemsaBase:
     The MSA has additional block-level infomations,
     which is useful for integrating dna and rna data.
 
-    ```
-    Block-level:
-    name           intron1  exon1  intron2
-    region         <-------><-----><------------>
+    The structre of the msa looks like:
+        ```
+        Block-level:
+        name           intron1  exon1  intron2
+        region         <-------><-----><------------>
 
-    Index-level:
-    (column-level) 123456789012345678901234567890
+        Index-level:
+        (column-level) 123456789012345678901234567890
 
-    Sequence-level:
-    allele_name1   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
-    allele_name2   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+        Sequence-level:
+        allele_name1   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+        allele_name2   ATTTTTCTTTTTTGTTTTTTATTTTTTCTT
+        ```
 
     The sequence has basic bases, "A", "T", "C", "G" and "-" for gap,
     "E" stands for error.
     (Mostly because some sequence has exon part only, so I fill the intron with E.)
-    ```
     """
 
     def __init__(
@@ -85,7 +86,7 @@ class GenemsaBase:
         Attributes:
             gene_name: The name of the gene
 
-            alleles MSA data.
+            alleles: MSA data.
 
                 Allele name as the key and the sequence string as the value.
 

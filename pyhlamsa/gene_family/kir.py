@@ -1,6 +1,7 @@
 import os
 from glob import glob
-from .family import GeneSet, TypeSet, Familymsa, Genemsa
+from .family import GeneSet, TypeSet, Familymsa
+from ..gene import Genemsa
 from ..utils import dat
 
 
@@ -50,7 +51,7 @@ class KIRmsa(Familymsa):
             ipd_folder = f"KIR_v{version}"
         super().__init__(genes, filetype, db_folder=ipd_folder, version=version)
 
-    def _download_db(self, version: str = "Latest"):
+    def _download_db(self, version: str = "Latest") -> None:
         """
         Download the KIR to `IPDKIR`
         """
@@ -114,7 +115,7 @@ class KIRmsa(Familymsa):
                 self.logger.warning(
                     f"Remove alleles doesn't exist in gen and nuc either: {diff_name}"
                 )
-            msa_gen = msa_gen.remove(diff_name)
+            msa_gen = msa_gen.remove_allele(diff_name)
 
             # specical case
             # exon 3 is pseudo exon

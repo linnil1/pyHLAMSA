@@ -20,11 +20,11 @@ class VcfVariant:
     alt: str
     chrom: str = ""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         assert "-" not in self.ref
         assert "-" not in self.alt
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         # Ignore chrom
         return hash((self.pos, self.ref, self.alt))
 
