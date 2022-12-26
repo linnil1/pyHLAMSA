@@ -267,24 +267,34 @@ class GenemsaBase:
         self.alleles.update(msa.alleles)
         return self
 
-    def remove(self: GenemsaType, name: Union[str, Iterable[str]]) -> GenemsaType:
+    def remove_allele(
+        self: GenemsaType, query: Union[str, Iterable[str]], inplace: bool = False
+    ) -> GenemsaType:
         """
-        Remove a/some sequence from MSA (inplace)
+        Remove allele sequences by regex(when query is string)
+        or by exactly deleting (when query is a list)
         """
-        if isinstance(name, str):
-            del self.alleles[name]
-        elif isinstance(name, (list, tuple)):
-            for n in name:
-                del self.alleles[n]
-        return self
-        # else
-        raise NotImplementedError
+        if inplace:
+            new_msa = self
+        else:
+            new_msa = self.copy()
+        if isinstance(query, str):
+            for allele, seq in self.items():
+                if re.match(query, allele):
+                    del new_msa.alleles[allele]
+        elif isinstance(query, (list, tuple)):
+            for allele in query:
+                del new_msa.alleles[allele]
+        else:
+            raise NotImplementedError
+        return new_msa
 
     def select_allele(
         self: GenemsaType, query: Union[str, Iterable[str]]
     ) -> GenemsaType:
         """
-        Select allele name by regex or list of name
+        Select allele name by regex(when query is string)
+        or by exactly selecting (when query is a list)
 
         Examples:
           >>> # select allele name start with A*01:01
@@ -294,11 +304,13 @@ class GenemsaBase:
         """
         new_msa = self.copy(copy_allele=False)
         if isinstance(query, str):
-            new_msa.alleles = {
-                allele: seq for allele, seq in self.items() if re.match(query, allele)
-            }
+            new_msa.extend(
+                {allele: seq for allele, seq in self.items() if re.match(query, allele)}
+            )
         elif isinstance(query, Iterable):
-            new_msa.alleles = {name: self.alleles[name] for name in query}
+            new_msa.extend({allele: self.get(allele) for allele in query})
+        else:
+            raise NotImplementedError
         return new_msa
 
     # sequence functions
@@ -350,7 +362,7 @@ class GenemsaBase:
         freqs = []
         for i in zip(*self.alleles.values()):
             freqs.append(
-                [i.count("A"), i.count("T"), i.count("C"), i.count("G"), i.count("-")]
+                [i.count("A"), i.count("C"), i.count("G"), i.count("T"), i.count("-")]
             )
         return freqs
 
@@ -386,7 +398,7 @@ class GenemsaBase:
             max_ind = [max(range(4), key=lambda i: f[i]) for f in freqs]
         else:
             max_ind = [max(range(5), key=lambda i: f[i]) for f in freqs]
-        return "".join(map(lambda i: "ATCG-"[i], max_ind))
+        return "".join(map(lambda i: "ACGT-"[i], max_ind))
 
     def get_variantion_base(self) -> list[int]:
         """
@@ -548,7 +560,7 @@ class GenemsaBase:
                 raise IndexError(f"{block} is not exon: input={i}")
         return self.select_block(exon_list)
 
-    def split(self: GenemsaType) -> list[GenemsaType]:
+    def split_block(self: GenemsaType) -> list[GenemsaType]:
         """Split the msa by blocks"""
         return [self.select_block([i]) for i in range(len(self.blocks))]
 
@@ -568,10 +580,8 @@ class GenemsaBase:
         new_msa.index = [new_msa.index[i] for i in range(len(masks)) if masks[i]]
 
         # remove base in allele
-        for allele, seq in self.alleles.items():
-            new_msa.alleles[allele] = "".join(
-                seq[i] for i in range(len(seq)) if masks[i]
-            )
+        for allele, seq in self.items():
+            new_msa.append(allele, "".join(seq[i] for i in range(len(seq)) if masks[i]))
 
         return new_msa
 
@@ -776,14 +786,16 @@ class GenemsaBase:
         exclude_name: set[str] = set()
 
         # block-wise
-        msas_gen = self.split()
-        msas_nuc = msa_nuc.split()
+        msas_gen = self.split_block()
+        msas_nuc = msa_nuc.split_block()
         for i_gen in range(len(self.blocks)):
             # intron -> fill with E
             if self.blocks[i_gen].name not in nuc_name_index:
                 for name in nuc_names - gen_names:
                     msas_gen[i_gen].append(name, "E" * self.blocks[i_gen].length)
-                new_msa += msas_gen[i_gen].remove(list(exclude_name))
+                new_msa += msas_gen[i_gen].remove_allele(
+                    list(exclude_name), inplace=True
+                )
             # exon -> check before merge
             else:
                 i_nuc = nuc_name_index[self.blocks[i_gen].name]
@@ -811,22 +823,31 @@ class GenemsaBase:
                             f"is not same as in nuc MSA "
                             f"{self.blocks[i_gen].name}: {diff_names}"
                         )
-                        new_msa.remove(diff_names)
+                        new_msa.remove_allele(diff_names, inplace=True)
                         exclude_name.update(diff_names)
-                new_msa += msas_nuc[i_nuc].remove(list(exclude_name))
+                new_msa += msas_nuc[i_nuc].remove_allele(
+                    list(exclude_name), inplace=True
+                )
         return new_msa.reset_index()
 
-    def assume_label(self: GenemsaType, seq_type: str = "gen") -> GenemsaType:
+    def assume_label(
+        self: GenemsaType, seq_type: str = "gen", blocks_length: list[int] = []
+    ) -> GenemsaType:
         """
         It will automatically generate the block's label
         according on `seq_type`. (Inplace)
 
         seq_type:
-
           * gen: 5UTR-exon1-intron1-exon2-...-exon9-3UTR
           * nuc: exon1-exon2-...-exon9
           * other: block1-block2-block3-...
+
+        block_length:
+            If manually assign the block_length, the old block will be cleared.
         """
+        if blocks_length:
+            self.blocks = [BlockInfo(length=i) for i in blocks_length]
+
         if seq_type == "gen":
             assert len(self.blocks) % 2 == 1 and len(self.blocks) >= 3
             for i in range(len(self.blocks)):

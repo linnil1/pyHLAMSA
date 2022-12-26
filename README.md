@@ -366,8 +366,9 @@ You can fill it by consensus_seq shown before.
 * [x] Add command line usage
 * [x] Remove msaio
 * [x] Rewrite gene Mixins (Too complicated)
-* [ ] Fix selction and removeing allele by regex
-* [ ] ACGT order
+* [x] Fix selction and removeing allele by regex
+* [x] Change to ACGT order
+* [x] Rename: split -> split_block, remove -> remove_allele
 * [ ] CDS != exon, (rename it?)
 
 
