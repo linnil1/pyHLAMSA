@@ -82,7 +82,8 @@ class TestMsaMainFunction(unittest.TestCase):
 
         # create new MSA
         msa = Genemsa("test1")
-        msa.assume_label("other", blocks_length=[3,7])
+        msa.set_blocks([3,7])
+        msa.assume_label("other")
         msa.append("A", "GGAGGA--CA")
         msa.append("B", "GGGGGAA--A")
 
@@ -450,7 +451,6 @@ class TestMsaMainFunction(unittest.TestCase):
             self.assertEqual((pos[i], pos[i + 1]), self.msa.get_block_interval(i))
             self.assertEqual(self.msa.get_block_interval(i), self.msa.get_block_interval(self.msa.blocks[i]))
             self.assertEqual(self.msa.get_block_interval(i), self.msa.get_block_interval(self.msa.blocks[i].name))
-            self.assertEqual(pos[i], self.msa.get_block_position(i))
 
 
 class TestMsaExonOnly(unittest.TestCase):

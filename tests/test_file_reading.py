@@ -59,9 +59,13 @@ class TestMsaReadFromDB(unittest.TestCase):
 
         with TemporaryDirectory() as tmp_dir:
             msa.to_imgt_alignment(f"{tmp_dir}/A01_gen_copy.txt")
-            new_msa = Genemsa.read_alignment_txt(f"{tmp_dir}/A01_gen_copy.txt")
+            new_msa = Genemsa.read_alignment_txt(f"{tmp_dir}/A01_gen_copy.txt", seq_type="gen")
 
         self.assertEqual(msa.alleles, new_msa.alleles)
+        self.assertEqual([i.name for i in msa.list_blocks()],
+                         [i.name for i in new_msa.list_blocks()])
+        self.assertEqual([i.length for i in msa.list_blocks()],
+                         [i.length for i in new_msa.list_blocks()])
 
     def test_msa_read_write_nuc(self):
         # Test write IMGT alignment nuc

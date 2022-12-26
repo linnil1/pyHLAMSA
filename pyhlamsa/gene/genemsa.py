@@ -23,7 +23,8 @@ class Genemsa(
     ``` python
     from pyhlamsa import Genemsa
     msa = Genemsa("test1")
-    msa.assume_label("gen", blocks_length=[3,5,1])
+    msa.set_blocks([3,7])
+    msa.assume_label("other")
     msa.append("A", "GGAGGA--CA")
     msa.append("B", "GGGGGAA--A")
     msa.print_alignment()
@@ -33,5 +34,3 @@ class Genemsa(
     B                 GGG|GGAA-|-A
     ```
     """
-
-    pass

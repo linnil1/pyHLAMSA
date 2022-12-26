@@ -247,7 +247,7 @@ class GenemsaTextOp(GenemsaBase):
             yield output_str
 
         # allele line
-        for name, seq in self.alleles.items():
+        for name, seq in self.items():
             output_str = ""
             for column in page:
                 if column.type == "char":
@@ -348,7 +348,7 @@ class GenemsaTextOp(GenemsaBase):
 
         # use new msa object to save sequences
         new_msa = self.copy(copy_allele=False)
-        new_msa.alleles = {ref_allele: ref_seq.replace("-", "*")}
+        new_msa.append(ref_allele, ref_seq.replace("-", "*"))
         for allele, seq in self.items():
             if allele == ref_allele:
                 continue
@@ -360,7 +360,7 @@ class GenemsaTextOp(GenemsaBase):
                     new_seq += "-"
                 else:
                     new_seq += seq[i]
-            new_msa.alleles[allele] = new_seq
+            new_msa.append(allele, new_seq)
         return new_msa
 
     def _calc_center_msa(
@@ -508,12 +508,11 @@ class GenemsaTextOp(GenemsaBase):
 
         # use new msa object to save sequences
         new_msa = self.copy(copy_allele=False)
-        new_msa.alleles = {ref_allele: ref_seq.replace("-", ".")}
+        new_msa.append(ref_allele, ref_seq.replace("-", "."))
         for allele, seq in self.items():
             if allele == ref_allele:
                 continue
             seq_list = list(seq)
-            new_seq = ""
             for i in range(len(seq)):
                 if seq[i] == "-" and ref_seq[i] == "-":
                     seq_list[i] = "."
@@ -521,5 +520,5 @@ class GenemsaTextOp(GenemsaBase):
                     seq_list[i] = "*"
                 elif seq[i] == ref_seq[i]:
                     seq_list[i] = "-"
-            new_msa.alleles[allele] = "".join(seq_list)
+            new_msa.append(allele, "".join(seq_list))
         return new_msa

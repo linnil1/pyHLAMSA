@@ -3,7 +3,7 @@ import logging
 import subprocess
 from typing import Iterable, Union, Iterator, Any
 
-from ..gene import Genemsa, BlockInfo
+from ..gene import Genemsa
 
 
 GeneSet = Union[str, Iterable[str], None]

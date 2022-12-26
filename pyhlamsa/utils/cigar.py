@@ -49,3 +49,17 @@ def calculate_cigar(ref: str, seq: str) -> list[tuple[str, int]]:
         cigar.append((op_type, count))
 
     return cigar
+
+
+def cigar_to_pysam(cigar: list[tuple[str, int]]) -> list[tuple[int, int]]:
+    """
+    Translate cigar to cigar tuple defined in
+    https://pysam.readthedocs.io/en/latest/api.html#pysam.AlignedSegment.cigartuples
+    """
+    op_type_map = {
+        "M": 0,
+        "I": 1,
+        "D": 2,
+        "X": 8,
+    }
+    return list(map(lambda i: (op_type_map.get(i[0], 0), i[1]), cigar))
