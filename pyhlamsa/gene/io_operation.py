@@ -15,7 +15,7 @@ from pysam import bcftools
 
 from .base import GenemsaBase, BlockInfo, IndexInfo
 from .text_operation import GenemsaTextOp
-from ..utils import vcf, alignment
+from ..utils import vcf, alignment, cigar
 
 
 logger = logging.getLogger(__name__)

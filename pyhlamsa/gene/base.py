@@ -287,7 +287,7 @@ class GenemsaBase:
             for allele in list(self):
                 if re.match(query, allele):
                     del new_msa.alleles[allele]
-        elif isinstance(query, (list, tuple)):
+        elif isinstance(query, Iterable):
             for allele in query:
                 del new_msa.alleles[allele]
         else:
