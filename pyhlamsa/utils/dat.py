@@ -85,7 +85,7 @@ def apply_dat_info_on_msa(msa: Genemsa, dat: DatType, seq_type: str = "gen") -> 
     """
     if not len(msa):
         raise ValueError("MSA is empty")
-    msf_length = len(msa.get_reference()[1])
+    msf_length = msa.get_length()
     dat = copy.deepcopy(dat)
 
     # block_cord save the min and max possible position of intron and exon
