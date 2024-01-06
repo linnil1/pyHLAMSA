@@ -132,7 +132,6 @@ class KIRmsa(Familymsa):
                 "KIR2DS5",
             ]
             if gene in gene_has_pseudo_exon3:
-
                 exon3 = msa_gen.select_block([5])
                 for name in set(msa_nuc) - set(msa_gen):
                     exon3.append(name, "-" * exon3.get_length())

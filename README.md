@@ -1,6 +1,6 @@
-# pyHLAMSA: Python Utility for Gene Sequence Alignment
+# pyHLAMSA: Python Utility for Star Alleles Sequence Alignment
 
-pyHLAMSA is a Python tool tailored for handling Multiple Sequence Alignments (MSA) of genes with star alleles,
+pyHLAMSA is a Python tool for handling Multiple Sequence Alignments (MSA) of genes with star alleles,
 specifically focusing on IMGT-HLA, IMGT-KIR, and CYP datasets. Key features include:
 
 * **MSA Download:** Fetch MSAs for latest/specific versions.
@@ -378,6 +378,7 @@ You can fill it by consensus_seq shown before.
 * [x] Change to ACGT order
 * [x] Rename: split -> split_block, remove -> remove_allele
 * [ ] CDS != exon, (rename it?)
+* [ ] Rename: pyHLAMSA -> py_star_msa (MAYBE, becuase the project is originally written for HLA)
 
 
 ## Requirement

@@ -173,7 +173,14 @@ class GenemsaBase:
         return self.alleles[allele]
 
     def contains(self, allele: str) -> bool:
-        """Implement `in` operator"""
+        """
+        Implement `in` operator
+
+        Example:
+            >>> msa_a = HLAmsa("A")["A"]
+            >>> "A*01:01:01:01" in msa_a
+            True
+        """
         return allele in self.alleles
 
     def __len__(self) -> int:
